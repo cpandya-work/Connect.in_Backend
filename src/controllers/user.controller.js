@@ -8,7 +8,18 @@ const mongoose = require('mongoose');
 
 const getProfile = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user._id).populate('userDetailId');
-  success(res, { profile: user.userDetailId || null });
+  
+  if (!user.userDetailId) {
+    return success(res, { profile: null });
+  }
+  
+  const profile = {
+    phoneNumber: user.phoneNumber,
+    email: user.userDetailId.email,
+    ...user.userDetailId.toObject(),
+  };
+  
+  success(res, { profile });
 });
 
 const createProfile = asyncHandler(async (req, res) => {
@@ -26,8 +37,15 @@ const createProfile = asyncHandler(async (req, res) => {
   });
 
   await User.findByIdAndUpdate(req.user._id, { userDetailId: detail._id });
+  
+  const user = await User.findById(req.user._id);
+  const profile = {
+    phoneNumber: user.phoneNumber,
+    email: detail.email,
+    ...detail.toObject(),
+  };
 
-  success(res, { profile: detail.toObject() }, 'Profile completed');
+  success(res, { profile }, 'Profile completed');
 });
 
 const getUserProfileById = asyncHandler(async (req, res) => {

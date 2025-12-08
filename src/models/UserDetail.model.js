@@ -5,7 +5,7 @@ const userDetailSchema = new mongoose.Schema({
   city: String,
   religion: String,
   status: { type: String, enum: ['Married', 'Unmarried', 'Divorced'] },
-  email: { type: String, sparse: true },
+  email: { type: String, required: true, unique: true },
   gender: { type: String, enum: ['Male', 'Female', 'Other'] },
   dateOfBirth: Date,
   preferredLanguage: String,

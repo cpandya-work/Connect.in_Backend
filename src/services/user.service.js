@@ -14,6 +14,7 @@ const getPublicProfile = async (userId) => {
 
   return {
     phoneNumber: user.phoneNumber,
+    email: user.userDetailId.email,
     ...user.userDetailId.toObject(),
   };
 };
@@ -40,6 +41,7 @@ const updateProfile = async (userId, updates, file) => {
 
   return {
     phoneNumber: user.phoneNumber,
+    email: detail.email,
     ...detail.toObject(),
   };
 };
