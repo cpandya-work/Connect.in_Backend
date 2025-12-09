@@ -17,6 +17,10 @@ const userChatSchema = new mongoose.Schema({
     trim: true,
     maxlength: 1000,
   },
+  seen: {
+    type: Boolean,
+    default: false,
+  },
 }, { timestamps: true });
 
 module.exports = mongoose.model('UserChat', userChatSchema);

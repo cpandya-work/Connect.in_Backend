@@ -11,6 +11,17 @@ const sendMessage = async (senderId, receiverId, message) => {
 };
 
 const getChatHistory = async (loggedInUserId, otherUserId) => {
+  await UserChat.updateMany(
+    {
+      senderId: otherUserId,
+      receiverId: loggedInUserId,
+      seen: false,
+    },
+    {
+      $set: { seen: true },
+    }
+  );
+
   const messages = await UserChat.find({
     $or: [
       { senderId: loggedInUserId, receiverId: otherUserId },
@@ -18,7 +29,7 @@ const getChatHistory = async (loggedInUserId, otherUserId) => {
     ],
   })
     .sort({ createdAt: 1 })
-    .select('senderId receiverId message createdAt')
+    .select('senderId receiverId message createdAt seen')
     .lean();
 
   return messages;
@@ -48,6 +59,25 @@ const getChatList = async (loggedInUserId) => {
         },
         lastMessage: { $first: '$message' },
         lastMessageTime: { $first: '$createdAt' },
+        allMessages: { $push: '$$ROOT' },
+      },
+    },
+    {
+      $addFields: {
+        unseenCount: {
+          $size: {
+            $filter: {
+              input: '$allMessages',
+              as: 'msg',
+              cond: {
+                $and: [
+                  { $eq: ['$$msg.receiverId', loggedInUserId] },
+                  { $eq: ['$$msg.seen', false] },
+                ],
+              },
+            },
+          },
+        },
       },
     },
     {
@@ -77,6 +107,7 @@ const getChatList = async (loggedInUserId) => {
         _id: 1,
         lastMessage: 1,
         lastMessageTime: 1,
+        unseenCount: 1,
         fullName: '$userDetail.fullName',
         profileImage: '$userDetail.profileImage',
       },

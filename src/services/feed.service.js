@@ -5,10 +5,7 @@ const UserRequests = require('../models/UserRequests.model');
 const UserConnections = require('../models/UserConnections.model');
 const mongoose = require('mongoose');
 
-const getFeed = async (userId, userCity, userGender, cursor = null, limit = 20) => {
-  const oppositeGender = userGender === 'Male' ? 'Female' : userGender === 'Female' ? 'Male' : null;
-  if (!oppositeGender) throw new Error('Invalid gender');
-
+const getFeed = async (userId, userGender, cursor = null, limit = 20, filters = {}) => {
   const cursorObj = cursor ? new mongoose.Types.ObjectId(cursor) : null;
 
   // Build excluded user IDs
@@ -41,13 +38,43 @@ const getFeed = async (userId, userCity, userGender, cursor = null, limit = 20) 
   // Add self
   excludedIds.add(userId.toString());
 
+  // Build match stage with filters
   const matchStage = {
-    'details.city': userCity,
-    'details.gender': oppositeGender,
     _id: {
       $nin: Array.from(excludedIds).map(id => new mongoose.Types.ObjectId(id)),
     },
   };
+
+  // Default: Show opposite gender only if no gender filter applied
+  if (!filters.gender || filters.gender === 'any') {
+    const oppositeGender = userGender === 'Male' ? 'Female' : userGender === 'Female' ? 'Male' : null;
+    if (oppositeGender) {
+      matchStage['details.gender'] = oppositeGender;
+    }
+  } else {
+    matchStage['details.gender'] = filters.gender;
+  }
+
+  // Apply filters if provided
+  if (filters.habits && filters.habits.length > 0) {
+    matchStage['details.habits'] = { $in: filters.habits };
+  }
+
+  if (filters.interests && filters.interests.length > 0) {
+    matchStage['details.interests'] = { $in: filters.interests };
+  }
+
+  if (filters.language && filters.language.length > 0) {
+    matchStage['details.preferredLanguage'] = { $in: filters.language };
+  }
+
+  if (filters.relationship && filters.relationship.length > 0) {
+    matchStage['details.status'] = { $in: filters.relationship };
+  }
+
+  if (filters.religion && filters.religion.length > 0) {
+    matchStage['details.religion'] = { $in: filters.religion };
+  }
 
   if (cursorObj) {
     matchStage._id = { ...matchStage._id, $lt: cursorObj };
@@ -65,7 +92,6 @@ const getFeed = async (userId, userCity, userGender, cursor = null, limit = 20) 
     { $unwind: '$details' },
     { $match: matchStage },
     { $sort: { _id: -1 } },
-    { $limit: limit + 1 }, // +1 to check if more exist
     {
       $project: {
         id: '$_id',
@@ -73,26 +99,38 @@ const getFeed = async (userId, userCity, userGender, cursor = null, limit = 20) 
         profileImage: '$details.profileImage',
         dateOfBirth: '$details.dateOfBirth',
         city: '$details.city',
+        gender: '$details.gender',
+        religion: '$details.religion',
+        status: '$details.status',
       },
     },
   ];
 
-  const result = await User.aggregate(pipeline);
+  let result = await User.aggregate(pipeline);
 
-  const hasMore = result.length > limit;
-  const profiles = hasMore ? result.slice(0, limit) : result;
-
-  const nextCursor = hasMore ? profiles[profiles.length - 1].id : null;
-
-  // Calculate age
-  const formatted = profiles.map(p => ({
+  // Calculate age and apply age filter
+  result = result.map(p => ({
     ...p,
     age: p.dateOfBirth
       ? Math.floor((Date.now() - new Date(p.dateOfBirth)) / (365.25 * 24 * 60 * 60 * 1000))
       : null,
   }));
 
-  return { profiles: formatted, nextCursor };
+  // Apply age filter if provided
+  if (filters.ageMin || filters.ageMax) {
+    result = result.filter(p => {
+      if (!p.age) return false;
+      if (filters.ageMin && p.age < filters.ageMin) return false;
+      if (filters.ageMax && p.age > filters.ageMax) return false;
+      return true;
+    });
+  }
+
+  const hasMore = result.length > limit;
+  const profiles = hasMore ? result.slice(0, limit) : result;
+  const nextCursor = hasMore ? profiles[profiles.length - 1].id : null;
+
+  return { profiles, nextCursor };
 };
 
 module.exports = { getFeed };

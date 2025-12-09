@@ -1,5 +1,5 @@
 const express = require('express');
-const { sendMessageCtrl, getChatHistoryCtrl, getChatListCtrl } = require('../controllers/chat.controller');
+const { sendMessageCtrl, getChatHistoryCtrl, getChatListCtrl, markAsSeenCtrl } = require('../controllers/chat.controller');
 const { protect } = require('../middlewares/auth.middleware');
 
 const router = express.Router();
