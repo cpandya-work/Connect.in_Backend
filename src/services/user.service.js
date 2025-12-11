@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const User = require('../models/User.model');
 const UserDetail = require('../models/UserDetail.model');
+const DeletedUser = require('../models/DeletedUser.model');
 const { deleteFromCloudinary } = require('../utils/cloudinary');
 
 const getPublicProfile = async (userId) => {
@@ -46,4 +47,39 @@ const updateProfile = async (userId, updates, file) => {
   };
 };
 
-module.exports = { getPublicProfile, updateProfile };
+const deleteAccount = async (userId) => {
+  const user = await User.findById(userId).populate('userDetailId');
+  if (!user) throw new Error('User not found');
+
+  const deletedUserData = {
+    originalUserId: user._id,
+    phoneNumber: user.phoneNumber,
+  };
+
+  if (user.userDetailId) {
+    const userDetail = user.userDetailId;
+    Object.assign(deletedUserData, {
+      fullName: userDetail.fullName,
+      city: userDetail.city,
+      religion: userDetail.religion,
+      status: userDetail.status,
+      email: userDetail.email,
+      gender: userDetail.gender,
+      dateOfBirth: userDetail.dateOfBirth,
+      preferredLanguage: userDetail.preferredLanguage,
+      habits: userDetail.habits,
+      interests: userDetail.interests,
+      skills: userDetail.skills,
+      profileImage: userDetail.profileImage,
+    });
+
+    await UserDetail.findByIdAndDelete(userDetail._id);
+  }
+
+  await DeletedUser.create(deletedUserData);
+  await User.findByIdAndDelete(userId);
+
+  return true;
+};
+
+module.exports = { getPublicProfile, updateProfile, deleteAccount };

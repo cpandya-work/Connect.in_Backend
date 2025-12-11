@@ -3,7 +3,7 @@ const User = require('../models/User.model');
 const UserDetail = require('../models/UserDetail.model');
 const { profileSchema, updateProfileSchema } = require('../validators/user.validator');
 const { success } = require('../utils/response');
-const { getPublicProfile, updateProfile } = require('../services/user.service');
+const { getPublicProfile, updateProfile, deleteAccount } = require('../services/user.service');
 const mongoose = require('mongoose');
 
 const getProfile = asyncHandler(async (req, res) => {
@@ -69,10 +69,16 @@ const logout = asyncHandler(async (req, res) => {
   success(res, null, 'Logged out successfully');
 });
 
+const deleteUserAccount = asyncHandler(async (req, res) => {
+  await deleteAccount(req.user._id);
+  success(res, null, 'Account deleted successfully');
+});
+
 module.exports = {
   getProfile,
   createProfile,
   getUserProfileById,
   updateUserProfile,
   logout,
+  deleteUserAccount,
 };
