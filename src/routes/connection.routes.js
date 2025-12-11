@@ -2,6 +2,7 @@ const express = require('express');
 const {
   likeUserCtrl,
   getLikesCtrl,
+  getWhoLikedMeCtrl,
   sendRequestCtrl,
   getSentRequestsCtrl,
   getReceivedRequestsCtrl,
@@ -17,6 +18,7 @@ router.use(protect);
 
 router.post('/like/:likedUserId', likeUserCtrl);
 router.get('/likes', getLikesCtrl);
+router.get('/who-liked-me', getWhoLikedMeCtrl);
 
 router.post('/connectionrequest/:receiverId', sendRequestCtrl);
 router.get('/requests/sent', getSentRequestsCtrl);

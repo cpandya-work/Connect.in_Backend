@@ -102,9 +102,27 @@ const rejectRequest = async (requestId, receiverId) => {
   return { success: true };
 };
 
+const getUsersWhoLikedMe = async (userId) => {
+  const likes = await UserLikes.find({ likedUserId: userId })
+    .populate({
+      path: 'userId',
+      populate: { path: 'userDetailId', select: 'fullName city profileImage' },
+      select: 'userDetailId',
+    })
+    .lean();
+
+  return likes.map(l => ({
+    _id: l.userId._id,
+    fullName: l.userId.userDetailId?.fullName,
+    city: l.userId.userDetailId?.city,
+    profileImage: l.userId.userDetailId?.profileImage,
+  }));
+};
+
 module.exports = {
   likeUser,
   getLikedUsers,
+  getUsersWhoLikedMe,
   sendConnectionRequest,
   getSentRequests,
   getReceivedRequests,

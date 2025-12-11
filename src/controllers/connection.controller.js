@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 const {
   likeUser,
   getLikedUsers,
+  getUsersWhoLikedMe,
   sendConnectionRequest,
   getSentRequests,
   getReceivedRequests,
@@ -81,9 +82,15 @@ const rejectRequestCtrl = asyncHandler(async (req, res) => {
   success(res, null, 'Request rejected');
 });
 
+const getWhoLikedMeCtrl = asyncHandler(async (req, res) => {
+  const whoLikedMe = await getUsersWhoLikedMe(req.user._id);
+  success(res, { whoLikedMe });
+});
+
 module.exports = {
   likeUserCtrl,
   getLikesCtrl,
+  getWhoLikedMeCtrl,
   sendRequestCtrl,
   getSentRequestsCtrl,
   getReceivedRequestsCtrl,
