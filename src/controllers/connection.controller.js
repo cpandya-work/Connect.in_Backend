@@ -24,7 +24,8 @@ const likeUserCtrl = asyncHandler(async (req, res) => {
 });
 
 const getLikesCtrl = asyncHandler(async (req, res) => {
-  const liked = await getLikedUsers(req.user._id);
+  const { search } = req.query;
+  const liked = await getLikedUsers(req.user._id, search);
   success(res, { liked });
 });
 
@@ -39,7 +40,8 @@ const sendRequestCtrl = asyncHandler(async (req, res) => {
 });
 
 const getSentRequestsCtrl = asyncHandler(async (req, res) => {
-  const requests = await getSentRequests(req.user._id);
+  const { search } = req.query;
+  const requests = await getSentRequests(req.user._id, search);
   const formatted = requests.map(r => ({
     _id: r.receiverId._id,
     fullName: r.receiverId.userDetailId?.fullName,
@@ -49,7 +51,8 @@ const getSentRequestsCtrl = asyncHandler(async (req, res) => {
 });
 
 const getReceivedRequestsCtrl = asyncHandler(async (req, res) => {
-  const requests = await getReceivedRequests(req.user._id);
+  const { search } = req.query;
+  const requests = await getReceivedRequests(req.user._id, search);
   const formatted = requests.map(r => ({
     requestId: r._id,
     _id: r.senderId._id,
@@ -60,7 +63,8 @@ const getReceivedRequestsCtrl = asyncHandler(async (req, res) => {
 });
 
 const getConnectionsCtrl = asyncHandler(async (req, res) => {
-  const connections = await getActiveConnections(req.user._id);
+  const { search } = req.query;
+  const connections = await getActiveConnections(req.user._id, search);
   const formatted = connections.map(c => ({
     _id: c._id,
     fullName: c.userDetailId?.fullName,
@@ -83,7 +87,8 @@ const rejectRequestCtrl = asyncHandler(async (req, res) => {
 });
 
 const getWhoLikedMeCtrl = asyncHandler(async (req, res) => {
-  const whoLikedMe = await getUsersWhoLikedMe(req.user._id);
+  const { search } = req.query;
+  const whoLikedMe = await getUsersWhoLikedMe(req.user._id, search);
   success(res, { whoLikedMe });
 });
 

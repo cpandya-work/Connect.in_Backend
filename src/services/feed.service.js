@@ -5,7 +5,7 @@ const UserRequests = require('../models/UserRequests.model');
 const UserConnections = require('../models/UserConnections.model');
 const mongoose = require('mongoose');
 
-const getFeed = async (userId, userGender, cursor = null, limit = 20, filters = {}) => {
+const getFeed = async (userId, userGender, cursor = null, limit = 20, filters = {}, search = '') => {
   const cursorObj = cursor ? new mongoose.Types.ObjectId(cursor) : null;
 
   // Build excluded user IDs
@@ -53,6 +53,11 @@ const getFeed = async (userId, userGender, cursor = null, limit = 20, filters = 
     }
   } else {
     matchStage['details.gender'] = filters.gender;
+  }
+
+  // Apply search filter
+  if (search && search.trim()) {
+    matchStage['details.fullName'] = { $regex: search.trim(), $options: 'i' };
   }
 
   // Apply filters if provided

@@ -9,7 +9,7 @@ const likeUser = async (userId, likedUserId) => {
   return like;
 };
 
-const getLikedUsers = async (userId) => {
+const getLikedUsers = async (userId, search = '') => {
   const likes = await UserLikes.find({ userId })
     .populate({
       path: 'likedUserId',
@@ -18,12 +18,20 @@ const getLikedUsers = async (userId) => {
     })
     .lean();
 
-  return likes.map(l => ({
+  let result = likes.map(l => ({
     _id: l.likedUserId._id,
     fullName: l.likedUserId.userDetailId?.fullName,
     city: l.likedUserId.userDetailId?.city,
     profileImage: l.likedUserId.userDetailId?.profileImage,
   }));
+
+  if (search && search.trim()) {
+    result = result.filter(user => 
+      user.fullName?.toLowerCase().includes(search.trim().toLowerCase())
+    );
+  }
+
+  return result;
 };
 
 const sendConnectionRequest = async (senderId, receiverId) => {
@@ -31,27 +39,43 @@ const sendConnectionRequest = async (senderId, receiverId) => {
   return request;
 };
 
-const getSentRequests = async (userId) => {
-  return await UserRequests.find({ senderId: userId, status: 'pending' })
+const getSentRequests = async (userId, search = '') => {
+  const requests = await UserRequests.find({ senderId: userId, status: 'pending' })
     .populate({
       path: 'receiverId',
       populate: { path: 'userDetailId', select: 'fullName profileImage' },
     })
     .select('receiverId')
     .lean();
+
+  if (search && search.trim()) {
+    return requests.filter(r => 
+      r.receiverId.userDetailId?.fullName?.toLowerCase().includes(search.trim().toLowerCase())
+    );
+  }
+
+  return requests;
 };
 
-const getReceivedRequests = async (userId) => {
-  return await UserRequests.find({ receiverId: userId, status: 'pending' })
+const getReceivedRequests = async (userId, search = '') => {
+  const requests = await UserRequests.find({ receiverId: userId, status: 'pending' })
     .populate({
       path: 'senderId',
       populate: { path: 'userDetailId', select: 'fullName profileImage' },
     })
     .select('senderId _id')
     .lean();
+
+  if (search && search.trim()) {
+    return requests.filter(r => 
+      r.senderId.userDetailId?.fullName?.toLowerCase().includes(search.trim().toLowerCase())
+    );
+  }
+
+  return requests;
 };
 
-const getActiveConnections = async (userId) => {
+const getActiveConnections = async (userId, search = '') => {
   const connections = await UserConnections.find({
     $or: [
       { connection1Id: userId },
@@ -63,10 +87,18 @@ const getActiveConnections = async (userId) => {
     c.connection1Id.toString() === userId.toString() ? c.connection2Id : c.connection1Id
   );
 
-  return await User.find({ _id: { $in: connectedUserIds } })
+  let result = await User.find({ _id: { $in: connectedUserIds } })
     .populate('userDetailId', 'fullName city profileImage')
     .select('userDetailId')
     .lean();
+
+  if (search && search.trim()) {
+    result = result.filter(user => 
+      user.userDetailId?.fullName?.toLowerCase().includes(search.trim().toLowerCase())
+    );
+  }
+
+  return result;
 };
 
 const acceptRequest = async (requestId, receiverId) => {
@@ -102,7 +134,7 @@ const rejectRequest = async (requestId, receiverId) => {
   return { success: true };
 };
 
-const getUsersWhoLikedMe = async (userId) => {
+const getUsersWhoLikedMe = async (userId, search = '') => {
   const likes = await UserLikes.find({ likedUserId: userId })
     .populate({
       path: 'userId',
@@ -111,12 +143,20 @@ const getUsersWhoLikedMe = async (userId) => {
     })
     .lean();
 
-  return likes.map(l => ({
+  let result = likes.map(l => ({
     _id: l.userId._id,
     fullName: l.userId.userDetailId?.fullName,
     city: l.userId.userDetailId?.city,
     profileImage: l.userId.userDetailId?.profileImage,
   }));
+
+  if (search && search.trim()) {
+    result = result.filter(user => 
+      user.fullName?.toLowerCase().includes(search.trim().toLowerCase())
+    );
+  }
+
+  return result;
 };
 
 module.exports = {

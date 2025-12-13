@@ -50,7 +50,7 @@ const createProfile = asyncHandler(async (req, res) => {
 
 const getUserProfileById = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const profile = await getPublicProfile(id);
+  const profile = await getPublicProfile(id, req.user._id);
   success(res, { profile });
 });
 

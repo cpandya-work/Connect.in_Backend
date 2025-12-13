@@ -2,9 +2,10 @@ const mongoose = require('mongoose');
 const User = require('../models/User.model');
 const UserDetail = require('../models/UserDetail.model');
 const DeletedUser = require('../models/DeletedUser.model');
+const UserLikes = require('../models/UserLikes.model');
 const { deleteFromCloudinary } = require('../utils/cloudinary');
 
-const getPublicProfile = async (userId) => {
+const getPublicProfile = async (userId, loggedInUserId = null) => {
   if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
     throw new Error('Invalid user ID');
   }
@@ -13,10 +14,25 @@ const getPublicProfile = async (userId) => {
   if (!user) throw new Error('User not found');
   if (!user.userDetailId) throw new Error('Profile not completed');
 
+  let likedByMe = false;
+  let likesMe = false;
+
+  if (loggedInUserId) {
+    const [iLikedThem, theyLikedMe] = await Promise.all([
+      UserLikes.findOne({ userId: loggedInUserId, likedUserId: userId }),
+      UserLikes.findOne({ userId: userId, likedUserId: loggedInUserId })
+    ]);
+    
+    likedByMe = !!iLikedThem;
+    likesMe = !!theyLikedMe;
+  }
+
   return {
     phoneNumber: user.phoneNumber,
     email: user.userDetailId.email,
     ...user.userDetailId.toObject(),
+    likedByMe,
+    likesMe,
   };
 };
 

@@ -35,7 +35,7 @@ const getChatHistory = async (loggedInUserId, otherUserId) => {
   return messages;
 };
 
-const getChatList = async (loggedInUserId) => {
+const getChatList = async (loggedInUserId, search = '') => {
   const pipeline = [
     {
       $match: {
@@ -112,12 +112,17 @@ const getChatList = async (loggedInUserId) => {
         profileImage: '$userDetail.profileImage',
       },
     },
-    {
-      $sort: { lastMessageTime: -1 },
-    },
   ];
 
-  const result = await UserChat.aggregate(pipeline).exec();
+  let result = await UserChat.aggregate(pipeline).exec();
+
+  if (search && search.trim()) {
+    result = result.filter(item => 
+      item.fullName?.toLowerCase().includes(search.trim().toLowerCase())
+    );
+  }
+
+  result.sort((a, b) => new Date(b.lastMessageTime) - new Date(a.lastMessageTime));
 
   return result.map(item => ({
     ...item,

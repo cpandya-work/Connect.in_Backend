@@ -9,7 +9,7 @@ const getFeedCtrl = asyncHandler(async (req, res) => {
     return res.status(400).json({ success: false, message: 'Complete your profile first' });
   }
 
-  const { cursor, ageMin, ageMax, gender, habits, interests, language, relationship, religion } = req.query;
+  const { cursor, ageMin, ageMax, gender, habits, interests, language, relationship, religion, search } = req.query;
   const limit = 20;
 
   const filters = {
@@ -28,7 +28,8 @@ const getFeedCtrl = asyncHandler(async (req, res) => {
     user.userDetailId.gender,
     cursor,
     limit,
-    filters
+    filters,
+    search
   );
 
   if (profiles.length === 0) {

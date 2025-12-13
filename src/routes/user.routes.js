@@ -17,8 +17,6 @@ router.get('/profile', getProfile);
 router.post('/profile', upload.single('profileImage'), createProfile);
 router.put('/profile', upload.single('profileImage'), updateUserProfile);
 router.delete('/account', deleteUserAccount);
-
-// Public route
 router.get('/profile/:id', getUserProfileById);
 
 module.exports = router;

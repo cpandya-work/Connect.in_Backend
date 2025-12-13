@@ -32,7 +32,8 @@ const getChatHistoryCtrl = asyncHandler(async (req, res) => {
 });
 
 const getChatListCtrl = asyncHandler(async (req, res) => {
-  const chats = await getChatList(req.user._id);
+  const { search } = req.query;
+  const chats = await getChatList(req.user._id, search);
   success(res, { chats }, 'Chats fetched');
 });
 
