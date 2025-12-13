@@ -9,6 +9,7 @@ const chatRoutes = require('./routes/chat.routes');
 const connectionRoutes = require('./routes/connection.routes');
 const feedRoutes = require('./routes/feed.routes');
 const infoRoutes = require('./routes/info.routes');
+const offersRoutes = require('./routes/offers.routes');
 const errorHandler = require('./middlewares/error.middleware');
 
 const app = express();
@@ -27,6 +28,7 @@ app.use('/api/chat', chatRoutes);
 app.use('/api/connection', connectionRoutes);
 app.use('/api/feed', feedRoutes);
 app.use('/api/info', infoRoutes);
+app.use('/api/offers', offersRoutes);
 
 // 404
 app.use((req, res) => {
