@@ -3,9 +3,17 @@ const UserRequests = require('../models/UserRequests.model');
 const UserConnections = require('../models/UserConnections.model');
 const User = require('../models/User.model');
 const UserDetail = require('../models/UserDetail.model');
+const { sendLikeNotification, sendConnectionRequestNotification, sendConnectionAcceptedNotification } = require('./notification.service');
 
 const likeUser = async (userId, likedUserId) => {
   const like = await UserLikes.create({ userId, likedUserId });
+  
+  // Send notification
+  const liker = await User.findById(userId).populate('userDetailId');
+  if (liker?.userDetailId?.fullName) {
+    await sendLikeNotification(likedUserId, liker.userDetailId.fullName);
+  }
+  
   return like;
 };
 
@@ -36,6 +44,13 @@ const getLikedUsers = async (userId, search = '') => {
 
 const sendConnectionRequest = async (senderId, receiverId) => {
   const request = await UserRequests.create({ senderId, receiverId });
+  
+  // Send notification
+  const sender = await User.findById(senderId).populate('userDetailId');
+  if (sender?.userDetailId?.fullName) {
+    await sendConnectionRequestNotification(receiverId, sender.userDetailId.fullName);
+  }
+  
   return request;
 };
 
@@ -114,6 +129,12 @@ const acceptRequest = async (requestId, receiverId) => {
     connection1Id: request.senderId,
     connection2Id: request.receiverId,
   });
+
+  // Send notification
+  const accepter = await User.findById(receiverId).populate('userDetailId');
+  if (accepter?.userDetailId?.fullName) {
+    await sendConnectionAcceptedNotification(request.senderId, accepter.userDetailId.fullName);
+  }
 
   await UserRequests.deleteOne({ _id: requestId });
 

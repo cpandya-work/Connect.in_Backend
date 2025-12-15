@@ -1,4 +1,6 @@
 const UserChat = require('../models/UserChat.model');
+const User = require('../models/User.model');
+const { sendMessageNotification } = require('./notification.service');
 
 const sendMessage = async (senderId, receiverId, message) => {
   const chat = await UserChat.create({
@@ -6,6 +8,12 @@ const sendMessage = async (senderId, receiverId, message) => {
     receiverId,
     message,
   });
+
+  // Send notification
+  const sender = await User.findById(senderId).populate('userDetailId');
+  if (sender?.userDetailId?.fullName) {
+    await sendMessageNotification(receiverId, sender.userDetailId.fullName, message);
+  }
 
   return chat;
 };

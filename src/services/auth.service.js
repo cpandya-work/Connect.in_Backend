@@ -2,6 +2,7 @@ const User = require('../models/User.model');
 const Otp = require('../models/Otp.model');
 const generateOTP = require('../utils/generateOTP');
 const { signToken } = require('../config/jwt');
+const { saveUserToken } = require('./notification.service');
 
 const sendOtp = async (phoneNumber) => {
   const otp = generateOTP();
@@ -17,7 +18,7 @@ const sendOtp = async (phoneNumber) => {
   return { success: true };
 };
 
-const verifyOtp = async (phoneNumber, otp) => {
+const verifyOtp = async (phoneNumber, otp, fcmToken = null, deviceType = 'android') => {
   const otpDoc = await Otp.findOne({ phoneNumber, code: otp });
   if (!otpDoc || otpDoc.expiresAt < new Date()) {
     throw new Error('Invalid or expired OTP');
@@ -28,6 +29,11 @@ const verifyOtp = async (phoneNumber, otp) => {
 
   if (!user) {
     user = await User.create({ phoneNumber });
+  }
+
+  // Save FCM token if provided
+  if (fcmToken) {
+    await saveUserToken(user._id, fcmToken, deviceType);
   }
 
   await Otp.deleteOne({ _id: otpDoc._id });
