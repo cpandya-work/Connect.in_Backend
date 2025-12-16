@@ -10,6 +10,7 @@ const connectionRoutes = require('./routes/connection.routes');
 const feedRoutes = require('./routes/feed.routes');
 const infoRoutes = require('./routes/info.routes');
 const offersRoutes = require('./routes/offers.routes');
+const notificationRoutes = require('./routes/notification.routes');
 const errorHandler = require('./middlewares/error.middleware');
 
 const app = express();
@@ -29,6 +30,7 @@ app.use('/api/connection', connectionRoutes);
 app.use('/api/feed', feedRoutes);
 app.use('/api/info', infoRoutes);
 app.use('/api/offers', offersRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // 404
 app.use((req, res) => {

@@ -12,7 +12,7 @@ const sendMessage = async (senderId, receiverId, message) => {
   // Send notification
   const sender = await User.findById(senderId).populate('userDetailId');
   if (sender?.userDetailId?.fullName) {
-    await sendMessageNotification(receiverId, sender.userDetailId.fullName, message);
+    await sendMessageNotification(receiverId, sender.userDetailId.fullName, message, senderId);
   }
 
   return chat;
