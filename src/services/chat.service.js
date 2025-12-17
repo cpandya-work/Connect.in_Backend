@@ -12,7 +12,13 @@ const sendMessage = async (senderId, receiverId, message) => {
   // Send notification
   const sender = await User.findById(senderId).populate('userDetailId');
   if (sender?.userDetailId?.fullName) {
-    await sendMessageNotification(receiverId, sender.userDetailId.fullName, message, senderId);
+    await sendMessageNotification(
+      receiverId, 
+      sender.userDetailId.fullName, 
+      message, 
+      senderId,
+      sender.userDetailId.profileImage
+    );
   }
 
   return chat;
@@ -36,7 +42,7 @@ const getChatHistory = async (loggedInUserId, otherUserId) => {
       { senderId: otherUserId, receiverId: loggedInUserId },
     ],
   })
-    .sort({ createdAt: 1 })
+    .sort({ createdAt: -1 })
     .select('senderId receiverId message createdAt seen')
     .lean();
 

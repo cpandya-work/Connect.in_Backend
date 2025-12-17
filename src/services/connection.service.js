@@ -11,7 +11,12 @@ const likeUser = async (userId, likedUserId) => {
   // Send notification
   const liker = await User.findById(userId).populate('userDetailId');
   if (liker?.userDetailId?.fullName) {
-    await sendLikeNotification(likedUserId, liker.userDetailId.fullName, userId);
+    await sendLikeNotification(
+      likedUserId, 
+      liker.userDetailId.fullName, 
+      userId,
+      liker.userDetailId.profileImage
+    );
   }
   
   return like;
@@ -48,7 +53,12 @@ const sendConnectionRequest = async (senderId, receiverId) => {
   // Send notification
   const sender = await User.findById(senderId).populate('userDetailId');
   if (sender?.userDetailId?.fullName) {
-    await sendConnectionRequestNotification(receiverId, sender.userDetailId.fullName, senderId);
+    await sendConnectionRequestNotification(
+      receiverId, 
+      sender.userDetailId.fullName, 
+      senderId,
+      sender.userDetailId.profileImage
+    );
   }
   
   return request;
@@ -133,7 +143,12 @@ const acceptRequest = async (requestId, receiverId) => {
   // Send notification
   const accepter = await User.findById(receiverId).populate('userDetailId');
   if (accepter?.userDetailId?.fullName) {
-    await sendConnectionAcceptedNotification(request.senderId, accepter.userDetailId.fullName, receiverId);
+    await sendConnectionAcceptedNotification(
+      request.senderId, 
+      accepter.userDetailId.fullName, 
+      receiverId,
+      accepter.userDetailId.profileImage
+    );
   }
 
   await UserRequests.deleteOne({ _id: requestId });

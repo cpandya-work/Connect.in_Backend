@@ -68,7 +68,7 @@ const sendNotification = async (userId, title, body, data = {}, fromUserId = nul
   }
 };
 
-const sendLikeNotification = async (likedUserId, likerName, likerId) => {
+const sendLikeNotification = async (likedUserId, likerName, likerId, likerProfileImage) => {
   await sendNotification(
     likedUserId,
     'New Like! 💖',
@@ -77,13 +77,15 @@ const sendLikeNotification = async (likedUserId, likerName, likerId) => {
       type: 'like', 
       action: 'profile_liked',
       message: `${likerName} liked your profile`,
-      senderId: likerId.toString()
+      senderId: likerId.toString(),
+      senderName: likerName,
+      senderProfileImage: likerProfileImage || ''
     },
     likerId
   );
 };
 
-const sendConnectionRequestNotification = async (receiverId, senderName, senderId) => {
+const sendConnectionRequestNotification = async (receiverId, senderName, senderId, senderProfileImage) => {
   await sendNotification(
     receiverId,
     'Connection Request 🤝',
@@ -92,13 +94,15 @@ const sendConnectionRequestNotification = async (receiverId, senderName, senderI
       type: 'connection_request', 
       action: 'request_received',
       message: `${senderName} sent you a connection request`,
-      senderId: senderId.toString()
+      senderId: senderId.toString(),
+      senderName: senderName,
+      senderProfileImage: senderProfileImage || ''
     },
     senderId
   );
 };
 
-const sendMessageNotification = async (receiverId, senderName, message, senderId) => {
+const sendMessageNotification = async (receiverId, senderName, message, senderId, senderProfileImage) => {
   const shortMessage = message.length > 50 ? message.substring(0, 50) + '...' : message;
   await sendNotification(
     receiverId,
@@ -108,13 +112,15 @@ const sendMessageNotification = async (receiverId, senderName, message, senderId
       type: 'message', 
       action: 'new_message',
       message: message,
-      senderId: senderId.toString()
+      senderId: senderId.toString(),
+      senderName: senderName,
+      senderProfileImage: senderProfileImage || ''
     },
     senderId
   );
 };
 
-const sendConnectionAcceptedNotification = async (senderId, accepterName, accepterId) => {
+const sendConnectionAcceptedNotification = async (senderId, accepterName, accepterId, accepterProfileImage) => {
   await sendNotification(
     senderId,
     'Connection Accepted! 🎉',
@@ -123,7 +129,9 @@ const sendConnectionAcceptedNotification = async (senderId, accepterName, accept
       type: 'connection_accepted', 
       action: 'request_accepted',
       message: `${accepterName} accepted your connection request`,
-      senderId: accepterId.toString()
+      senderId: accepterId.toString(),
+      senderName: accepterName,
+      senderProfileImage: accepterProfileImage || ''
     },
     accepterId
   );
