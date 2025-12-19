@@ -9,8 +9,25 @@ const getFeedCtrl = asyncHandler(async (req, res) => {
     return res.status(400).json({ success: false, message: 'Complete your profile first' });
   }
 
-  const { cursor, ageMin, ageMax, gender, habits, interests, language, relationship, religion, search } = req.query;
+  const { cursor, ageMin, ageMax, gender, habits, interests, language, relationship, religion, search, latitude, longitude } = req.query;
   const limit = 20;
+
+  // Update user location if provided
+  if (latitude && longitude) {
+    const lat = parseFloat(latitude);
+    const lng = parseFloat(longitude);
+    
+    if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+      await User.findByIdAndUpdate(req.user._id, {
+        currentLocation: {
+          type: 'Point',
+          coordinates: [lng, lat] // [longitude, latitude]
+        },
+        lastLocationUpdate: new Date()
+      });
+      user.currentLocation = { type: 'Point', coordinates: [lng, lat] };
+    }
+  }
 
   const filters = {
     ageMin: ageMin ? parseInt(ageMin) : null,
@@ -29,7 +46,8 @@ const getFeedCtrl = asyncHandler(async (req, res) => {
     cursor,
     limit,
     filters,
-    search
+    search,
+    user.currentLocation
   );
 
   if (profiles.length === 0) {

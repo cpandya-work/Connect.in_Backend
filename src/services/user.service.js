@@ -3,6 +3,7 @@ const User = require('../models/User.model');
 const UserDetail = require('../models/UserDetail.model');
 const DeletedUser = require('../models/DeletedUser.model');
 const UserLikes = require('../models/UserLikes.model');
+const UserConnections = require('../models/UserConnections.model');
 const { deleteFromCloudinary } = require('../utils/cloudinary');
 
 const getPublicProfile = async (userId, loggedInUserId = null) => {
@@ -16,15 +17,23 @@ const getPublicProfile = async (userId, loggedInUserId = null) => {
 
   let likedByMe = false;
   let likesMe = false;
+  let alreadyConnect = false;
 
   if (loggedInUserId) {
-    const [iLikedThem, theyLikedMe] = await Promise.all([
+    const [iLikedThem, theyLikedMe, connection] = await Promise.all([
       UserLikes.findOne({ userId: loggedInUserId, likedUserId: userId }),
-      UserLikes.findOne({ userId: userId, likedUserId: loggedInUserId })
+      UserLikes.findOne({ userId: userId, likedUserId: loggedInUserId }),
+      UserConnections.findOne({
+        $or: [
+          { connection1Id: loggedInUserId, connection2Id: userId },
+          { connection1Id: userId, connection2Id: loggedInUserId }
+        ]
+      })
     ]);
     
     likedByMe = !!iLikedThem;
     likesMe = !!theyLikedMe;
+    alreadyConnect = !!connection;
   }
 
   return {
@@ -33,6 +42,7 @@ const getPublicProfile = async (userId, loggedInUserId = null) => {
     ...user.userDetailId.toObject(),
     likedByMe,
     likesMe,
+    alreadyConnect,
   };
 };
 

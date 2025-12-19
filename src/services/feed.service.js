@@ -5,7 +5,7 @@ const UserRequests = require('../models/UserRequests.model');
 const UserConnections = require('../models/UserConnections.model');
 const mongoose = require('mongoose');
 
-const getFeed = async (userId, userGender, cursor = null, limit = 20, filters = {}, search = '') => {
+const getFeed = async (userId, userGender, cursor = null, limit = 20, filters = {}, search = '', userLocation = null) => {
   const cursorObj = cursor ? new mongoose.Types.ObjectId(cursor) : null;
 
   // Build excluded user IDs
@@ -45,13 +45,8 @@ const getFeed = async (userId, userGender, cursor = null, limit = 20, filters = 
     },
   };
 
-  // Default: Show opposite gender only if no gender filter applied
-  if (!filters.gender || filters.gender === 'any') {
-    const oppositeGender = userGender === 'Male' ? 'Female' : userGender === 'Female' ? 'Male' : null;
-    if (oppositeGender) {
-      matchStage['details.gender'] = oppositeGender;
-    }
-  } else {
+  // Apply gender filter only if specified
+  if (filters.gender && filters.gender !== 'any') {
     matchStage['details.gender'] = filters.gender;
   }
 
@@ -85,7 +80,24 @@ const getFeed = async (userId, userGender, cursor = null, limit = 20, filters = 
     matchStage._id = { ...matchStage._id, $lt: cursorObj };
   }
 
-  const pipeline = [
+  let pipeline = [];
+
+  // Add location-based filtering if user location is provided
+  if (userLocation && userLocation.coordinates && userLocation.coordinates[0] !== 0 && userLocation.coordinates[1] !== 0) {
+    pipeline.push({
+      $geoNear: {
+        near: {
+          type: 'Point',
+          coordinates: userLocation.coordinates // [longitude, latitude]
+        },
+        distanceField: 'distance',
+        maxDistance: 100000, // 100km in meters
+        spherical: true
+      }
+    });
+  }
+
+  pipeline = pipeline.concat([
     {
       $lookup: {
         from: 'userdetails',
@@ -96,7 +108,7 @@ const getFeed = async (userId, userGender, cursor = null, limit = 20, filters = 
     },
     { $unwind: '$details' },
     { $match: matchStage },
-    { $sort: { _id: -1 } },
+    { $sort: userLocation ? { distance: 1, _id: -1 } : { _id: -1 } },
     {
       $project: {
         id: '$_id',
@@ -107,11 +119,20 @@ const getFeed = async (userId, userGender, cursor = null, limit = 20, filters = 
         gender: '$details.gender',
         religion: '$details.religion',
         status: '$details.status',
+        distance: userLocation ? '$distance' : undefined,
       },
     },
-  ];
+  ]);
 
   let result = await User.aggregate(pipeline);
+
+  // Convert distance from meters to kilometers
+  if (userLocation) {
+    result = result.map(p => ({
+      ...p,
+      distance: p.distance ? Math.round(p.distance / 1000 * 10) / 10 : null // Round to 1 decimal
+    }));
+  }
 
   // Calculate age and apply age filter
   result = result.map(p => ({
