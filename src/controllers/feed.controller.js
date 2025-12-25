@@ -51,7 +51,7 @@ const getFeedCtrl = asyncHandler(async (req, res) => {
   );
 
   if (profiles.length === 0) {
-    return res.status(204).json(); // No content
+    return res.status(200).json([]); // No content
   }
 
   success(res, { profiles, nextCursor }, 'Feed loaded');
