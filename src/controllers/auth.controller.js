@@ -1,6 +1,6 @@
 const asyncHandler = require('../utils/asyncHandler');
-const { sendOtp, verifyOtp } = require('../services/auth.service');
-const { sendOtpSchema, verifyOtpSchema } = require('../validators/auth.validator');
+const { sendOtp, verifyOtp, loginWithEmail } = require('../services/auth.service');
+const { sendOtpSchema, verifyOtpSchema, loginSchema } = require('../validators/auth.validator');
 const { success } = require('../utils/response');
 
 const sendOtpCtrl = asyncHandler(async (req, res) => {
@@ -21,4 +21,14 @@ const verifyOtpCtrl = asyncHandler(async (req, res) => {
   success(res, { token, isNewUser, isProfileComplete }, 'Login successful');
 });
 
-module.exports = { sendOtpCtrl, verifyOtpCtrl };
+const loginWithEmailCtrl = asyncHandler(async (req, res) => {
+  const { error } = loginSchema.validate(req.body);
+  if (error) return res.status(400).json({ success: false, message: error.details[0].message });
+
+  const { email, password, fcmToken, deviceType } = req.body;
+  const { token, isNewUser, isProfileComplete } = await loginWithEmail(email, password, fcmToken, deviceType);
+
+  success(res, { token, isNewUser, isProfileComplete }, 'Login successful');
+});
+
+module.exports = { sendOtpCtrl, verifyOtpCtrl, loginWithEmailCtrl };

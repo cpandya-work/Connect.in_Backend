@@ -140,7 +140,7 @@ const getChatList = async (loggedInUserId, search = '') => {
 
   return result.map(item => ({
     ...item,
-    lastMessageTime: formatSmartTime(item.lastMessageTime),
+    lastMessageTime: item.lastMessageTime,
   }));
 };
 

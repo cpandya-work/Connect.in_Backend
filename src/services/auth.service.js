@@ -1,4 +1,5 @@
 const User = require('../models/User.model');
+const UserDetail = require('../models/UserDetail.model');
 const Otp = require('../models/Otp.model');
 const generateOTP = require('../utils/generateOTP');
 const { signToken } = require('../config/jwt');
@@ -44,4 +45,31 @@ const verifyOtp = async (phoneNumber, otp, fcmToken = null, deviceType = 'androi
   return { token, isNewUser, isProfileComplete, user };
 };
 
-module.exports = { sendOtp, verifyOtp };
+const loginWithEmail = async (email, password, fcmToken = null, deviceType = 'web') => {
+  const userDetail = await UserDetail.findOne({ email });
+  if (!userDetail) {
+    throw new Error('Invalid email');
+  }
+
+  const isPasswordValid = await userDetail.comparePassword(password);
+  if (!isPasswordValid) {
+    throw new Error('Invalid email or password');
+  }
+
+  const user = await User.findOne({ userDetailId: userDetail._id });
+  if (!user) {
+    throw new Error('User account not found');
+  }
+
+  // Save FCM token if provided
+  if (fcmToken) {
+    await saveUserToken(user._id, fcmToken, deviceType);
+  }
+
+  const token = signToken({ id: user._id });
+  const isProfileComplete = true; // Profile exists if we found userDetail
+
+  return { token, isNewUser: false, isProfileComplete, user };
+};
+
+module.exports = { sendOtp, verifyOtp, loginWithEmail };
