@@ -24,6 +24,9 @@ const updateProfileSchema = Joi.object({
   religion: Joi.string(),
   status: Joi.string().valid('Married', 'Unmarried', 'Divorced'),
   email: Joi.string().email(),
+  password: Joi.string().min(6).messages({
+    'string.min': 'Password must be at least 6 characters'
+  }),
   gender: Joi.string().valid('Male', 'Female', 'Other'),
   dateOfBirth: Joi.date().max('now'),
   preferredLanguage: Joi.string(),

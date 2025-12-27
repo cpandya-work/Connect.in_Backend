@@ -74,6 +74,7 @@ const updateProfile = async (userId, updates, file) => {
   return {
     phoneNumber: user.phoneNumber,
     email: detail.email,
+    password: detail.password, // Show encoded/hashed password
     ...detail.toObject(),
   };
 };

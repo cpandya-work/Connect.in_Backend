@@ -6,8 +6,9 @@ const userDetailSchema = new mongoose.Schema({
   city: String,
   religion: String,
   status: { type: String, enum: ['Married', 'Unmarried', 'Divorced'] },
-  email: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
+  email: { type: String, unique: true, sparse: true },
+  password: { type: String },
+  originalPassword: { type: String }, // Store original password for display
   gender: { type: String, enum: ['Male', 'Female', 'Other'] },
   dateOfBirth: Date,
   preferredLanguage: String,
@@ -20,7 +21,13 @@ const userDetailSchema = new mongoose.Schema({
 // Hash password before saving
 userDetailSchema.pre('save', async function(next) {
   if (!this.isModified('password')) return next();
-  this.password = await bcrypt.hash(this.password, 12);
+  
+  // Store original password before hashing
+  if (this.password) {
+    this.originalPassword = this.password;
+    this.password = await bcrypt.hash(this.password, 12);
+  }
+  
   next();
 });
 
