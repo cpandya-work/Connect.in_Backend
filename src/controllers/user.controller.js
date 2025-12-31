@@ -15,6 +15,7 @@ const getProfile = asyncHandler(async (req, res) => {
   
   const profile = {
     phoneNumber: user.phoneNumber,
+    currentLocation: user.currentLocation,
     email: user.userDetailId.email,
     password: user.userDetailId.originalPassword || user.userDetailId.password,
     originalid: user._id,
