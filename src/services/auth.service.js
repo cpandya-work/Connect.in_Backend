@@ -4,6 +4,7 @@ const Otp = require('../models/Otp.model');
 const generateOTP = require('../utils/generateOTP');
 const { signToken } = require('../config/jwt');
 const { saveUserToken } = require('./notification.service');
+const axios = require('axios');
 
 const sendOtp = async (phoneNumber) => {
   const otp = generateOTP();
@@ -72,4 +73,42 @@ const loginWithEmail = async (email, password, fcmToken = null, deviceType = 'we
   return { token, isNewUser: false, isProfileComplete, user };
 };
 
-module.exports = { sendOtp, verifyOtp, loginWithEmail };
+const loginWithGoogle = async (accessToken, fcmToken = null, deviceType = 'web') => {
+  // Step 1: Fetch user information from Google using access token
+  const userInfoResponse = await axios.get('https://www.googleapis.com/oauth2/v2/userinfo', {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  const { email } = userInfoResponse.data;
+
+  if (!email) {
+    throw new Error('Email not provided by Google');
+  }
+
+  // Step 2: Check if user exists by email
+  const userDetail = await UserDetail.findOne({ email });
+  if (!userDetail) {
+    throw new Error('User not found. Please sign up first.');
+  }
+
+  // Step 3: Find the User document
+  const user = await User.findOne({ userDetailId: userDetail._id });
+  if (!user) {
+    throw new Error('User account not found');
+  }
+
+  // Save FCM token if provided
+  if (fcmToken) {
+    await saveUserToken(user._id, fcmToken, deviceType);
+  }
+
+  // Step 4: Generate JWT token
+  const token = signToken({ id: user._id });
+  const isProfileComplete = !!userDetail.fullName && !!userDetail.gender && !!userDetail.dateOfBirth;
+
+  return { token, isNewUser: false, isProfileComplete, user };
+};
+
+module.exports = { sendOtp, verifyOtp, loginWithEmail, loginWithGoogle };

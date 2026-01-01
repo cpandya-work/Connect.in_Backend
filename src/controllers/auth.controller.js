@@ -1,5 +1,5 @@
 const asyncHandler = require('../utils/asyncHandler');
-const { sendOtp, verifyOtp, loginWithEmail } = require('../services/auth.service');
+const { sendOtp, verifyOtp, loginWithEmail, loginWithGoogle } = require('../services/auth.service');
 const { sendOtpSchema, verifyOtpSchema, loginSchema } = require('../validators/auth.validator');
 const { success } = require('../utils/response');
 
@@ -31,4 +31,16 @@ const loginWithEmailCtrl = asyncHandler(async (req, res) => {
   success(res, { token, isNewUser, isProfileComplete }, 'Login successful');
 });
 
-module.exports = { sendOtpCtrl, verifyOtpCtrl, loginWithEmailCtrl };
+const googleLoginCtrl = asyncHandler(async (req, res) => {
+  const { accessToken, fcmToken, deviceType } = req.body;
+
+  if (!accessToken) {
+    return res.status(400).json({ success: false, message: 'Access token is required' });
+  }
+
+  const { token, isNewUser, isProfileComplete } = await loginWithGoogle(accessToken, fcmToken, deviceType);
+
+  success(res, { token, isNewUser, isProfileComplete }, 'Login successful');
+});
+
+module.exports = { sendOtpCtrl, verifyOtpCtrl, loginWithEmailCtrl, googleLoginCtrl };
