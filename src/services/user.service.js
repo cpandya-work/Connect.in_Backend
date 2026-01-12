@@ -7,7 +7,7 @@ const UserConnections = require('../models/UserConnections.model');
 const UserRequests = require('../models/UserRequests.model');
 const { deleteFromCloudinary } = require('../utils/cloudinary');
 
-const getPublicProfile = async (userId, loggedInUserId = null) => {
+const getPublicProfile = async (userId, loggedInUserId) => {
   if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
     throw new Error('Invalid user ID');
   }
@@ -16,13 +16,14 @@ const getPublicProfile = async (userId, loggedInUserId = null) => {
   if (!user) throw new Error('User not found');
   if (!user.userDetailId) throw new Error('Profile not completed');
 
-  let likedByMe = false;
+  let isLiked = false;
+  let isConnected = false;
+  let hasSentRequest = false;
+  let hasReceivedRequest = false;
   let likesMe = false;
-  let alreadyConnect = false;
-  let sendRequest = false;
 
   if (loggedInUserId) {
-    const [iLikedThem, theyLikedMe, connection, sentRequest] = await Promise.all([
+    const [iLikedThem, theyLikedMe, connection, sentRequest, receivedRequest] = await Promise.all([
       UserLikes.findOne({ userId: loggedInUserId, likedUserId: userId }),
       UserLikes.findOne({ userId: userId, likedUserId: loggedInUserId }),
       UserConnections.findOne({
@@ -31,23 +32,30 @@ const getPublicProfile = async (userId, loggedInUserId = null) => {
           { connection1Id: userId, connection2Id: loggedInUserId }
         ]
       }),
-      UserRequests.findOne({ senderId: loggedInUserId, receiverId: userId })
+      UserRequests.findOne({ senderId: loggedInUserId, receiverId: userId, status: 'pending' }),
+      UserRequests.findOne({ senderId: userId, receiverId: loggedInUserId, status: 'pending' })
     ]);
     
-    likedByMe = !!iLikedThem;
+    isLiked = !!iLikedThem;
     likesMe = !!theyLikedMe;
-    alreadyConnect = !!connection;
-    sendRequest = !!sentRequest;
+    isConnected = !!connection;
+    hasSentRequest = !!sentRequest;
+    hasReceivedRequest = !!receivedRequest;
   }
 
   return {
     phoneNumber: user.phoneNumber,
     email: user.userDetailId.email,
     ...user.userDetailId.toObject(),
-    likedByMe,
+    isLiked,
+    isConnected,
+    hasSentRequest,
+    hasReceivedRequest,
     likesMe,
-    alreadyConnect,
-    sendRequest,
+    // Keep backward compatibility
+    likedByMe: isLiked,
+    alreadyConnect: isConnected,
+    sendRequest: hasSentRequest,
   };
 };
 

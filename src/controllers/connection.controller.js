@@ -3,6 +3,7 @@ const { success } = require('../utils/response');
 const mongoose = require('mongoose');
 const {
   likeUser,
+  dislikeUser,
   getLikedUsers,
   getUsersWhoLikedMe,
   sendConnectionRequest,
@@ -11,6 +12,7 @@ const {
   getActiveConnections,
   acceptRequest,
   rejectRequest,
+  removeConnection,
 } = require('../services/connection.service');
 
 const likeUserCtrl = asyncHandler(async (req, res) => {
@@ -21,6 +23,16 @@ const likeUserCtrl = asyncHandler(async (req, res) => {
 
   await likeUser(req.user._id, likedUserId);
   success(res, null, 'User liked');
+});
+
+const dislikeUserCtrl = asyncHandler(async (req, res) => {
+  const { likedUserId } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(likedUserId)) {
+    return res.status(400).json({ success: false, message: 'Invalid user ID' });
+  }
+
+  await dislikeUser(req.user._id, likedUserId);
+  success(res, null, 'User disliked');
 });
 
 const getLikesCtrl = asyncHandler(async (req, res) => {
@@ -92,8 +104,19 @@ const getWhoLikedMeCtrl = asyncHandler(async (req, res) => {
   success(res, { whoLikedMe });
 });
 
+const removeConnectionCtrl = asyncHandler(async (req, res) => {
+  const { connectionUserId } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(connectionUserId)) {
+    return res.status(400).json({ success: false, message: 'Invalid connection user ID' });
+  }
+
+  await removeConnection(req.user._id, connectionUserId);
+  success(res, null, 'Connection removed');
+});
+
 module.exports = {
   likeUserCtrl,
+  dislikeUserCtrl,
   getLikesCtrl,
   getWhoLikedMeCtrl,
   sendRequestCtrl,
@@ -102,4 +125,5 @@ module.exports = {
   getConnectionsCtrl,
   acceptRequestCtrl,
   rejectRequestCtrl,
+  removeConnectionCtrl,
 };

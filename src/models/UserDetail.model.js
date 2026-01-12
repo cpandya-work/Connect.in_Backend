@@ -16,6 +16,8 @@ const userDetailSchema = new mongoose.Schema({
   interests: [String],
   skills: [String],
   profileImage: String, // Cloudinary URL
+  company: String,
+  industry: String,
 });
 
 // Hash password before saving

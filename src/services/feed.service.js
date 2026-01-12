@@ -5,7 +5,7 @@ const UserRequests = require('../models/UserRequests.model');
 const UserConnections = require('../models/UserConnections.model');
 const mongoose = require('mongoose');
 
-const getFeed = async (userId, userGender, cursor = null, limit = 20, filters = {}, search = '', userLocation = null) => {
+const getFeed = async (userId, userGender, cursor = null, limit = 20, filters = {}, search = '', userLocation = null, userCity = null) => {
   const cursorObj = cursor ? new mongoose.Types.ObjectId(cursor) : null;
 
   // Build excluded user IDs
@@ -53,6 +53,11 @@ const getFeed = async (userId, userGender, cursor = null, limit = 20, filters = 
   // Apply search filter
   if (search && search.trim()) {
     matchStage['details.fullName'] = { $regex: search.trim(), $options: 'i' };
+  }
+
+  // Apply city filter - show only profiles in the same city as the logged-in user
+  if (userCity && userCity.trim()) {
+    matchStage['details.city'] = userCity.trim();
   }
 
   // Apply filters if provided
@@ -159,7 +164,7 @@ const getFeed = async (userId, userGender, cursor = null, limit = 20, filters = 
   return { profiles, nextCursor };
 };
 
-const getFeedWeb = async (userId, userGender, page = 1, limit = 20, filters = {}, search = '', userLocation = null) => {
+const getFeedWeb = async (userId, userGender, page = 1, limit = 20, filters = {}, search = '', userLocation = null, userCity = null) => {
   // Build excluded user IDs
   const [liked, sentReq, receivedReq, connections] = await Promise.all([
     UserLikes.find({ userId }).select('likedUserId'),
@@ -205,6 +210,11 @@ const getFeedWeb = async (userId, userGender, page = 1, limit = 20, filters = {}
   // Apply search filter
   if (search && search.trim()) {
     matchStage['details.fullName'] = { $regex: search.trim(), $options: 'i' };
+  }
+
+  // Apply city filter - show only profiles in the same city as the logged-in user
+  if (userCity && userCity.trim()) {
+    matchStage['details.city'] = userCity.trim();
   }
 
   // Apply filters if provided

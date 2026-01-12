@@ -16,6 +16,8 @@ const profileSchema = Joi.object({
   habits: Joi.alternatives().try(Joi.array().items(Joi.string()), Joi.string()),
   interests: Joi.alternatives().try(Joi.array().items(Joi.string()), Joi.string()),
   skills: Joi.alternatives().try(Joi.array().items(Joi.string()), Joi.string()),
+  company: Joi.string().allow('').optional(),
+  industry: Joi.string().required(),
 });
 
 const updateProfileSchema = Joi.object({
@@ -33,6 +35,8 @@ const updateProfileSchema = Joi.object({
   habits: Joi.alternatives().try(Joi.array().items(Joi.string()), Joi.string()),
   interests: Joi.alternatives().try(Joi.array().items(Joi.string()), Joi.string()),
   skills: Joi.alternatives().try(Joi.array().items(Joi.string()), Joi.string()),
+  company: Joi.string().allow('').optional(),
+  industry: Joi.string(),
 }).min(1); // at least one field
 
 module.exports = { profileSchema, updateProfileSchema };

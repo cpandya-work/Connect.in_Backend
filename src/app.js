@@ -12,6 +12,7 @@ const infoRoutes = require('./routes/info.routes');
 const offersRoutes = require('./routes/offers.routes');
 const notificationRoutes = require('./routes/notification.routes');
 const adminRoutes = require('./routes/admin.routes');
+const listRoutes = require('./routes/list.routes');
 const errorHandler = require('./middlewares/error.middleware');
 
 const app = express();
@@ -28,6 +29,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/connection', connectionRoutes);
+app.use('/api/list', listRoutes);
 app.use('/api/feed', feedRoutes);
 app.use('/api/info', infoRoutes);
 app.use('/api/offers', offersRoutes);

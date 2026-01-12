@@ -47,7 +47,8 @@ const getFeedCtrl = asyncHandler(async (req, res) => {
     limit,
     filters,
     search,
-    user.currentLocation
+    user.currentLocation,
+    user.userDetailId.city
   );
 
   if (profiles.length === 0) {
@@ -109,7 +110,8 @@ const getFeedWebCtrl = asyncHandler(async (req, res) => {
     limitNum,
     filters,
     search,
-    user.currentLocation
+    user.currentLocation,
+    user.userDetailId.city
   );
 
   if (profiles.length === 0) {

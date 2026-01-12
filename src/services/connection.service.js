@@ -22,6 +22,16 @@ const likeUser = async (userId, likedUserId) => {
   return like;
 };
 
+const dislikeUser = async (userId, likedUserId) => {
+  const result = await UserLikes.deleteOne({ userId, likedUserId });
+
+  if (result.deletedCount === 0) {
+    throw new Error('Like not found');
+  }
+
+  return { success: true };
+};
+
 const getLikedUsers = async (userId, search = '') => {
   const likes = await UserLikes.find({ userId })
     .populate({
@@ -195,8 +205,26 @@ const getUsersWhoLikedMe = async (userId, search = '') => {
   return result;
 };
 
+const removeConnection = async (userId, connectionUserId) => {
+  const connection = await UserConnections.findOne({
+    $or: [
+      { connection1Id: userId, connection2Id: connectionUserId },
+      { connection1Id: connectionUserId, connection2Id: userId },
+    ],
+  });
+
+  if (!connection) {
+    throw new Error('Connection not found');
+  }
+
+  await UserConnections.deleteOne({ _id: connection._id });
+
+  return { success: true };
+};
+
 module.exports = {
   likeUser,
+  dislikeUser,
   getLikedUsers,
   getUsersWhoLikedMe,
   sendConnectionRequest,
@@ -205,4 +233,5 @@ module.exports = {
   getActiveConnections,
   acceptRequest,
   rejectRequest,
+  removeConnection,
 };
