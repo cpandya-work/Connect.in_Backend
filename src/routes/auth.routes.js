@@ -11,4 +11,4 @@ router.post('/login-with-email', loginWithEmailCtrl);
 router.post('/google-login', googleLoginCtrl);
 router.post('/logout', protect, logout);
 
-module.exports = router;
+module.exports = router;    

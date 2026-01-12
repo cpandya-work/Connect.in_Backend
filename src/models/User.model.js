@@ -3,6 +3,11 @@ const mongoose = require('mongoose');
 const userSchema = new mongoose.Schema({
   phoneNumber: { type: String, required: true, unique: true },
   userDetailId: { type: mongoose.Schema.Types.ObjectId, ref: 'UserDetail', default: null },
+  role: { 
+    type: String, 
+    enum: ['user', 'admin'], 
+    default: 'user' 
+  },
   currentLocation: {
     type: {
       type: String,

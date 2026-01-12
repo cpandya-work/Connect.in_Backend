@@ -19,6 +19,7 @@ const getProfile = asyncHandler(async (req, res) => {
     email: user.userDetailId.email,
     password: user.userDetailId.originalPassword || user.userDetailId.password,
     originalid: user._id,
+    role: user.role || 'user', // Include user role
     ...user.userDetailId.toObject(),
   };
   
