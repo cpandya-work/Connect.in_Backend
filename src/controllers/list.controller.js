@@ -1,4 +1,7 @@
 const CityModel = require("../models/City.model");
+const CompanyModel = require("../models/Company.model");
+const HabitModel = require("../models/Habit.model");
+const IndustryModel = require("../models/Industry.model");
 const InterestModel = require("../models/Interest.model");
 const SkillModel = require("../models/Skill.model");
 const asyncHandler = require("../utils/asyncHandler");
@@ -8,24 +11,40 @@ const { success } = require("../utils/response");
 const listCityCtrl = asyncHandler(async (req, res) => {
   const city = await CityModel.find()
   success(res, { city }, 'City list fetched');
-  });
+});
 
-  const listSkillCtrl = asyncHandler(async (req, res) => {
-    const skills = await SkillModel.find()
-    success(res, { skills }, 'skills list fetched');
-  });
+const listSkillCtrl = asyncHandler(async (req, res) => {
+  const skills = await SkillModel.find()
+  success(res, { skills }, 'skills list fetched');
+});
 
-  const listInterestCtrl = asyncHandler(async (req, res) => {
-    const interests = await InterestModel.find()
-    success(res, { interests }, 'interests list fetched');
-  });
-  
-  
+const listInterestCtrl = asyncHandler(async (req, res) => {
+  const interests = await InterestModel.find()
+  success(res, { interests }, 'interests list fetched');
+});
 
-  module.exports ={
-    listCityCtrl,
-    listSkillCtrl,
-    listInterestCtrl
+const listHabitsCtrl = asyncHandler(async (req, res) => {
+  const habits = await HabitModel.find()
+  success(res, { habits }, 'habits list fetched');
+})
 
-  }
-  
+  const listCompaniesCtrl = asyncHandler(async (req, res) => {
+    const companies = await CompanyModel.find()
+    success(res, { companies }, 'companies list fetched');
+  })
+  const listIndustriesCtrl = asyncHandler(async (req, res) => {
+    const industries = await IndustryModel.find()
+    success(res, { industries }, 'companies list fetched');
+  })
+
+
+
+module.exports = {
+  listCityCtrl,
+  listSkillCtrl,
+  listInterestCtrl,
+  listHabitsCtrl,
+  listCompaniesCtrl,
+  listIndustriesCtrl
+
+}

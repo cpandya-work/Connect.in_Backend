@@ -16,11 +16,29 @@ const {
   createCity,
   updateCity,
   deleteCity,
-  getCityById
+  getCityById,
+  getHabitsList,
+  createHabit,
+  updateHabit,
+  deleteHabit,
+  getHabitById,
+  getCompaniesList,
+  createCompany,
+  updateCompany,
+  deleteCompany,
+  getCompanyById,
+  getIndustriesList,
+  createIndustry,
+  updateIndustry,
+  deleteIndustry,
+  getIndustryById
 } = require('../services/admin.service');
 const { createSkillSchema, updateSkillSchema } = require('../validators/skill.validator');
 const { createInterestSchema, updateInterestSchema } = require('../validators/interest.validator');
 const { createCitySchema, updateCitySchema } = require('../validators/city.validator');
+const { createHabitSchema, updateHabitSchema } = require('../validators/habit.validator');
+const { createCompanySchema, updateCompanySchema } = require('../validators/company.validator');
+const { createIndustrySchema, updateIndustrySchema } = require('../validators/industry.validator');
 
 /**
  * Get paginated list of users with search
@@ -245,6 +263,213 @@ const deleteCityCtrl = asyncHandler(async (req, res) => {
   success(res, null, 'City deleted successfully');
 });
 
+/**
+ * Get paginated list of habits with search
+ * Query params: page, limit, search, isActive
+ */
+const getHabitsListCtrl = asyncHandler(async (req, res) => {
+  const { page, limit, search, isActive } = req.query;
+
+  const result = await getHabitsList({
+    page,
+    limit,
+    search,
+    isActive,
+  });
+
+  success(res, result, 'Habits retrieved successfully');
+});
+
+/**
+ * Get a single habit by ID
+ */
+const getHabitByIdCtrl = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const habit = await getHabitById(id);
+  success(res, { habit }, 'Habit retrieved successfully');
+});
+
+/**
+ * Create a new habit
+ */
+const createHabitCtrl = asyncHandler(async (req, res) => {
+  const { error } = createHabitSchema.validate(req.body);
+  if (error) {
+    return res.status(400).json({ 
+      success: false, 
+      message: error.details[0].message 
+    });
+  }
+
+  const habit = await createHabit(req.body);
+  success(res, { habit }, 'Habit created successfully');
+});
+
+/**
+ * Update a habit by ID
+ */
+const updateHabitCtrl = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { error } = updateHabitSchema.validate(req.body);
+  
+  if (error) {
+    return res.status(400).json({ 
+      success: false, 
+      message: error.details[0].message 
+    });
+  }
+
+  const habit = await updateHabit(id, req.body);
+  success(res, { habit }, 'Habit updated successfully');
+});
+
+/**
+ * Delete a habit by ID
+ */
+const deleteHabitCtrl = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  await deleteHabit(id);
+  success(res, null, 'Habit deleted successfully');
+});
+
+/**
+ * Get paginated list of companies with search
+ * Query params: page, limit, search, isActive
+ */
+const getCompaniesListCtrl = asyncHandler(async (req, res) => {
+  const { page, limit, search, isActive } = req.query;
+
+  const result = await getCompaniesList({
+    page,
+    limit,
+    search,
+    isActive,
+  });
+
+  success(res, result, 'Companies retrieved successfully');
+});
+
+/**
+ * Get a single company by ID
+ */
+const getCompanyByIdCtrl = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const company = await getCompanyById(id);
+  success(res, { company }, 'Company retrieved successfully');
+});
+
+/**
+ * Create a new company
+ */
+const createCompanyCtrl = asyncHandler(async (req, res) => {
+  const { error } = createCompanySchema.validate(req.body);
+  if (error) {
+    return res.status(400).json({ 
+      success: false, 
+      message: error.details[0].message 
+    });
+  }
+
+  const company = await createCompany(req.body);
+  success(res, { company }, 'Company created successfully');
+});
+
+/**
+ * Update a company by ID
+ */
+const updateCompanyCtrl = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { error } = updateCompanySchema.validate(req.body);
+  
+  if (error) {
+    return res.status(400).json({ 
+      success: false, 
+      message: error.details[0].message 
+    });
+  }
+
+  const company = await updateCompany(id, req.body);
+  success(res, { company }, 'Company updated successfully');
+});
+
+/**
+ * Delete a company by ID
+ */
+const deleteCompanyCtrl = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  await deleteCompany(id);
+  success(res, null, 'Company deleted successfully');
+});
+
+/**
+ * Get paginated list of industries with search
+ * Query params: page, limit, search, isActive
+ */
+const getIndustriesListCtrl = asyncHandler(async (req, res) => {
+  const { page, limit, search, isActive } = req.query;
+
+  const result = await getIndustriesList({
+    page,
+    limit,
+    search,
+    isActive,
+  });
+
+  success(res, result, 'Industries retrieved successfully');
+});
+
+/**
+ * Get a single industry by ID
+ */
+const getIndustryByIdCtrl = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const industry = await getIndustryById(id);
+  success(res, { industry }, 'Industry retrieved successfully');
+});
+
+/**
+ * Create a new industry
+ */
+const createIndustryCtrl = asyncHandler(async (req, res) => {
+  const { error } = createIndustrySchema.validate(req.body);
+  if (error) {
+    return res.status(400).json({ 
+      success: false, 
+      message: error.details[0].message 
+    });
+  }
+
+  const industry = await createIndustry(req.body);
+  success(res, { industry }, 'Industry created successfully');
+});
+
+/**
+ * Update an industry by ID
+ */
+const updateIndustryCtrl = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { error } = updateIndustrySchema.validate(req.body);
+  
+  if (error) {
+    return res.status(400).json({ 
+      success: false, 
+      message: error.details[0].message 
+    });
+  }
+
+  const industry = await updateIndustry(id, req.body);
+  success(res, { industry }, 'Industry updated successfully');
+});
+
+/**
+ * Delete an industry by ID
+ */
+const deleteIndustryCtrl = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  await deleteIndustry(id);
+  success(res, null, 'Industry deleted successfully');
+});
+
 module.exports = {
   getUsersListCtrl,
   getSkillsListCtrl,
@@ -262,4 +487,19 @@ module.exports = {
   createCityCtrl,
   updateCityCtrl,
   deleteCityCtrl,
+  getHabitsListCtrl,
+  getHabitByIdCtrl,
+  createHabitCtrl,
+  updateHabitCtrl,
+  deleteHabitCtrl,
+  getCompaniesListCtrl,
+  getCompanyByIdCtrl,
+  createCompanyCtrl,
+  updateCompanyCtrl,
+  deleteCompanyCtrl,
+  getIndustriesListCtrl,
+  getIndustryByIdCtrl,
+  createIndustryCtrl,
+  updateIndustryCtrl,
+  deleteIndustryCtrl,
 };

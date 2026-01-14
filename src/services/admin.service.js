@@ -3,6 +3,9 @@ const UserDetail = require('../models/UserDetail.model');
 const Skill = require('../models/Skill.model');
 const Interest = require('../models/Interest.model');
 const City = require('../models/City.model');
+const Habit = require('../models/Habit.model');
+const Company = require('../models/Company.model');
+const Industry = require('../models/Industry.model');
 
 /**
  * Get paginated list of users with search functionality
@@ -476,6 +479,384 @@ const getCityById = async (cityId) => {
   return city;
 };
 
+/**
+ * Get all habits with pagination and search
+ */
+const getHabitsList = async ({ page = 1, limit = 10, search = '', isActive = null } = {}) => {
+  const pageNum = parseInt(page, 10) || 1;
+  const limitNum = parseInt(limit, 10) || 10;
+  const skip = (pageNum - 1) * limitNum;
+
+  // Build search query
+  let query = {};
+  
+  if (search && search.trim()) {
+    const searchRegex = new RegExp(search.trim(), 'i');
+    query.$or = [
+      { name: searchRegex },
+      { description: searchRegex },
+    ];
+  }
+
+  // Filter by isActive if provided
+  if (isActive !== null && isActive !== undefined) {
+    query.isActive = isActive === 'true' || isActive === true;
+  }
+
+  // Get total count
+  const total = await Habit.countDocuments(query);
+
+  // Get habits with pagination
+  const habits = await Habit.find(query)
+    .sort({ name: 1 }) // Sort alphabetically
+    .skip(skip)
+    .limit(limitNum)
+    .lean();
+
+  // Calculate pagination metadata
+  const totalPages = Math.ceil(total / limitNum);
+  const hasNextPage = pageNum < totalPages;
+  const hasPrevPage = pageNum > 1;
+
+  return {
+    habits,
+    pagination: {
+      currentPage: pageNum,
+      totalPages,
+      totalItems: total,
+      itemsPerPage: limitNum,
+      hasNextPage,
+      hasPrevPage,
+    },
+  };
+};
+
+/**
+ * Create a new habit
+ */
+const createHabit = async (habitData) => {
+  // Normalize habit name to lowercase for uniqueness
+  const normalizedName = habitData.name.trim().toLowerCase();
+  
+  // Check if habit already exists
+  const existingHabit = await Habit.findOne({ name: normalizedName });
+  if (existingHabit) {
+    throw new Error('Habit with this name already exists');
+  }
+
+  const habit = await Habit.create({
+    name: normalizedName,
+    description: habitData.description || '',
+    isActive: habitData.isActive !== undefined ? habitData.isActive : true,
+  });
+
+  return habit;
+};
+
+/**
+ * Update a habit by ID
+ */
+const updateHabit = async (habitId, updateData) => {
+  const habit = await Habit.findById(habitId);
+  if (!habit) {
+    throw new Error('Habit not found');
+  }
+
+  // If name is being updated, check for duplicates
+  if (updateData.name) {
+    const normalizedName = updateData.name.trim().toLowerCase();
+    const existingHabit = await Habit.findOne({ 
+      name: normalizedName,
+      _id: { $ne: habitId } // Exclude current habit
+    });
+    if (existingHabit) {
+      throw new Error('Habit with this name already exists');
+    }
+    updateData.name = normalizedName;
+  }
+
+  Object.assign(habit, updateData);
+  await habit.save();
+
+  return habit;
+};
+
+/**
+ * Delete a habit by ID
+ */
+const deleteHabit = async (habitId) => {
+  const habit = await Habit.findById(habitId);
+  if (!habit) {
+    throw new Error('Habit not found');
+  }
+
+  await Habit.deleteOne({ _id: habitId });
+  return { message: 'Habit deleted successfully' };
+};
+
+/**
+ * Get a single habit by ID
+ */
+const getHabitById = async (habitId) => {
+  const habit = await Habit.findById(habitId);
+  if (!habit) {
+    throw new Error('Habit not found');
+  }
+  return habit;
+};
+
+/**
+ * Get all companies with pagination and search
+ */
+const getCompaniesList = async ({ page = 1, limit = 10, search = '', isActive = null } = {}) => {
+  const pageNum = parseInt(page, 10) || 1;
+  const limitNum = parseInt(limit, 10) || 10;
+  const skip = (pageNum - 1) * limitNum;
+
+  // Build search query
+  let query = {};
+  
+  if (search && search.trim()) {
+    const searchRegex = new RegExp(search.trim(), 'i');
+    query.$or = [
+      { name: searchRegex },
+      { description: searchRegex },
+    ];
+  }
+
+  // Filter by isActive if provided
+  if (isActive !== null && isActive !== undefined) {
+    query.isActive = isActive === 'true' || isActive === true;
+  }
+
+  // Get total count
+  const total = await Company.countDocuments(query);
+
+  // Get companies with pagination
+  const companies = await Company.find(query)
+    .sort({ name: 1 }) // Sort alphabetically
+    .skip(skip)
+    .limit(limitNum)
+    .lean();
+
+  // Calculate pagination metadata
+  const totalPages = Math.ceil(total / limitNum);
+  const hasNextPage = pageNum < totalPages;
+  const hasPrevPage = pageNum > 1;
+
+  return {
+    companies,
+    pagination: {
+      currentPage: pageNum,
+      totalPages,
+      totalItems: total,
+      itemsPerPage: limitNum,
+      hasNextPage,
+      hasPrevPage,
+    },
+  };
+};
+
+/**
+ * Create a new company
+ */
+const createCompany = async (companyData) => {
+  // Normalize company name to lowercase for uniqueness
+  const normalizedName = companyData.name.trim().toLowerCase();
+  
+  // Check if company already exists
+  const existingCompany = await Company.findOne({ name: normalizedName });
+  if (existingCompany) {
+    throw new Error('Company with this name already exists');
+  }
+
+  const company = await Company.create({
+    name: normalizedName,
+    description: companyData.description || '',
+    isActive: companyData.isActive !== undefined ? companyData.isActive : true,
+  });
+
+  return company;
+};
+
+/**
+ * Update a company by ID
+ */
+const updateCompany = async (companyId, updateData) => {
+  const company = await Company.findById(companyId);
+  if (!company) {
+    throw new Error('Company not found');
+  }
+
+  // If name is being updated, check for duplicates
+  if (updateData.name) {
+    const normalizedName = updateData.name.trim().toLowerCase();
+    const existingCompany = await Company.findOne({ 
+      name: normalizedName,
+      _id: { $ne: companyId } // Exclude current company
+    });
+    if (existingCompany) {
+      throw new Error('Company with this name already exists');
+    }
+    updateData.name = normalizedName;
+  }
+
+  Object.assign(company, updateData);
+  await company.save();
+
+  return company;
+};
+
+/**
+ * Delete a company by ID
+ */
+const deleteCompany = async (companyId) => {
+  const company = await Company.findById(companyId);
+  if (!company) {
+    throw new Error('Company not found');
+  }
+
+  await Company.deleteOne({ _id: companyId });
+  return { message: 'Company deleted successfully' };
+};
+
+/**
+ * Get a single company by ID
+ */
+const getCompanyById = async (companyId) => {
+  const company = await Company.findById(companyId);
+  if (!company) {
+    throw new Error('Company not found');
+  }
+  return company;
+};
+
+/**
+ * Get all industries with pagination and search
+ */
+const getIndustriesList = async ({ page = 1, limit = 10, search = '', isActive = null } = {}) => {
+  const pageNum = parseInt(page, 10) || 1;
+  const limitNum = parseInt(limit, 10) || 10;
+  const skip = (pageNum - 1) * limitNum;
+
+  // Build search query
+  let query = {};
+  
+  if (search && search.trim()) {
+    const searchRegex = new RegExp(search.trim(), 'i');
+    query.$or = [
+      { name: searchRegex },
+      { description: searchRegex },
+    ];
+  }
+
+  // Filter by isActive if provided
+  if (isActive !== null && isActive !== undefined) {
+    query.isActive = isActive === 'true' || isActive === true;
+  }
+
+  // Get total count
+  const total = await Industry.countDocuments(query);
+
+  // Get industries with pagination
+  const industries = await Industry.find(query)
+    .sort({ name: 1 }) // Sort alphabetically
+    .skip(skip)
+    .limit(limitNum)
+    .lean();
+
+  // Calculate pagination metadata
+  const totalPages = Math.ceil(total / limitNum);
+  const hasNextPage = pageNum < totalPages;
+  const hasPrevPage = pageNum > 1;
+
+  return {
+    industries,
+    pagination: {
+      currentPage: pageNum,
+      totalPages,
+      totalItems: total,
+      itemsPerPage: limitNum,
+      hasNextPage,
+      hasPrevPage,
+    },
+  };
+};
+
+/**
+ * Create a new industry
+ */
+const createIndustry = async (industryData) => {
+  // Normalize industry name to lowercase for uniqueness
+  const normalizedName = industryData.name.trim().toLowerCase();
+  
+  // Check if industry already exists
+  const existingIndustry = await Industry.findOne({ name: normalizedName });
+  if (existingIndustry) {
+    throw new Error('Industry with this name already exists');
+  }
+
+  const industry = await Industry.create({
+    name: normalizedName,
+    description: industryData.description || '',
+    isActive: industryData.isActive !== undefined ? industryData.isActive : true,
+  });
+
+  return industry;
+};
+
+/**
+ * Update an industry by ID
+ */
+const updateIndustry = async (industryId, updateData) => {
+  const industry = await Industry.findById(industryId);
+  if (!industry) {
+    throw new Error('Industry not found');
+  }
+
+  // If name is being updated, check for duplicates
+  if (updateData.name) {
+    const normalizedName = updateData.name.trim().toLowerCase();
+    const existingIndustry = await Industry.findOne({ 
+      name: normalizedName,
+      _id: { $ne: industryId } // Exclude current industry
+    });
+    if (existingIndustry) {
+      throw new Error('Industry with this name already exists');
+    }
+    updateData.name = normalizedName;
+  }
+
+  Object.assign(industry, updateData);
+  await industry.save();
+
+  return industry;
+};
+
+/**
+ * Delete an industry by ID
+ */
+const deleteIndustry = async (industryId) => {
+  const industry = await Industry.findById(industryId);
+  if (!industry) {
+    throw new Error('Industry not found');
+  }
+
+  await Industry.deleteOne({ _id: industryId });
+  return { message: 'Industry deleted successfully' };
+};
+
+/**
+ * Get a single industry by ID
+ */
+const getIndustryById = async (industryId) => {
+  const industry = await Industry.findById(industryId);
+  if (!industry) {
+    throw new Error('Industry not found');
+  }
+  return industry;
+};
+
 module.exports = {
   getUsersList,
   getSkillsList,
@@ -493,4 +874,19 @@ module.exports = {
   updateCity,
   deleteCity,
   getCityById,
+  getHabitsList,
+  createHabit,
+  updateHabit,
+  deleteHabit,
+  getHabitById,
+  getCompaniesList,
+  createCompany,
+  updateCompany,
+  deleteCompany,
+  getCompanyById,
+  getIndustriesList,
+  createIndustry,
+  updateIndustry,
+  deleteIndustry,
+  getIndustryById,
 };

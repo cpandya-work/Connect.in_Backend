@@ -15,7 +15,22 @@ const {
   getCityByIdCtrl,
   createCityCtrl,
   updateCityCtrl,
-  deleteCityCtrl
+  deleteCityCtrl,
+  getHabitsListCtrl,
+  getHabitByIdCtrl,
+  createHabitCtrl,
+  updateHabitCtrl,
+  deleteHabitCtrl,
+  getCompaniesListCtrl,
+  getCompanyByIdCtrl,
+  createCompanyCtrl,
+  updateCompanyCtrl,
+  deleteCompanyCtrl,
+  getIndustriesListCtrl,
+  getIndustryByIdCtrl,
+  createIndustryCtrl,
+  updateIndustryCtrl,
+  deleteIndustryCtrl
 } = require('../controllers/admin.controller');
 const { isAdmin } = require('../middlewares/admin.middleware');
 
@@ -75,5 +90,53 @@ router.put('/cities/:id', updateCityCtrl);
 
 // DELETE /api/admin/cities/:id
 router.delete('/cities/:id', deleteCityCtrl);
+
+// Habit management routes
+// GET /api/admin/habits?page=1&limit=10&search=reading&isActive=true
+router.get('/habits', getHabitsListCtrl);
+
+// GET /api/admin/habits/:id
+router.get('/habits/:id', getHabitByIdCtrl);
+
+// POST /api/admin/habits
+router.post('/habits', createHabitCtrl);
+
+// PUT /api/admin/habits/:id
+router.put('/habits/:id', updateHabitCtrl);
+
+// DELETE /api/admin/habits/:id
+router.delete('/habits/:id', deleteHabitCtrl);
+
+// Company management routes
+// GET /api/admin/companies?page=1&limit=10&search=tech&isActive=true
+router.get('/companies', getCompaniesListCtrl);
+
+// GET /api/admin/companies/:id
+router.get('/companies/:id', getCompanyByIdCtrl);
+
+// POST /api/admin/companies
+router.post('/companies', createCompanyCtrl);
+
+// PUT /api/admin/companies/:id
+router.put('/companies/:id', updateCompanyCtrl);
+
+// DELETE /api/admin/companies/:id
+router.delete('/companies/:id', deleteCompanyCtrl);
+
+// Industry management routes
+// GET /api/admin/industries?page=1&limit=10&search=tech&isActive=true
+router.get('/industries', getIndustriesListCtrl);
+
+// GET /api/admin/industries/:id
+router.get('/industries/:id', getIndustryByIdCtrl);
+
+// POST /api/admin/industries
+router.post('/industries', createIndustryCtrl);
+
+// PUT /api/admin/industries/:id
+router.put('/industries/:id', updateIndustryCtrl);
+
+// DELETE /api/admin/industries/:id
+router.delete('/industries/:id', deleteIndustryCtrl);
 
 module.exports = router;
