@@ -31,7 +31,12 @@ const {
   createIndustry,
   updateIndustry,
   deleteIndustry,
-  getIndustryById
+  getIndustryById,
+  getCardsList,
+  createCard,
+  updateCard,
+  deleteCard,
+  getCardById
 } = require('../services/admin.service');
 const { createSkillSchema, updateSkillSchema } = require('../validators/skill.validator');
 const { createInterestSchema, updateInterestSchema } = require('../validators/interest.validator');
@@ -39,6 +44,9 @@ const { createCitySchema, updateCitySchema } = require('../validators/city.valid
 const { createHabitSchema, updateHabitSchema } = require('../validators/habit.validator');
 const { createCompanySchema, updateCompanySchema } = require('../validators/company.validator');
 const { createIndustrySchema, updateIndustrySchema } = require('../validators/industry.validator');
+const { createCardSchema, updateCardSchema } = require('../validators/card.validator');
+const { broadcastNotificationSchema } = require('../validators/broadcast.validator');
+const { sendBroadcastNotification } = require('../services/notification.service');
 
 /**
  * Get paginated list of users with search
@@ -334,18 +342,21 @@ const deleteHabitCtrl = asyncHandler(async (req, res) => {
 
 /**
  * Get paginated list of companies with search
- * Query params: page, limit, search, isActive
+ * Query params: page, limit, search, isActive, industry (for filtering)
+ * Note: Industry data is always populated and included in the response for each company
  */
 const getCompaniesListCtrl = asyncHandler(async (req, res) => {
-  const { page, limit, search, isActive } = req.query;
+  const { page, limit, search, isActive, industry } = req.query;
 
   const result = await getCompaniesList({
     page,
     limit,
     search,
     isActive,
+    industry,
   });
 
+  // Industry is automatically populated in the service layer
   success(res, result, 'Companies retrieved successfully');
 });
 
@@ -470,6 +481,150 @@ const deleteIndustryCtrl = asyncHandler(async (req, res) => {
   success(res, null, 'Industry deleted successfully');
 });
 
+/**
+ * Get paginated list of cards with search
+ * Query params: page, limit, search, isActive
+ */
+const getCardsListCtrl = asyncHandler(async (req, res) => {
+  const { page, limit, search, isActive } = req.query;
+
+  const result = await getCardsList({
+    page,
+    limit,
+    search,
+    isActive,
+  });
+
+  success(res, result, 'Cards retrieved successfully');
+});
+
+/**
+ * Get a single card by ID
+ */
+const getCardByIdCtrl = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const card = await getCardById(id);
+  success(res, { card }, 'Card retrieved successfully');
+});
+
+/**
+ * Parse features from form-data (can be JSON string, comma-separated, or array)
+ */
+const parseFeatures = (features) => {
+  if (!features) return [];
+  if (Array.isArray(features)) return features;
+  if (typeof features === 'string') {
+    // Try to parse as JSON first
+    try {
+      const parsed = JSON.parse(features);
+      if (Array.isArray(parsed)) return parsed;
+    } catch {
+      // If not JSON, try comma-separated values
+      if (features.includes(',')) {
+        return features.split(',').map(f => f.trim()).filter(f => f.length > 0);
+      }
+      // Single value
+      return [features.trim()].filter(f => f.length > 0);
+    }
+  }
+  return [];
+};
+
+/**
+ * Create a new card
+ * Requires image upload - image is uploaded to Cloudinary and URL is saved automatically
+ */
+const createCardCtrl = asyncHandler(async (req, res) => {
+  // Image file is required for card creation
+  if (!req.file || !req.file.path) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Logo image is required. Please upload an image file.' 
+    });
+  }
+
+  // Parse features from form-data
+  const features = parseFeatures(req.body.features);
+
+  // Use the Cloudinary URL from the uploaded file
+  const cardData = { 
+    ...req.body,
+    logo_image: req.file.path, // Cloudinary URL
+    features: features // Parsed array
+  };
+  
+  const { error } = createCardSchema.validate(cardData);
+  if (error) {
+    return res.status(400).json({ 
+      success: false, 
+      message: error.details[0].message 
+    });
+  }
+
+  const card = await createCard(cardData);
+  success(res, { card }, 'Card created successfully');
+});
+
+/**
+ * Update a card by ID
+ * Supports both direct image upload and URL update
+ */
+const updateCardCtrl = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  
+  // If file is uploaded, use file path; otherwise use logo_image from body
+  const updateData = { ...req.body };
+  if (req.file && req.file.path) {
+    updateData.logo_image = req.file.path;
+  }
+  
+  // Parse features if provided
+  if (updateData.features !== undefined) {
+    updateData.features = parseFeatures(updateData.features);
+  }
+  
+  const { error } = updateCardSchema.validate(updateData);
+  
+  if (error) {
+    return res.status(400).json({ 
+      success: false, 
+      message: error.details[0].message 
+    });
+  }
+
+  const card = await updateCard(id, updateData, req.file);
+  success(res, { card }, 'Card updated successfully');
+});
+
+/**
+ * Delete a card by ID
+ */
+const deleteCardCtrl = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  await deleteCard(id);
+  success(res, null, 'Card deleted successfully');
+});
+
+/**
+ * Send push notification to all users (broadcast)
+ * Requires title and description
+ */
+const sendBroadcastNotificationCtrl = asyncHandler(async (req, res) => {
+  const { error } = broadcastNotificationSchema.validate(req.body);
+  if (error) {
+    return res.status(400).json({ 
+      success: false, 
+      message: error.details[0].message 
+    });
+  }
+
+  const { title, description } = req.body;
+  
+  const result = await sendBroadcastNotification(title, description);
+  
+  success(res, result, 'Broadcast notification sent successfully');
+});
+
 module.exports = {
   getUsersListCtrl,
   getSkillsListCtrl,
@@ -502,4 +657,10 @@ module.exports = {
   createIndustryCtrl,
   updateIndustryCtrl,
   deleteIndustryCtrl,
+  getCardsListCtrl,
+  getCardByIdCtrl,
+  createCardCtrl,
+  updateCardCtrl,
+  deleteCardCtrl,
+  sendBroadcastNotificationCtrl,
 };

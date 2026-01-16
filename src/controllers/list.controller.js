@@ -4,6 +4,7 @@ const HabitModel = require("../models/Habit.model");
 const IndustryModel = require("../models/Industry.model");
 const InterestModel = require("../models/Interest.model");
 const SkillModel = require("../models/Skill.model");
+const CardModel = require("../models/Card.model");
 const asyncHandler = require("../utils/asyncHandler");
 const { success } = require("../utils/response");
 
@@ -29,12 +30,32 @@ const listHabitsCtrl = asyncHandler(async (req, res) => {
 })
 
   const listCompaniesCtrl = asyncHandler(async (req, res) => {
-    const companies = await CompanyModel.find()
+    const { industryId } = req.query;
+    
+    // Build query - filter by industryId if provided
+    let query = {};
+    if (industryId && industryId.trim()) {
+      query.industry = industryId.trim();
+    }
+    
+    const companies = await CompanyModel.find(query)
+      .populate({
+        path: 'industry',
+        select: '_id name description isActive createdAt updatedAt'
+      })
+      .sort({ name: 1 }); // Sort alphabetically
+    
     success(res, { companies }, 'companies list fetched');
   })
   const listIndustriesCtrl = asyncHandler(async (req, res) => {
     const industries = await IndustryModel.find()
-    success(res, { industries }, 'companies list fetched');
+    success(res, { industries }, 'industries list fetched');
+  })
+
+  const listCardsCtrl = asyncHandler(async (req, res) => {
+    const cards = await CardModel.find({ isActive: true })
+      .sort({ createdAt: -1 }); // Sort by newest first
+    success(res, { cards }, 'cards list fetched');
   })
 
 
@@ -45,6 +66,7 @@ module.exports = {
   listInterestCtrl,
   listHabitsCtrl,
   listCompaniesCtrl,
-  listIndustriesCtrl
+  listIndustriesCtrl,
+  listCardsCtrl
 
 }

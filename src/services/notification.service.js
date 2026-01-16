@@ -1,6 +1,7 @@
 const admin = require('../config/firebase');
 const UserToken = require('../models/UserToken.model');
 const Notification = require('../models/Notification.model');
+const User = require('../models/User.model');
 
 const saveUserToken = async (userId, fcmToken, deviceType = 'android') => {
   await UserToken.findOneAndUpdate(
@@ -140,6 +141,7 @@ const sendConnectionAcceptedNotification = async (senderId, accepterName, accept
 const getNotifications = async (userId, page = 1, limit = 20) => {
   const skip = (page - 1) * limit;
   
+  // First, fetch all notifications
   const notifications = await Notification.find({ userId })
     .populate('fromUserId', 'userDetailId')
     .populate({
@@ -154,12 +156,13 @@ const getNotifications = async (userId, page = 1, limit = 20) => {
     .limit(limit)
     .lean();
 
-  return notifications.map(notification => ({
+  // Store the original notifications before updating
+  const originalNotifications = notifications.map(notification => ({
     _id: notification._id,
     title: notification.title,
     body: notification.body,
     type: notification.type,
-    isRead: notification.isRead,
+    isRead: notification.isRead, // Keep original isRead value
     createdAt: notification.createdAt,
     fromUser: notification.fromUserId ? {
       _id: notification.fromUserId._id,
@@ -167,6 +170,18 @@ const getNotifications = async (userId, page = 1, limit = 20) => {
       profileImage: notification.fromUserId.userDetailId?.profileImage
     } : null
   }));
+
+  // After fetching, update all notifications to isRead: true in database
+  const notificationIds = notifications.map(n => n._id);
+  if (notificationIds.length > 0) {
+    await Notification.updateMany(
+      { _id: { $in: notificationIds }, userId },
+      { isRead: true }
+    );
+  }
+
+  // Return the previously fetched notifications (with original isRead values)
+  return originalNotifications;
 };
 
 const markAsRead = async (userId, notificationId) => {
@@ -180,6 +195,101 @@ const getUnreadCount = async (userId) => {
   return await Notification.countDocuments({ userId, isRead: false });
 };
 
+/**
+ * Send push notification to all users (broadcast)
+ * @param {string} title - Notification title
+ * @param {string} description - Notification body/description
+ * @returns {Promise<Object>} Result with success count and failure count
+ */
+const sendBroadcastNotification = async (title, description) => {
+  try {
+    // Get all users
+    const users = await User.find().select('_id');
+    const userIds = users.map(user => user._id);
+
+    if (userIds.length === 0) {
+      return {
+        success: true,
+        totalUsers: 0,
+        notificationsSent: 0,
+        message: 'No users found'
+      };
+    }
+
+    // Save notification to database for all users
+    const notifications = userIds.map(userId => ({
+      userId,
+      title,
+      body: description,
+      type: 'broadcast',
+      data: {
+        type: 'broadcast',
+        action: 'admin_notification'
+      },
+      fromUserId: null
+    }));
+
+    await Notification.insertMany(notifications);
+
+    // Get all active FCM tokens
+    const allTokens = await UserToken.find({ isActive: true }).select('fcmToken');
+    const tokens = allTokens.map(token => token.fcmToken);
+
+    if (tokens.length === 0) {
+      return {
+        success: true,
+        totalUsers: userIds.length,
+        notificationsSaved: userIds.length,
+        notificationsSent: 0,
+        message: 'Notifications saved but no active FCM tokens found'
+      };
+    }
+
+    // Send push notification to all tokens using multicast
+    const message = {
+      notification: {
+        title,
+        body: description,
+      },
+      data: {
+        type: 'broadcast',
+        action: 'admin_notification',
+      },
+      tokens,
+    };
+
+    const response = await admin.messaging().sendEachForMulticast(message);
+    
+    // Handle failed tokens
+    if (response.failureCount > 0) {
+      const failedTokens = [];
+      response.responses.forEach((resp, idx) => {
+        if (!resp.success) {
+          failedTokens.push(tokens[idx]);
+        }
+      });
+      
+      // Deactivate failed tokens
+      await UserToken.updateMany(
+        { fcmToken: { $in: failedTokens } },
+        { isActive: false }
+      );
+    }
+
+    return {
+      success: true,
+      totalUsers: userIds.length,
+      notificationsSaved: userIds.length,
+      notificationsSent: response.successCount,
+      notificationsFailed: response.failureCount,
+      message: `Notification sent to ${response.successCount} devices`
+    };
+  } catch (error) {
+    console.error('Error sending broadcast notification:', error);
+    throw error;
+  }
+};
+
 module.exports = {
   saveUserToken,
   sendNotification,
@@ -190,4 +300,5 @@ module.exports = {
   getNotifications,
   markAsRead,
   getUnreadCount,
+  sendBroadcastNotification,
 };

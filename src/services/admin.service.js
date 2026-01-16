@@ -6,6 +6,8 @@ const City = require('../models/City.model');
 const Habit = require('../models/Habit.model');
 const Company = require('../models/Company.model');
 const Industry = require('../models/Industry.model');
+const Card = require('../models/Card.model');
+const { deleteFromCloudinary } = require('../utils/cloudinary');
 
 /**
  * Get paginated list of users with search functionality
@@ -608,7 +610,7 @@ const getHabitById = async (habitId) => {
 /**
  * Get all companies with pagination and search
  */
-const getCompaniesList = async ({ page = 1, limit = 10, search = '', isActive = null } = {}) => {
+const getCompaniesList = async ({ page = 1, limit = 10, search = '', isActive = null, industry = null } = {}) => {
   const pageNum = parseInt(page, 10) || 1;
   const limitNum = parseInt(limit, 10) || 10;
   const skip = (pageNum - 1) * limitNum;
@@ -629,11 +631,20 @@ const getCompaniesList = async ({ page = 1, limit = 10, search = '', isActive = 
     query.isActive = isActive === 'true' || isActive === true;
   }
 
+  // Filter by industry if provided
+  if (industry && industry.trim()) {
+    query.industry = industry.trim();
+  }
+
   // Get total count
   const total = await Company.countDocuments(query);
 
-  // Get companies with pagination
+  // Get companies with pagination - industry is always populated in the response
   const companies = await Company.find(query)
+    .populate({
+      path: 'industry',
+      select: '_id name description isActive createdAt updatedAt'
+    })
     .sort({ name: 1 }) // Sort alphabetically
     .skip(skip)
     .limit(limitNum)
@@ -670,10 +681,27 @@ const createCompany = async (companyData) => {
     throw new Error('Company with this name already exists');
   }
 
+  // Validate that industry exists
+  if (companyData.industry) {
+    const industry = await Industry.findById(companyData.industry);
+    if (!industry) {
+      throw new Error('Industry not found');
+    }
+  } else {
+    throw new Error('Industry is required');
+  }
+
   const company = await Company.create({
     name: normalizedName,
     description: companyData.description || '',
+    industry: companyData.industry,
     isActive: companyData.isActive !== undefined ? companyData.isActive : true,
+  });
+
+  // Populate industry before returning
+  await company.populate({
+    path: 'industry',
+    select: '_id name description isActive createdAt updatedAt'
   });
 
   return company;
@@ -701,8 +729,22 @@ const updateCompany = async (companyId, updateData) => {
     updateData.name = normalizedName;
   }
 
+  // If industry is being updated, validate that it exists
+  if (updateData.industry) {
+    const industry = await Industry.findById(updateData.industry);
+    if (!industry) {
+      throw new Error('Industry not found');
+    }
+  }
+
   Object.assign(company, updateData);
   await company.save();
+
+  // Populate industry before returning
+  await company.populate({
+    path: 'industry',
+    select: '_id name description isActive createdAt updatedAt'
+  });
 
   return company;
 };
@@ -724,7 +766,11 @@ const deleteCompany = async (companyId) => {
  * Get a single company by ID
  */
 const getCompanyById = async (companyId) => {
-  const company = await Company.findById(companyId);
+  const company = await Company.findById(companyId)
+    .populate({
+      path: 'industry',
+      select: '_id name description isActive createdAt updatedAt'
+    });
   if (!company) {
     throw new Error('Company not found');
   }
@@ -857,6 +903,141 @@ const getIndustryById = async (industryId) => {
   return industry;
 };
 
+/**
+ * Get all cards with pagination and search
+ */
+const getCardsList = async ({ page = 1, limit = 10, search = '', isActive = null } = {}) => {
+  const pageNum = parseInt(page, 10) || 1;
+  const limitNum = parseInt(limit, 10) || 10;
+  const skip = (pageNum - 1) * limitNum;
+
+  // Build search query
+  let query = {};
+  
+  if (search && search.trim()) {
+    const searchRegex = new RegExp(search.trim(), 'i');
+    query.$or = [
+      { name: searchRegex },
+      { description: searchRegex },
+    ];
+  }
+
+  // Filter by isActive if provided
+  if (isActive !== null && isActive !== undefined) {
+    query.isActive = isActive === 'true' || isActive === true;
+  }
+
+  // Get total count
+  const total = await Card.countDocuments(query);
+
+  // Get cards with pagination
+  const cards = await Card.find(query)
+    .sort({ createdAt: -1 }) // Sort by newest first
+    .skip(skip)
+    .limit(limitNum)
+    .lean();
+
+  // Calculate pagination metadata
+  const totalPages = Math.ceil(total / limitNum);
+  const hasNextPage = pageNum < totalPages;
+  const hasPrevPage = pageNum > 1;
+
+  return {
+    cards,
+    pagination: {
+      currentPage: pageNum,
+      totalPages,
+      totalItems: total,
+      itemsPerPage: limitNum,
+      hasNextPage,
+      hasPrevPage,
+    },
+  };
+};
+
+/**
+ * Create a new card
+ * logo_image should already contain the Cloudinary URL from the uploaded file
+ */
+const createCard = async (cardData) => {
+  const card = await Card.create({
+    name: cardData.name.trim(),
+    description: cardData.description || '',
+    logo_image: cardData.logo_image, // Cloudinary URL from file upload
+    url: cardData.url.trim(),
+    features: cardData.features || [],
+    isActive: cardData.isActive !== undefined ? cardData.isActive : true,
+  });
+
+  return card;
+};
+
+/**
+ * Update a card by ID
+ */
+const updateCard = async (cardId, updateData, file = null) => {
+  const card = await Card.findById(cardId);
+  if (!card) {
+    throw new Error('Card not found');
+  }
+
+  // If a new image file is uploaded, delete the old one and use the new URL
+  if (file && file.path) {
+    // Delete old image if it exists
+    if (card.logo_image) {
+      await deleteFromCloudinary(card.logo_image);
+    }
+    updateData.logo_image = file.path;
+  }
+
+  // Trim string fields if provided
+  if (updateData.name) {
+    updateData.name = updateData.name.trim();
+  }
+  if (updateData.description !== undefined) {
+    updateData.description = updateData.description.trim();
+  }
+  if (updateData.logo_image !== undefined && !file) {
+    // Only trim if it's a URL string, not a file upload
+    updateData.logo_image = updateData.logo_image.trim();
+  }
+  if (updateData.url !== undefined) {
+    updateData.url = updateData.url.trim();
+  }
+  if (updateData.features !== undefined && Array.isArray(updateData.features)) {
+    updateData.features = updateData.features.map(f => f.trim()).filter(f => f.length > 0);
+  }
+
+  Object.assign(card, updateData);
+  await card.save();
+
+  return card;
+};
+
+/**
+ * Delete a card by ID
+ */
+const deleteCard = async (cardId) => {
+  const card = await Card.findById(cardId);
+  if (!card) {
+    throw new Error('Card not found');
+  }
+
+  await Card.deleteOne({ _id: cardId });
+  return { message: 'Card deleted successfully' };
+};
+
+/**
+ * Get a single card by ID
+ */
+const getCardById = async (cardId) => {
+  const card = await Card.findById(cardId);
+  if (!card) {
+    throw new Error('Card not found');
+  }
+  return card;
+};
+
 module.exports = {
   getUsersList,
   getSkillsList,
@@ -889,4 +1070,9 @@ module.exports = {
   updateIndustry,
   deleteIndustry,
   getIndustryById,
+  getCardsList,
+  createCard,
+  updateCard,
+  deleteCard,
+  getCardById,
 };

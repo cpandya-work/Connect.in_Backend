@@ -217,7 +217,18 @@ const removeConnection = async (userId, connectionUserId) => {
     throw new Error('Connection not found');
   }
 
+  // Delete the connection
   await UserConnections.deleteOne({ _id: connection._id });
+
+  // Delete any pending requests between these two users (both sent and received)
+  await UserRequests.deleteMany({
+    $or: [
+      // User sent request to connectionUserId
+      { senderId: userId, receiverId: connectionUserId, status: 'pending' },
+      // User received request from connectionUserId
+      { senderId: connectionUserId, receiverId: userId, status: 'pending' },
+    ],
+  });
 
   return { success: true };
 };

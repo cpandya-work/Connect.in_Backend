@@ -12,6 +12,11 @@ const companySchema = new mongoose.Schema({
     type: String, 
     trim: true 
   },
+  industry: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Industry',
+    required: true
+  },
   isActive: { 
     type: Boolean, 
     default: true 
@@ -20,6 +25,7 @@ const companySchema = new mongoose.Schema({
 
 // Index for faster searches
 companySchema.index({ name: 1 });
+companySchema.index({ industry: 1 });
 
 module.exports = mongoose.model('Company', companySchema);
 

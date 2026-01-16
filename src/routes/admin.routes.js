@@ -30,9 +30,16 @@ const {
   getIndustryByIdCtrl,
   createIndustryCtrl,
   updateIndustryCtrl,
-  deleteIndustryCtrl
+  deleteIndustryCtrl,
+  getCardsListCtrl,
+  getCardByIdCtrl,
+  createCardCtrl,
+  updateCardCtrl,
+  deleteCardCtrl,
+  sendBroadcastNotificationCtrl
 } = require('../controllers/admin.controller');
 const { isAdmin } = require('../middlewares/admin.middleware');
+const uploadCardLogo = require('../middlewares/cardUpload.middleware');
 
 const router = express.Router();
 
@@ -138,5 +145,25 @@ router.put('/industries/:id', updateIndustryCtrl);
 
 // DELETE /api/admin/industries/:id
 router.delete('/industries/:id', deleteIndustryCtrl);
+
+// Card management routes
+// GET /api/admin/cards?page=1&limit=10&search=premium&isActive=true
+router.get('/cards', getCardsListCtrl);
+
+// GET /api/admin/cards/:id
+router.get('/cards/:id', getCardByIdCtrl);
+
+// POST /api/admin/cards - Requires logo_image file upload (uploaded to Cloudinary automatically)
+router.post('/cards', uploadCardLogo.single('logo_image'), createCardCtrl);
+
+// PUT /api/admin/cards/:id - Can accept image file or logo_image URL
+router.put('/cards/:id', uploadCardLogo.single('logo_image'), updateCardCtrl);
+
+// DELETE /api/admin/cards/:id
+router.delete('/cards/:id', deleteCardCtrl);
+
+// Notification management routes
+// POST /api/admin/notifications/broadcast - Send push notification to all users
+router.post('/notifications/broadcast', sendBroadcastNotificationCtrl);
 
 module.exports = router;

@@ -10,6 +10,11 @@ const createCompanySchema = Joi.object({
   description: Joi.string().trim().max(500).optional().allow('').messages({
     'string.max': 'Description must not exceed 500 characters'
   }),
+  industry: Joi.string().hex().length(24).required().messages({
+    'string.hex': 'Industry ID must be a valid MongoDB ObjectId',
+    'string.length': 'Industry ID must be a valid MongoDB ObjectId',
+    'any.required': 'Industry is required'
+  }),
   isActive: Joi.boolean().optional().default(true)
 });
 
@@ -21,6 +26,10 @@ const updateCompanySchema = Joi.object({
   }),
   description: Joi.string().trim().max(500).optional().allow('').messages({
     'string.max': 'Description must not exceed 500 characters'
+  }),
+  industry: Joi.string().hex().length(24).optional().messages({
+    'string.hex': 'Industry ID must be a valid MongoDB ObjectId',
+    'string.length': 'Industry ID must be a valid MongoDB ObjectId'
   }),
   isActive: Joi.boolean().optional()
 }).min(1); // At least one field must be provided
