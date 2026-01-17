@@ -206,20 +206,6 @@ const getUsersWhoLikedMe = async (userId, search = '') => {
 };
 
 const removeConnection = async (userId, connectionUserId) => {
-  const connection = await UserConnections.findOne({
-    $or: [
-      { connection1Id: userId, connection2Id: connectionUserId },
-      { connection1Id: connectionUserId, connection2Id: userId },
-    ],
-  });
-
-  if (!connection) {
-    throw new Error('Connection not found');
-  }
-
-  // Delete the connection
-  await UserConnections.deleteOne({ _id: connection._id });
-
   // Delete any pending requests between these two users (both sent and received)
   await UserRequests.deleteMany({
     $or: [
