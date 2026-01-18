@@ -5,8 +5,6 @@ const citySchema = new mongoose.Schema({
     type: String, 
     required: true, 
     unique: true,
-    trim: true,
-    lowercase: true
   },
   isActive: { 
     type: Boolean, 
