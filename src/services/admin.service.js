@@ -966,6 +966,7 @@ const createCard = async (cardData) => {
     logo_image: cardData.logo_image, // Cloudinary URL from file upload
     url: cardData.url.trim(),
     features: cardData.features || [],
+    eligibles: cardData.eligibles || [],
     isActive: cardData.isActive !== undefined ? cardData.isActive : true,
   });
 
@@ -1006,6 +1007,9 @@ const updateCard = async (cardId, updateData, file = null) => {
   }
   if (updateData.features !== undefined && Array.isArray(updateData.features)) {
     updateData.features = updateData.features.map(f => f.trim()).filter(f => f.length > 0);
+  }
+  if (updateData.eligibles !== undefined && Array.isArray(updateData.eligibles)) {
+    updateData.eligibles = updateData.eligibles.map(e => e.trim()).filter(e => e.length > 0);
   }
 
   Object.assign(card, updateData);

@@ -508,23 +508,24 @@ const getCardByIdCtrl = asyncHandler(async (req, res) => {
 });
 
 /**
- * Parse features from form-data (can be JSON string, comma-separated, or array)
+ * Parse array field from form-data (can be JSON string, comma-separated, or array)
+ * Used for features, eligibles, etc.
  */
-const parseFeatures = (features) => {
-  if (!features) return [];
-  if (Array.isArray(features)) return features;
-  if (typeof features === 'string') {
+const parseArrayField = (field) => {
+  if (!field) return [];
+  if (Array.isArray(field)) return field;
+  if (typeof field === 'string') {
     // Try to parse as JSON first
     try {
-      const parsed = JSON.parse(features);
+      const parsed = JSON.parse(field);
       if (Array.isArray(parsed)) return parsed;
     } catch {
       // If not JSON, try comma-separated values
-      if (features.includes(',')) {
-        return features.split(',').map(f => f.trim()).filter(f => f.length > 0);
+      if (field.includes(',')) {
+        return field.split(',').map(f => f.trim()).filter(f => f.length > 0);
       }
       // Single value
-      return [features.trim()].filter(f => f.length > 0);
+      return [field.trim()].filter(f => f.length > 0);
     }
   }
   return [];
@@ -543,14 +544,16 @@ const createCardCtrl = asyncHandler(async (req, res) => {
     });
   }
 
-  // Parse features from form-data
-  const features = parseFeatures(req.body.features);
+  // Parse features and eligibles from form-data
+  const features = parseArrayField(req.body.features);
+  const eligibles = parseArrayField(req.body.eligibles);
 
   // Use the Cloudinary URL from the uploaded file
   const cardData = { 
     ...req.body,
     logo_image: req.file.path, // Cloudinary URL
-    features: features // Parsed array
+    features: features, // Parsed array
+    eligibles: eligibles // Parsed array
   };
   
   const { error } = createCardSchema.validate(cardData);
@@ -578,9 +581,12 @@ const updateCardCtrl = asyncHandler(async (req, res) => {
     updateData.logo_image = req.file.path;
   }
   
-  // Parse features if provided
+  // Parse features and eligibles if provided
   if (updateData.features !== undefined) {
-    updateData.features = parseFeatures(updateData.features);
+    updateData.features = parseArrayField(updateData.features);
+  }
+  if (updateData.eligibles !== undefined) {
+    updateData.eligibles = parseArrayField(updateData.eligibles);
   }
   
   const { error } = updateCardSchema.validate(updateData);

@@ -26,6 +26,13 @@ const createCardSchema = Joi.object({
     'string.min': 'Each feature must be at least 1 character',
     'string.max': 'Each feature must not exceed 200 characters'
   }),
+  eligibles: Joi.array().items(
+    Joi.string().trim().min(1).max(200)
+  ).optional().default([]).messages({
+    'array.base': 'Eligibles must be an array',
+    'string.min': 'Each eligible must be at least 1 character',
+    'string.max': 'Each eligible must not exceed 200 characters'
+  }),
   isActive: Joi.boolean().optional().default(true)
 });
 
@@ -52,6 +59,13 @@ const updateCardSchema = Joi.object({
     'array.base': 'Features must be an array',
     'string.min': 'Each feature must be at least 1 character',
     'string.max': 'Each feature must not exceed 200 characters'
+  }),
+  eligibles: Joi.array().items(
+    Joi.string().trim().min(1).max(200)
+  ).optional().messages({
+    'array.base': 'Eligibles must be an array',
+    'string.min': 'Each eligible must be at least 1 character',
+    'string.max': 'Each eligible must not exceed 200 characters'
   }),
   isActive: Joi.boolean().optional()
 }).min(1); // At least one field must be provided
