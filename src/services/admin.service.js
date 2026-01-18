@@ -168,7 +168,7 @@ const getSkillsList = async ({ page = 1, limit = 10, search = '', isActive = nul
  */
 const createSkill = async (skillData) => {
   // Normalize skill name to lowercase for uniqueness
-  const normalizedName = skillData.name.trim().toLowerCase();
+  const normalizedName = skillData.name;
   
   // Check if skill already exists
   const existingSkill = await Skill.findOne({ name: normalizedName });
@@ -196,7 +196,7 @@ const updateSkill = async (skillId, updateData) => {
 
   // If name is being updated, check for duplicates
   if (updateData.name) {
-    const normalizedName = updateData.name.trim().toLowerCase();
+    const normalizedName = updateData.name;
     const existingSkill = await Skill.findOne({ 
       name: normalizedName,
       _id: { $ne: skillId } // Exclude current skill
@@ -291,7 +291,7 @@ const getInterestsList = async ({ page = 1, limit = 10, search = '', isActive = 
  */
 const createInterest = async (interestData) => {
   // Normalize interest name to lowercase for uniqueness
-  const normalizedName = interestData.name.trim().toLowerCase();
+  const normalizedName = interestData.name;
   
   // Check if interest already exists
   const existingInterest = await Interest.findOne({ name: normalizedName });
@@ -318,7 +318,7 @@ const updateInterest = async (interestId, updateData) => {
 
   // If name is being updated, check for duplicates
   if (updateData.name) {
-    const normalizedName = updateData.name.trim().toLowerCase();
+    const normalizedName = updateData.name;
     const existingInterest = await Interest.findOne({ 
       name: normalizedName,
       _id: { $ne: interestId } // Exclude current interest
@@ -413,7 +413,7 @@ const getCitiesList = async ({ page = 1, limit = 10, search = '', isActive = nul
  */
 const createCity = async (cityData) => {
   // Normalize city name to lowercase for uniqueness
-  const normalizedName = cityData.name.trim().toLowerCase();
+  const normalizedName = cityData.name;
   
   // Check if city already exists
   const existingCity = await City.findOne({ name: normalizedName });
@@ -440,7 +440,7 @@ const updateCity = async (cityId, updateData) => {
 
   // If name is being updated, check for duplicates
   if (updateData.name) {
-    const normalizedName = updateData.name.trim().toLowerCase();
+    const normalizedName = updateData.name;
     const existingCity = await City.findOne({ 
       name: normalizedName,
       _id: { $ne: cityId } // Exclude current city
@@ -538,7 +538,7 @@ const getHabitsList = async ({ page = 1, limit = 10, search = '', isActive = nul
  */
 const createHabit = async (habitData) => {
   // Normalize habit name to lowercase for uniqueness
-  const normalizedName = habitData.name.trim().toLowerCase();
+  const normalizedName = habitData.name;
   
   // Check if habit already exists
   const existingHabit = await Habit.findOne({ name: normalizedName });
@@ -566,7 +566,7 @@ const updateHabit = async (habitId, updateData) => {
 
   // If name is being updated, check for duplicates
   if (updateData.name) {
-    const normalizedName = updateData.name.trim().toLowerCase();
+    const normalizedName = updateData.name;
     const existingHabit = await Habit.findOne({ 
       name: normalizedName,
       _id: { $ne: habitId } // Exclude current habit
@@ -673,7 +673,7 @@ const getCompaniesList = async ({ page = 1, limit = 10, search = '', isActive = 
  */
 const createCompany = async (companyData) => {
   // Normalize company name to lowercase for uniqueness
-  const normalizedName = companyData.name.trim().toLowerCase();
+  const normalizedName = companyData.name;
   
   // Check if company already exists
   const existingCompany = await Company.findOne({ name: normalizedName });
@@ -718,7 +718,7 @@ const updateCompany = async (companyId, updateData) => {
 
   // If name is being updated, check for duplicates
   if (updateData.name) {
-    const normalizedName = updateData.name.trim().toLowerCase();
+    const normalizedName = updateData.name;
     const existingCompany = await Company.findOne({ 
       name: normalizedName,
       _id: { $ne: companyId } // Exclude current company
@@ -834,7 +834,7 @@ const getIndustriesList = async ({ page = 1, limit = 10, search = '', isActive =
  */
 const createIndustry = async (industryData) => {
   // Normalize industry name to lowercase for uniqueness
-  const normalizedName = industryData.name.trim().toLowerCase();
+  const normalizedName = industryData.name;
   
   // Check if industry already exists
   const existingIndustry = await Industry.findOne({ name: normalizedName });
@@ -862,7 +862,7 @@ const updateIndustry = async (industryId, updateData) => {
 
   // If name is being updated, check for duplicates
   if (updateData.name) {
-    const normalizedName = updateData.name.trim().toLowerCase();
+    const normalizedName = updateData.name;
     const existingIndustry = await Industry.findOne({ 
       name: normalizedName,
       _id: { $ne: industryId } // Exclude current industry
@@ -961,7 +961,7 @@ const getCardsList = async ({ page = 1, limit = 10, search = '', isActive = null
  */
 const createCard = async (cardData) => {
   const card = await Card.create({
-    name: cardData.name.trim(),
+    name: cardData.name,
     description: cardData.description || '',
     logo_image: cardData.logo_image, // Cloudinary URL from file upload
     url: cardData.url.trim(),

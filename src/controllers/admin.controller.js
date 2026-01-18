@@ -163,6 +163,8 @@ const getInterestByIdCtrl = asyncHandler(async (req, res) => {
  * Create a new interest
  */
 const createInterestCtrl = asyncHandler(async (req, res) => {
+  console.log(req.body,'body');
+  
   const { error } = createInterestSchema.validate(req.body);
   if (error) {
     return res.status(400).json({ 

@@ -24,7 +24,7 @@ const sendOtp = async (phoneNumber) => {
 const verifyOtp = async (phoneNumber, otp, fcmToken = null, deviceType = 'android') => {
   const otpDoc = await Otp.findOne({ phoneNumber, code: otp });
   if (!otpDoc || otpDoc.expiresAt < new Date()) {
-    throw new Error('Invalid or expired OTP');
+    throw new Error('The OTP you entered is invalid. Please try again.');
   }
 
   let user = await User.findOne({ phoneNumber });

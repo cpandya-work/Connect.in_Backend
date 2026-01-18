@@ -53,7 +53,18 @@ const listHabitsCtrl = asyncHandler(async (req, res) => {
   })
 
   const listCardsCtrl = asyncHandler(async (req, res) => {
-    const cards = await CardModel.find({ isActive: true })
+    const { search } = req.query;
+    
+    // Build query - always filter by isActive: true
+    let query = { isActive: true };
+    
+    // Add search by card name if provided
+    if (search && search.trim()) {
+      const searchRegex = new RegExp(search.trim(), 'i');
+      query.name = searchRegex;
+    }
+    
+    const cards = await CardModel.find(query)
       .sort({ createdAt: -1 }); // Sort by newest first
     success(res, { cards }, 'cards list fetched');
   })

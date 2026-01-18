@@ -22,7 +22,7 @@ const likeUserCtrl = asyncHandler(async (req, res) => {
   }
 
   await likeUser(req.user._id, likedUserId);
-  success(res, null, 'User liked');
+  success(res, null, 'You liked this profile.');
 });
 
 const dislikeUserCtrl = asyncHandler(async (req, res) => {
@@ -32,7 +32,7 @@ const dislikeUserCtrl = asyncHandler(async (req, res) => {
   }
 
   await dislikeUser(req.user._id, likedUserId);
-  success(res, null, 'User disliked');
+  success(res, null, 'You disliked this profile.');
 });
 
 const getLikesCtrl = asyncHandler(async (req, res) => {
