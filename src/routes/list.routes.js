@@ -4,7 +4,7 @@ const { listCityCtrl, listSkillCtrl, listInterestCtrl, listHabitsCtrl, listCompa
 
 const router = express.Router();
 
-router.use(protect);
+// router.use(protect);
 
 router.get('/city', listCityCtrl);
 router.get('/skill', listSkillCtrl);
