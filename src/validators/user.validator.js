@@ -6,9 +6,8 @@ const profileSchema = Joi.object({
   religion: Joi.string().required(),
   status: Joi.string().valid('Married', 'Unmarried', 'Divorced').required(),
   email: Joi.string().email().required(),
-  password: Joi.string().min(6).required().messages({
-    'string.min': 'Password must be at least 6 characters',
-    'any.required': 'Password is required'
+  password: Joi.string().min(6).optional().allow('').messages({
+    'string.min': 'Password must be at least 6 characters'
   }),
   gender: Joi.string().valid('Male', 'Female', 'Other').required(),
   dateOfBirth: Joi.date().max('now').required(),
