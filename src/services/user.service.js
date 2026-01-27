@@ -43,10 +43,22 @@ const getPublicProfile = async (userId, loggedInUserId) => {
     hasReceivedRequest = !!receivedRequest;
   }
 
+  // Get user detail as object, ensuring all fields are included (including undefined ones)
+  const userDetailObj = user.userDetailId.toObject({ 
+    virtuals: false,
+    transform: (doc, ret) => {
+      // Ensure all fields are included, even if undefined
+      return ret;
+    }
+  });
+  
   return {
     phoneNumber: user.phoneNumber,
     email: user.userDetailId.email,
-    ...user.userDetailId.toObject(),
+    ...userDetailObj,
+    // Explicitly ensure company and industry are included
+    company: userDetailObj.company,
+    industry: userDetailObj.industry,
     isLiked,
     isConnected,
     hasSentRequest,

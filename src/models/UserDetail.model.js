@@ -18,6 +18,16 @@ const userDetailSchema = new mongoose.Schema({
   profileImage: String, // Cloudinary URL
   company: String,
   industry: String,
+  lastCompletedStep: { 
+    type: Number, 
+    default: 0,  // 0 = not started, 1-8 = step number
+    min: 0,
+    max: 8
+  },
+  isProfileComplete: { 
+    type: Boolean, 
+    default: false 
+  },
 });
 
 // Hash password before saving

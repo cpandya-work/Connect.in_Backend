@@ -32,24 +32,54 @@ const createProfile = asyncHandler(async (req, res) => {
 
   const profileImage = req.file?.path || null;
   
-  const isUserExists=await UserDetail.findOne({ email: req.body.email });
-  if(isUserExists){
-    return res.status(400).json({ success: false, message: 'Email already in use' });
+  const user = await User.findById(req.user._id).populate('userDetailId');
+  
+  // Check if email already exists (excluding current user's email)
+  if (user.userDetailId && user.userDetailId.email !== req.body.email) {
+    const isUserExists = await UserDetail.findOne({ email: req.body.email });
+    if (isUserExists) {
+      return res.status(400).json({ success: false, message: 'Email already in use' });
+    }
+  } else if (!user.userDetailId) {
+    const isUserExists = await UserDetail.findOne({ email: req.body.email });
+    if (isUserExists) {
+      return res.status(400).json({ success: false, message: 'Email already in use' });
+    }
   }
 
-  const detail = await UserDetail.create({
-    ...req.body,
-    profileImage,
-    habits: Array.isArray(req.body.habits) ? req.body.habits : (req.body.habits?.split(',').map(h => h.trim()).filter(Boolean) || []),
-    interests: Array.isArray(req.body.interests) ? req.body.interests : (req.body.interests?.split(',').map(i => i.trim()).filter(Boolean) || []),
-    skills: Array.isArray(req.body.skills) ? req.body.skills : (req.body.skills?.split(',').map(s => s.trim()).filter(Boolean) || []),
-  });
-
-  await User.findByIdAndUpdate(req.user._id, { userDetailId: detail._id });
+  let detail;
+  if (user.userDetailId) {
+    // Update existing profile and mark as complete
+    detail = await UserDetail.findByIdAndUpdate(
+      user.userDetailId._id,
+      {
+        ...req.body,
+        profileImage: profileImage || user.userDetailId.profileImage,
+        habits: Array.isArray(req.body.habits) ? req.body.habits : (req.body.habits?.split(',').map(h => h.trim()).filter(Boolean) || []),
+        interests: Array.isArray(req.body.interests) ? req.body.interests : (req.body.interests?.split(',').map(i => i.trim()).filter(Boolean) || []),
+        skills: Array.isArray(req.body.skills) ? req.body.skills : (req.body.skills?.split(',').map(s => s.trim()).filter(Boolean) || []),
+        lastCompletedStep: 8,
+        isProfileComplete: true,
+      },
+      { new: true }
+    );
+  } else {
+    // Create new profile
+    detail = await UserDetail.create({
+      ...req.body,
+      profileImage,
+      habits: Array.isArray(req.body.habits) ? req.body.habits : (req.body.habits?.split(',').map(h => h.trim()).filter(Boolean) || []),
+      interests: Array.isArray(req.body.interests) ? req.body.interests : (req.body.interests?.split(',').map(i => i.trim()).filter(Boolean) || []),
+      skills: Array.isArray(req.body.skills) ? req.body.skills : (req.body.skills?.split(',').map(s => s.trim()).filter(Boolean) || []),
+      lastCompletedStep: 8,
+      isProfileComplete: true,
+    });
+    await User.findByIdAndUpdate(req.user._id, { userDetailId: detail._id });
+  }
   
-  const user = await User.findById(req.user._id);
+  const updatedUser = await User.findById(req.user._id);
   const profile = {
-    phoneNumber: user.phoneNumber,
+    phoneNumber: updatedUser.phoneNumber,
     email: detail.email,
     ...detail.toObject(),
   };
@@ -83,6 +113,154 @@ const deleteUserAccount = asyncHandler(async (req, res) => {
   success(res, null, 'Account deleted successfully');
 });
 
+// Save profile step data (progressive saving)
+const saveProfileStep = asyncHandler(async (req, res) => {
+  // stepNumber comes from FormData, so it might be a string
+  const stepNumber = parseInt(req.body.stepNumber, 10);
+  const profileImage = req.file?.path || null;
+  
+  if (!stepNumber || isNaN(stepNumber) || stepNumber < 1 || stepNumber > 8) {
+    return res.status(400).json({ success: false, message: 'Invalid step number' });
+  }
+
+  const user = await User.findById(req.user._id).populate('userDetailId');
+  
+  // Prepare step data (only include fields for this step)
+  const stepData = {};
+  
+  // Step 1: Basic info
+  if (stepNumber === 1) {
+    if (req.body.fullName) stepData.fullName = req.body.fullName;
+    if (req.body.city) stepData.city = req.body.city;
+    if (req.body.religion) stepData.religion = req.body.religion;
+    if (req.body.status) stepData.status = req.body.status;
+  }
+  
+  // Step 2: Personal details
+  if (stepNumber === 2) {
+    if (req.body.email) stepData.email = req.body.email;
+    if (req.body.gender) stepData.gender = req.body.gender;
+    if (req.body.dateOfBirth) {
+      // Convert dateOfBirth to Date object if it's a string
+      stepData.dateOfBirth = req.body.dateOfBirth instanceof Date 
+        ? req.body.dateOfBirth 
+        : new Date(req.body.dateOfBirth);
+    }
+  }
+  
+  // Step 3: Language
+  if (stepNumber === 3) {
+    if (req.body.preferredLanguage) stepData.preferredLanguage = req.body.preferredLanguage;
+  }
+  
+  // Step 4: Habits
+  if (stepNumber === 4) {
+    if (req.body.habits) {
+      stepData.habits = Array.isArray(req.body.habits) 
+        ? req.body.habits 
+        : (req.body.habits.split(',').map(h => h.trim()).filter(Boolean) || []);
+    }
+  }
+  
+  // Step 5: Interests
+  if (stepNumber === 5) {
+    if (req.body.interests) {
+      stepData.interests = Array.isArray(req.body.interests) 
+        ? req.body.interests 
+        : (req.body.interests.split(',').map(i => i.trim()).filter(Boolean) || []);
+    }
+  }
+  
+  // Step 6: Skills
+  if (stepNumber === 6) {
+    if (req.body.skills) {
+      stepData.skills = Array.isArray(req.body.skills) 
+        ? req.body.skills 
+        : (req.body.skills.split(',').map(s => s.trim()).filter(Boolean) || []);
+    }
+  }
+  
+  // Step 7: Industry and Company
+  if (stepNumber === 7) {
+    if (req.body.industry) stepData.industry = req.body.industry;
+    if (req.body.company) stepData.company = req.body.company;
+  }
+  
+  // Step 8: Profile Image
+  if (stepNumber === 8 && profileImage) {
+    stepData.profileImage = profileImage;
+  }
+  
+  // Update lastCompletedStep
+  stepData.lastCompletedStep = stepNumber;
+  
+  let userDetail;
+  if (user.userDetailId) {
+    // Update existing profile - use $set to update only provided fields, preserving existing ones
+    const updateObj = {
+      ...stepData,
+      lastCompletedStep: stepNumber,
+    };
+    
+    userDetail = await UserDetail.findByIdAndUpdate(
+      user.userDetailId._id,
+      { $set: updateObj },
+      { new: true, runValidators: false } // Don't validate incomplete data
+    );
+  } else {
+    // Create new profile
+    userDetail = await UserDetail.create({
+      ...stepData,
+      lastCompletedStep: stepNumber,
+    });
+    await User.findByIdAndUpdate(req.user._id, { userDetailId: userDetail._id });
+  }
+  
+  success(res, { 
+    profile: userDetail, 
+    lastCompletedStep: stepNumber 
+  }, 'Step saved successfully');
+});
+
+// Get profile progress (last completed step)
+const getProfileProgress = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id).populate('userDetailId');
+  
+  if (!user.userDetailId) {
+    return success(res, { 
+      lastCompletedStep: 0, 
+      profile: null,
+      isProfileComplete: false 
+    });
+  }
+  
+  // Fetch fresh data from database to ensure all fields are included
+  const userDetail = await UserDetail.findById(user.userDetailId._id);
+  
+  if (!userDetail) {
+    return success(res, { 
+      lastCompletedStep: 0, 
+      profile: null,
+      isProfileComplete: false 
+    });
+  }
+  
+  // Convert to plain object with all fields, including undefined ones
+  const profileData = userDetail.toObject({ 
+    virtuals: false,
+    transform: (doc, ret) => {
+      // Ensure all fields are included, even if undefined
+      return ret;
+    }
+  });
+  
+  success(res, {
+    lastCompletedStep: profileData.lastCompletedStep || 0,
+    profile: profileData,
+    isProfileComplete: profileData.isProfileComplete || false
+  });
+});
+
 module.exports = {
   getProfile,
   createProfile,
@@ -90,4 +268,6 @@ module.exports = {
   updateUserProfile,
   logout,
   deleteUserAccount,
+  saveProfileStep,
+  getProfileProgress,
 };

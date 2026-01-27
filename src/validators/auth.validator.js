@@ -1,15 +1,15 @@
 const Joi = require('joi');
 
 const sendOtpSchema = Joi.object({
-  phoneNumber: Joi.string().pattern(/^\+91[6-9]\d{9}$/).required().messages({
-    'string.pattern.base': 'Please enter valid mobile number',
+  phoneNumber: Joi.string().pattern(/^\+\d{7,15}$/).required().messages({
+    'string.pattern.base': 'Please enter valid mobile number with country code (e.g., +911234567890)',
     'any.required': 'Phone number is required'
   }),
 });
 
 const verifyOtpSchema = Joi.object({
-  phoneNumber: Joi.string().pattern(/^\+91[6-9]\d{9}$/).required().messages({
-    'string.pattern.base': 'Please enter valid mobile number',
+  phoneNumber: Joi.string().pattern(/^\+\d{7,15}$/).required().messages({
+    'string.pattern.base': 'Please enter valid mobile number with country code (e.g., +911234567890)',
     'any.required': 'Phone number is required'
   }),
   otp: Joi.string().length(6).required().messages({
