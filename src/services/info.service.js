@@ -12,6 +12,8 @@ const getTermsAndConditions = async () => {
   };
 };
 
+const Inquiry = require('../models/Inquiry.model');
+
 const getContactInfo = async () => {
   return {
     email: "support@connectin.com",
@@ -20,4 +22,12 @@ const getContactInfo = async () => {
   };
 };
 
-module.exports = { getPrivacyPolicy, getTermsAndConditions, getContactInfo };
+const submitInquiry = async (inquiryData, userId = null) => {
+  const inquiry = await Inquiry.create({
+    ...inquiryData,
+    userId: userId || null,
+  });
+  return inquiry;
+};
+
+module.exports = { getPrivacyPolicy, getTermsAndConditions, getContactInfo, submitInquiry };

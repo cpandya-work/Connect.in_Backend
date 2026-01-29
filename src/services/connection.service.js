@@ -1,6 +1,7 @@
 const UserLikes = require('../models/UserLikes.model');
 const UserRequests = require('../models/UserRequests.model');
 const UserConnections = require('../models/UserConnections.model');
+const UserSkips = require('../models/UserSkips.model');
 const User = require('../models/User.model');
 const UserDetail = require('../models/UserDetail.model');
 const { sendLikeNotification, sendConnectionRequestNotification, sendConnectionAcceptedNotification } = require('./notification.service');
@@ -219,6 +220,29 @@ const removeConnection = async (userId, connectionUserId) => {
   return { success: true };
 };
 
+const skipUser = async (userId, skippedUserId) => {
+  // Create bidirectional skip records so both users don't see each other
+  // If A skips B, then:
+  // - A should not see B (userId skips skippedUserId)
+  // - B should not see A (skippedUserId skips userId)
+  
+  // Use upsert to avoid duplicates
+  await Promise.all([
+    UserSkips.findOneAndUpdate(
+      { userId, skippedUserId },
+      { userId, skippedUserId },
+      { upsert: true, new: true }
+    ),
+    UserSkips.findOneAndUpdate(
+      { userId: skippedUserId, skippedUserId: userId },
+      { userId: skippedUserId, skippedUserId: userId },
+      { upsert: true, new: true }
+    ),
+  ]);
+
+  return { success: true };
+};
+
 module.exports = {
   likeUser,
   dislikeUser,
@@ -231,4 +255,5 @@ module.exports = {
   acceptRequest,
   rejectRequest,
   removeConnection,
+  skipUser,
 };

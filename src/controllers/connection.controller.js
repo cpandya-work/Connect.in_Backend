@@ -13,6 +13,7 @@ const {
   acceptRequest,
   rejectRequest,
   removeConnection,
+  skipUser,
 } = require('../services/connection.service');
 
 const likeUserCtrl = asyncHandler(async (req, res) => {
@@ -114,6 +115,20 @@ const removeConnectionCtrl = asyncHandler(async (req, res) => {
   success(res, null, 'Connection removed');
 });
 
+const skipUserCtrl = asyncHandler(async (req, res) => {
+  const { skippedUserId } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(skippedUserId)) {
+    return res.status(400).json({ success: false, message: 'Invalid user ID' });
+  }
+
+  if (req.user._id.toString() === skippedUserId) {
+    return res.status(400).json({ success: false, message: 'Cannot skip your own profile' });
+  }
+
+  await skipUser(req.user._id, skippedUserId);
+  success(res, null, 'Profile skipped');
+});
+
 module.exports = {
   likeUserCtrl,
   dislikeUserCtrl,
@@ -126,4 +141,5 @@ module.exports = {
   acceptRequestCtrl,
   rejectRequestCtrl,
   removeConnectionCtrl,
+  skipUserCtrl,
 };

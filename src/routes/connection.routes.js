@@ -11,6 +11,7 @@ const {
   acceptRequestCtrl,
   rejectRequestCtrl,
   removeConnectionCtrl,
+  skipUserCtrl,
 } = require('../controllers/connection.controller');
 const { protect } = require('../middlewares/auth.middleware');
 
@@ -32,5 +33,7 @@ router.post('/requests/:requestId/accept', acceptRequestCtrl);
 router.delete('/requests/:requestId/reject', rejectRequestCtrl);
 
 router.delete('/connection/:connectionUserId', removeConnectionCtrl);
+
+router.post('/skip/:skippedUserId', skipUserCtrl);
 
 module.exports = router;

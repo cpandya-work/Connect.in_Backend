@@ -4,6 +4,7 @@ const UserDetail = require('../models/UserDetail.model');
 const { profileSchema, updateProfileSchema } = require('../validators/user.validator');
 const { success } = require('../utils/response');
 const { getPublicProfile, updateProfile, deleteAccount } = require('../services/user.service');
+const { verifyToken } = require('../config/jwt');
 const mongoose = require('mongoose');
 
 const getProfile = asyncHandler(async (req, res) => {
@@ -32,7 +33,36 @@ const createProfile = asyncHandler(async (req, res) => {
 
   const profileImage = req.file?.path || null;
   
-  const user = await User.findById(req.user._id).populate('userDetailId');
+  // Get user - check token first, then userId/phoneNumber from body
+  let user = null;
+  const authHeader = req.headers.authorization;
+  const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  
+  if (token) {
+    // If token is provided, verify it and get user
+    try {
+      const decoded = verifyToken(token);
+      user = await User.findById(decoded.id).populate('userDetailId');
+      if (!user) {
+        return res.status(401).json({ success: false, message: 'User not found' });
+      }
+    } catch (err) {
+      return res.status(401).json({ success: false, message: 'Invalid token' });
+    }
+  } else {
+    // If no token, try to get user from request body
+    const { userId, phoneNumber } = req.body;
+    
+    if (userId) {
+      user = await User.findById(userId).populate('userDetailId');
+    } else if (phoneNumber) {
+      user = await User.findOne({ phoneNumber }).populate('userDetailId');
+    }
+    
+    if (!user) {
+      return res.status(400).json({ success: false, message: 'User ID or phone number is required' });
+    }
+  }
   
   // Check if email already exists (excluding current user's email)
   if (user.userDetailId && user.userDetailId.email !== req.body.email) {
@@ -74,10 +104,10 @@ const createProfile = asyncHandler(async (req, res) => {
       lastCompletedStep: 8,
       isProfileComplete: true,
     });
-    await User.findByIdAndUpdate(req.user._id, { userDetailId: detail._id });
+    await User.findByIdAndUpdate(user._id, { userDetailId: detail._id });
   }
   
-  const updatedUser = await User.findById(req.user._id);
+  const updatedUser = await User.findById(user._id);
   const profile = {
     phoneNumber: updatedUser.phoneNumber,
     email: detail.email,

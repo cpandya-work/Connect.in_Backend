@@ -3,19 +3,22 @@ const UserDetail = require('../models/UserDetail.model');
 const UserLikes = require('../models/UserLikes.model');
 const UserRequests = require('../models/UserRequests.model');
 const UserConnections = require('../models/UserConnections.model');
+const UserSkips = require('../models/UserSkips.model');
 const mongoose = require('mongoose');
 
 const getFeed = async (userId, userGender, cursor = null, limit = 20, filters = {}, search = '', userLocation = null, userCity = null) => {
   const cursorObj = cursor ? new mongoose.Types.ObjectId(cursor) : null;
 
   // Build excluded user IDs
-  const [liked, sentReq, receivedReq, connections] = await Promise.all([
+  const [liked, sentReq, receivedReq, connections, skippedByMe, skippedMe] = await Promise.all([
     UserLikes.find({ userId }).select('likedUserId'),
     UserRequests.find({ senderId: userId, status: 'pending' }).select('receiverId'),
     UserRequests.find({ receiverId: userId, status: 'pending' }).select('senderId'),
     UserConnections.find({
       $or: [{ connection1Id: userId }, { connection2Id: userId }],
     }),
+    UserSkips.find({ userId }).select('skippedUserId'),
+    UserSkips.find({ skippedUserId: userId }).select('userId'),
   ]);
 
   const excludedIds = new Set();
@@ -34,6 +37,12 @@ const getFeed = async (userId, userGender, cursor = null, limit = 20, filters = 
     if (c.connection1Id.toString() !== userId.toString()) excludedIds.add(c.connection1Id.toString());
     if (c.connection2Id.toString() !== userId.toString()) excludedIds.add(c.connection2Id.toString());
   });
+
+  // Add users I skipped
+  skippedByMe.forEach(s => excludedIds.add(s.skippedUserId.toString()));
+
+  // Add users who skipped me (bidirectional exclusion)
+  skippedMe.forEach(s => excludedIds.add(s.userId.toString()));
 
   // Add self
   excludedIds.add(userId.toString());
@@ -166,13 +175,15 @@ const getFeed = async (userId, userGender, cursor = null, limit = 20, filters = 
 
 const getFeedWeb = async (userId, userGender, page = 1, limit = 20, filters = {}, search = '', userLocation = null, userCity = null) => {
   // Build excluded user IDs
-  const [liked, sentReq, receivedReq, connections] = await Promise.all([
+  const [liked, sentReq, receivedReq, connections, skippedByMe, skippedMe] = await Promise.all([
     UserLikes.find({ userId }).select('likedUserId'),
     UserRequests.find({ senderId: userId, status: 'pending' }).select('receiverId'),
     UserRequests.find({ receiverId: userId, status: 'pending' }).select('senderId'),
     UserConnections.find({
       $or: [{ connection1Id: userId }, { connection2Id: userId }],
     }),
+    UserSkips.find({ userId }).select('skippedUserId'),
+    UserSkips.find({ skippedUserId: userId }).select('userId'),
   ]);
 
   const excludedIds = new Set();
@@ -191,6 +202,12 @@ const getFeedWeb = async (userId, userGender, page = 1, limit = 20, filters = {}
     if (c.connection1Id.toString() !== userId.toString()) excludedIds.add(c.connection1Id.toString());
     if (c.connection2Id.toString() !== userId.toString()) excludedIds.add(c.connection2Id.toString());
   });
+
+  // Add users I skipped
+  skippedByMe.forEach(s => excludedIds.add(s.skippedUserId.toString()));
+
+  // Add users who skipped me (bidirectional exclusion)
+  skippedMe.forEach(s => excludedIds.add(s.userId.toString()));
 
   // Add self
   excludedIds.add(userId.toString());
