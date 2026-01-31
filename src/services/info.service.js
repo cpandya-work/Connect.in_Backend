@@ -30,4 +30,115 @@ const submitInquiry = async (inquiryData, userId = null) => {
   return inquiry;
 };
 
-module.exports = { getPrivacyPolicy, getTermsAndConditions, getContactInfo, submitInquiry };
+/**
+ * Get all inquiries with pagination and search (Admin only)
+ */
+const getInquiriesList = async ({ page = 1, limit = 10, search = '', status = '' } = {}) => {
+  const pageNum = parseInt(page, 10) || 1;
+  const limitNum = parseInt(limit, 10) || 10;
+  const skip = (pageNum - 1) * limitNum;
+
+  // Build search query
+  let query = {};
+  
+  if (search && search.trim()) {
+    const searchRegex = new RegExp(search.trim(), 'i');
+    query.$or = [
+      { name: searchRegex },
+      { email: searchRegex },
+      { subject: searchRegex },
+      { message: searchRegex },
+    ];
+  }
+
+  // Filter by status
+  if (status && status.trim()) {
+    query.status = status.trim();
+  }
+
+  // Get total count
+  const total = await Inquiry.countDocuments(query);
+
+  // Get inquiries with pagination, sorted by newest first
+  const inquiries = await Inquiry.find(query)
+    .populate('userId', 'phoneNumber')
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limitNum)
+    .lean();
+
+  return {
+    inquiries,
+    pagination: {
+      currentPage: pageNum,
+      limit: limitNum,
+      totalCount: total,
+      totalPages: Math.ceil(total / limitNum),
+      hasNextPage: pageNum < Math.ceil(total / limitNum),
+      hasPrevPage: pageNum > 1,
+    },
+  };
+};
+
+/**
+ * Export inquiries to CSV format (Admin only)
+ */
+const exportInquiriesToCSV = async ({ search = '', status = '' } = {}) => {
+  // Build search query
+  let query = {};
+  
+  if (search && search.trim()) {
+    const searchRegex = new RegExp(search.trim(), 'i');
+    query.$or = [
+      { name: searchRegex },
+      { email: searchRegex },
+      { subject: searchRegex },
+      { message: searchRegex },
+    ];
+  }
+
+  // Filter by status
+  if (status && status.trim()) {
+    query.status = status.trim();
+  }
+
+  // Get all inquiries matching the query
+  const inquiries = await Inquiry.find(query)
+    .populate('userId', 'phoneNumber')
+    .sort({ createdAt: -1 })
+    .lean();
+
+  // Convert to CSV format
+  const csvHeaders = ['Name', 'Email', 'Phone', 'Subject', 'Message', 'Status', 'Created At', 'User ID'];
+  const csvRows = inquiries.map(inquiry => {
+    return [
+      `"${(inquiry.name || '').replace(/"/g, '""')}"`,
+      `"${(inquiry.email || '').replace(/"/g, '""')}"`,
+      `"${(inquiry.phone || '').replace(/"/g, '""')}"`,
+      `"${(inquiry.subject || '').replace(/"/g, '""')}"`,
+      `"${(inquiry.message || '').replace(/"/g, '""')}"`,
+      `"${(inquiry.status || 'pending').replace(/"/g, '""')}"`,
+      `"${inquiry.createdAt ? new Date(inquiry.createdAt).toISOString() : ''}"`,
+      `"${inquiry.userId ? (inquiry.userId._id || inquiry.userId) : ''}"`,
+    ].join(',');
+  });
+
+  const csvContent = [
+    csvHeaders.join(','),
+    ...csvRows
+  ].join('\n');
+
+  return {
+    csvContent,
+    totalCount: inquiries.length,
+  };
+};
+
+module.exports = { 
+  getPrivacyPolicy, 
+  getTermsAndConditions, 
+  getContactInfo, 
+  submitInquiry,
+  getInquiriesList,
+  exportInquiriesToCSV
+};

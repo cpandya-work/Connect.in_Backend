@@ -2,7 +2,11 @@ const Joi = require('joi');
 
 const profileSchema = Joi.object({
   fullName: Joi.string().min(2).required(),
-  city: Joi.string().required(),
+  city: Joi.string().hex().length(24).required().messages({
+    'string.hex': 'City must be a valid ObjectId',
+    'string.length': 'City must be a valid ObjectId',
+    'any.required': 'City is required'
+  }),
   religion: Joi.string().required(),
   status: Joi.string().valid('Married', 'Unmarried', 'Divorced').required(),
   email: Joi.string().email().required(),
@@ -21,7 +25,10 @@ const profileSchema = Joi.object({
 
 const updateProfileSchema = Joi.object({
   fullName: Joi.string().min(2),
-  city: Joi.string(),
+  city: Joi.string().hex().length(24).messages({
+    'string.hex': 'City must be a valid ObjectId',
+    'string.length': 'City must be a valid ObjectId'
+  }),
   religion: Joi.string(),
   status: Joi.string().valid('Married', 'Unmarried', 'Divorced'),
   email: Joi.string().email(),

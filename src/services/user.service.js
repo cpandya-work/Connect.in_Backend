@@ -12,7 +12,10 @@ const getPublicProfile = async (userId, loggedInUserId) => {
     throw new Error('Invalid user ID');
   }
 
-  const user = await User.findById(userId).populate('userDetailId');
+  const user = await User.findById(userId).populate({
+    path: 'userDetailId',
+    populate: { path: 'city', model: 'City' }
+  });
   if (!user) throw new Error('User not found');
   if (!user.userDetailId) throw new Error('Profile not completed');
 
@@ -48,6 +51,11 @@ const getPublicProfile = async (userId, loggedInUserId) => {
     virtuals: false,
     transform: (doc, ret) => {
       // Ensure all fields are included, even if undefined
+      // If city is populated, extract the name, otherwise keep the ID
+      if (ret.city && typeof ret.city === 'object' && ret.city.name) {
+        ret.cityName = ret.city.name;
+        ret.city = ret.city._id; // Keep the ID as well
+      }
       return ret;
     }
   });
@@ -59,6 +67,8 @@ const getPublicProfile = async (userId, loggedInUserId) => {
     // Explicitly ensure company and industry are included
     company: userDetailObj.company,
     industry: userDetailObj.industry,
+    // City name for display (if populated)
+    cityName: userDetailObj.cityName || (userDetailObj.city && typeof userDetailObj.city === 'object' ? userDetailObj.city.name : null),
     isLiked,
     isConnected,
     hasSentRequest,

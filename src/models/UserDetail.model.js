@@ -3,7 +3,7 @@ const bcrypt = require('bcryptjs');
 
 const userDetailSchema = new mongoose.Schema({
   fullName: String,
-  city: String,
+  city: { type: mongoose.Schema.Types.ObjectId, ref: 'City' },
   religion: String,
   status: { type: String, enum: ['Married', 'Unmarried', 'Divorced'] },
   email: { type: String, unique: true, sparse: true },

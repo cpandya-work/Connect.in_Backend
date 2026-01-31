@@ -65,8 +65,13 @@ const getFeed = async (userId, userGender, cursor = null, limit = 20, filters = 
   }
 
   // Apply city filter - show only profiles in the same city as the logged-in user
-  if (userCity && userCity.trim()) {
-    matchStage['details.city'] = userCity.trim();
+  if (userCity) {
+    // Handle both ObjectId and string formats
+    if (mongoose.Types.ObjectId.isValid(userCity)) {
+      matchStage['details.city'] = new mongoose.Types.ObjectId(userCity);
+    } else if (typeof userCity === 'string' && userCity.trim()) {
+      matchStage['details.city'] = userCity.trim();
+    }
   }
 
   // Apply filters if provided
@@ -122,6 +127,20 @@ const getFeed = async (userId, userGender, cursor = null, limit = 20, filters = 
     },
     { $unwind: '$details' },
     { $match: matchStage },
+    {
+      $lookup: {
+        from: 'cities',
+        localField: 'details.city',
+        foreignField: '_id',
+        as: 'cityInfo',
+      },
+    },
+    {
+      $addFields: {
+        cityName: { $arrayElemAt: ['$cityInfo.name', 0] },
+        cityId: '$details.city',
+      },
+    },
     { $sort: userLocation ? { distance: 1, _id: -1 } : { _id: -1 } },
     {
       $project: {
@@ -129,7 +148,8 @@ const getFeed = async (userId, userGender, cursor = null, limit = 20, filters = 
         fullName: '$details.fullName',
         profileImage: '$details.profileImage',
         dateOfBirth: '$details.dateOfBirth',
-        city: '$details.city',
+        city: '$cityName',
+        cityId: '$cityId',
         gender: '$details.gender',
         religion: '$details.religion',
         status: '$details.status',
@@ -230,8 +250,13 @@ const getFeedWeb = async (userId, userGender, page = 1, limit = 20, filters = {}
   }
 
   // Apply city filter - show only profiles in the same city as the logged-in user
-  if (userCity && userCity.trim()) {
-    matchStage['details.city'] = userCity.trim();
+  if (userCity) {
+    // Handle both ObjectId and string formats
+    if (mongoose.Types.ObjectId.isValid(userCity)) {
+      matchStage['details.city'] = new mongoose.Types.ObjectId(userCity);
+    } else if (typeof userCity === 'string' && userCity.trim()) {
+      matchStage['details.city'] = userCity.trim();
+    }
   }
 
   // Apply filters if provided
@@ -283,6 +308,20 @@ const getFeedWeb = async (userId, userGender, page = 1, limit = 20, filters = {}
     },
     { $unwind: '$details' },
     { $match: matchStage },
+    {
+      $lookup: {
+        from: 'cities',
+        localField: 'details.city',
+        foreignField: '_id',
+        as: 'cityInfo',
+      },
+    },
+    {
+      $addFields: {
+        cityName: { $arrayElemAt: ['$cityInfo.name', 0] },
+        cityId: '$details.city',
+      },
+    },
     { $sort: userLocation ? { distance: 1, _id: -1 } : { _id: -1 } },
     {
       $project: {
@@ -290,7 +329,8 @@ const getFeedWeb = async (userId, userGender, page = 1, limit = 20, filters = {}
         fullName: '$details.fullName',
         profileImage: '$details.profileImage',
         dateOfBirth: '$details.dateOfBirth',
-        city: '$details.city',
+        city: '$cityName',
+        cityId: '$cityId',
         gender: '$details.gender',
         religion: '$details.religion',
         status: '$details.status',

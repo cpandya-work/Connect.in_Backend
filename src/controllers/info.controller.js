@@ -1,6 +1,6 @@
 const asyncHandler = require('../utils/asyncHandler');
 const { success } = require('../utils/response');
-const { getPrivacyPolicy, getTermsAndConditions, getContactInfo, submitInquiry } = require('../services/info.service');
+const { getPrivacyPolicy, getTermsAndConditions, getContactInfo, submitInquiry, getInquiriesList, exportInquiriesToCSV } = require('../services/info.service');
 const { inquirySchema } = require('../validators/inquiry.validator');
 
 const getPrivacyPolicyCtrl = asyncHandler(async (req, res) => {
@@ -35,9 +35,36 @@ const submitInquiryCtrl = asyncHandler(async (req, res) => {
   success(res, { inquiry }, 'Inquiry submitted successfully');
 });
 
+/**
+ * Get all inquiries (Admin only)
+ */
+const getInquiriesListCtrl = asyncHandler(async (req, res) => {
+  const { page = 1, limit = 10, search = '', status = '' } = req.query;
+  
+  const result = await getInquiriesList({ page, limit, search, status });
+  success(res, result, 'Inquiries fetched successfully');
+});
+
+/**
+ * Export inquiries to CSV (Admin only)
+ */
+const exportInquiriesToCSVCtrl = asyncHandler(async (req, res) => {
+  const { search = '', status = '' } = req.query;
+  
+  const result = await exportInquiriesToCSV({ search, status });
+  
+  // Set headers for CSV download
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader('Content-Disposition', `attachment; filename="inquiries_${new Date().toISOString().split('T')[0]}.csv"`);
+  
+  res.send(result.csvContent);
+});
+
 module.exports = {
   getPrivacyPolicyCtrl,
   getTermsAndConditionsCtrl,
   getContactInfoCtrl,
   submitInquiryCtrl,
+  getInquiriesListCtrl,
+  exportInquiriesToCSVCtrl,
 };
