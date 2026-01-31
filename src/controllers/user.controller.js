@@ -1,6 +1,9 @@
 const asyncHandler = require('../utils/asyncHandler');
 const User = require('../models/User.model');
 const UserDetail = require('../models/UserDetail.model');
+const City = require('../models/City.model');
+const Company = require('../models/Company.model');
+const Industry = require('../models/Industry.model');
 const { profileSchema, updateProfileSchema } = require('../validators/user.validator');
 const { success } = require('../utils/response');
 const { getPublicProfile, updateProfile, deleteAccount } = require('../services/user.service');
@@ -8,20 +11,62 @@ const { verifyToken } = require('../config/jwt');
 const mongoose = require('mongoose');
 
 const getProfile = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.user._id).populate('userDetailId');
+  const user = await User.findById(req.user._id).populate({
+    path: 'userDetailId',
+    populate: { path: 'city', model: 'City' }
+  });
   
   if (!user.userDetailId) {
     return success(res, { profile: null });
   }
   
+  // Get city name
+  let cityName = null;
+  if (user.userDetailId.city) {
+    if (typeof user.userDetailId.city === 'object' && user.userDetailId.city.name) {
+      // City is populated
+      cityName = user.userDetailId.city.name;
+    } else if (mongoose.Types.ObjectId.isValid(user.userDetailId.city)) {
+      // City is stored as ObjectId, fetch it
+      const city = await City.findById(user.userDetailId.city);
+      if (city) {
+        cityName = city.name;
+      }
+    }
+  }
+  
+  // Get company name if company is a valid ObjectId
+  let companyName = user.userDetailId.company;
+  if (user.userDetailId.company && mongoose.Types.ObjectId.isValid(user.userDetailId.company)) {
+    const company = await Company.findById(user.userDetailId.company);
+    if (company) {
+      companyName = company.name;
+    }
+  }
+  
+  // Get industry name if industry is a valid ObjectId
+  let industryName = user.userDetailId.industry;
+  if (user.userDetailId.industry && mongoose.Types.ObjectId.isValid(user.userDetailId.industry)) {
+    const industry = await Industry.findById(user.userDetailId.industry);
+    if (industry) {
+      industryName = industry.name;
+    }
+  }
+  
+  const userDetailObj = user.userDetailId.toObject();
+  
+  // Replace IDs with names
   const profile = {
     phoneNumber: user.phoneNumber,
     currentLocation: user.currentLocation,
-    email: user.userDetailId.email,
-    password: user.userDetailId.originalPassword || user.userDetailId.password,
+    email: userDetailObj.email,
+    password: userDetailObj.originalPassword || userDetailObj.password,
     originalid: user._id,
     role: user.role || 'user', // Include user role
-    ...user.userDetailId.toObject(),
+    ...userDetailObj,
+    city: cityName, // Replace city ID with city name
+    company: companyName, // Replace company ID with company name
+    industry: industryName, // Replace industry ID with industry name
   };
   
   success(res, { profile });

@@ -40,6 +40,16 @@ const getFeedCtrl = asyncHandler(async (req, res) => {
     religion: religion ? (Array.isArray(religion) ? religion : religion.split(',').map(r => r.trim())) : null,
   };
 
+  // Extract city ID - handle both populated and non-populated cases
+  let userCityId = user.userDetailId.city;
+  if (userCityId && typeof userCityId === 'object' && userCityId._id) {
+    // If city is populated, extract the _id
+    userCityId = userCityId._id;
+  }
+
+  // Only pass userLocation if latitude and longitude are provided
+  const userLocation = (latitude && longitude) ? user.currentLocation : null;
+
   const { profiles, nextCursor } = await getFeed(
     req.user._id,
     user.userDetailId.gender,
@@ -47,8 +57,8 @@ const getFeedCtrl = asyncHandler(async (req, res) => {
     limit,
     filters,
     search,
-    user.currentLocation,
-    user.userDetailId.city
+    userLocation,
+    userCityId
   );
 
   if (profiles.length === 0) {
@@ -74,9 +84,11 @@ const getFeedWebCtrl = asyncHandler(async (req, res) => {
   const { page = 1, limit = 20, ageMin, ageMax, gender, habits, interests, language, relationship, religion, search, latitude, longitude } = req.query;
   const pageNum = parseInt(page) || 1;
   const limitNum = parseInt(limit) || 20;
+  
 
   // Update user location if provided
   if (latitude && longitude) {
+    
     const lat = parseFloat(latitude);
     const lng = parseFloat(longitude);
     
@@ -103,6 +115,18 @@ const getFeedWebCtrl = asyncHandler(async (req, res) => {
     religion: religion ? (Array.isArray(religion) ? religion : religion.split(',').map(r => r.trim())) : null,
   };
 
+  // Extract city ID - handle both populated and non-populated cases
+  let userCityId = user.userDetailId.city;
+  if (userCityId && typeof userCityId === 'object' && userCityId._id) {
+    // If city is populated, extract the _id
+    userCityId = userCityId._id;
+  }
+
+  // Only pass userLocation if latitude and longitude are provided
+  const userLocation = (latitude && longitude) ? user.currentLocation : null;
+
+  console.log(user.currentLocation,'user.currentLocation');
+  
   const { profiles, pagination } = await getFeedWeb(
     req.user._id,
     user.userDetailId.gender,
@@ -110,8 +134,8 @@ const getFeedWebCtrl = asyncHandler(async (req, res) => {
     limitNum,
     filters,
     search,
-    user.currentLocation,
-    user.userDetailId.city
+    userLocation,
+    userCityId
   );
 
   if (profiles.length === 0) {

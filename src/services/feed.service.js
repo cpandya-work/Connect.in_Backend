@@ -194,6 +194,9 @@ const getFeed = async (userId, userGender, cursor = null, limit = 20, filters = 
 };
 
 const getFeedWeb = async (userId, userGender, page = 1, limit = 20, filters = {}, search = '', userLocation = null, userCity = null) => {
+  console.log(userLocation,'userLocation service');
+  console.log(userCity,'userCity');
+  
   // Build excluded user IDs
   const [liked, sentReq, receivedReq, connections, skippedByMe, skippedMe] = await Promise.all([
     UserLikes.find({ userId }).select('likedUserId'),
@@ -248,15 +251,10 @@ const getFeedWeb = async (userId, userGender, page = 1, limit = 20, filters = {}
   if (search && search.trim()) {
     matchStage['details.fullName'] = { $regex: search.trim(), $options: 'i' };
   }
+  console.log(userCity,'userCity');
 
-  // Apply city filter - show only profiles in the same city as the logged-in user
   if (userCity) {
-    // Handle both ObjectId and string formats
-    if (mongoose.Types.ObjectId.isValid(userCity)) {
-      matchStage['details.city'] = new mongoose.Types.ObjectId(userCity);
-    } else if (typeof userCity === 'string' && userCity.trim()) {
-      matchStage['details.city'] = userCity.trim();
-    }
+    matchStage['details.city'] = new mongoose.Types.ObjectId(userCity);
   }
 
   // Apply filters if provided
@@ -297,6 +295,8 @@ const getFeedWeb = async (userId, userGender, page = 1, limit = 20, filters = {}
     });
   }
 
+  console.log(userLocation,'userLocation');
+  
   pipeline = pipeline.concat([
     {
       $lookup: {
@@ -339,6 +339,9 @@ const getFeedWeb = async (userId, userGender, page = 1, limit = 20, filters = {}
     },
   ]);
 
+  console.log(pipeline,'pipeline');
+  console.log(matchStage,'matchStage');
+  
   let result = await User.aggregate(pipeline);
 
   // Convert distance from meters to kilometers
