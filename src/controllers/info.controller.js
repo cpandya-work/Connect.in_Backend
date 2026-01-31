@@ -46,18 +46,19 @@ const getInquiriesListCtrl = asyncHandler(async (req, res) => {
 });
 
 /**
- * Export inquiries to CSV (Admin only)
+ * Export inquiries to Excel (Admin only)
  */
 const exportInquiriesToCSVCtrl = asyncHandler(async (req, res) => {
   const { search = '', status = '' } = req.query;
   
   const result = await exportInquiriesToCSV({ search, status });
   
-  // Set headers for CSV download
-  res.setHeader('Content-Type', 'text/csv');
-  res.setHeader('Content-Disposition', `attachment; filename="inquiries_${new Date().toISOString().split('T')[0]}.csv"`);
+  // Set headers for Excel download
+  const filename = `inquiries_${new Date().toISOString().split('T')[0]}.xlsx`;
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
   
-  res.send(result.csvContent);
+  res.send(result.excelBuffer);
 });
 
 module.exports = {

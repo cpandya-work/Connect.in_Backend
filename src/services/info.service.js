@@ -83,6 +83,8 @@ const getInquiriesList = async ({ page = 1, limit = 10, search = '', status = ''
 /**
  * Export inquiries to CSV format (Admin only)
  */
+const XLSX = require('xlsx');
+
 const exportInquiriesToCSV = async ({ search = '', status = '' } = {}) => {
   // Build search query
   let query = {};
@@ -108,28 +110,27 @@ const exportInquiriesToCSV = async ({ search = '', status = '' } = {}) => {
     .sort({ createdAt: -1 })
     .lean();
 
-  // Convert to CSV format
-  const csvHeaders = ['Name', 'Email', 'Phone', 'Subject', 'Message', 'Status', 'Created At', 'User ID'];
-  const csvRows = inquiries.map(inquiry => {
-    return [
-      `"${(inquiry.name || '').replace(/"/g, '""')}"`,
-      `"${(inquiry.email || '').replace(/"/g, '""')}"`,
-      `"${(inquiry.phone || '').replace(/"/g, '""')}"`,
-      `"${(inquiry.subject || '').replace(/"/g, '""')}"`,
-      `"${(inquiry.message || '').replace(/"/g, '""')}"`,
-      `"${(inquiry.status || 'pending').replace(/"/g, '""')}"`,
-      `"${inquiry.createdAt ? new Date(inquiry.createdAt).toISOString() : ''}"`,
-      `"${inquiry.userId ? (inquiry.userId._id || inquiry.userId) : ''}"`,
-    ].join(',');
-  });
+  // Prepare data for Excel
+  const excelData = inquiries.map(inquiry => ({
+    'Name': inquiry.name || '',
+    'Email': inquiry.email || '',
+    'Phone': inquiry.phone || '',
+    'Subject': inquiry.subject || '',
+    'Message': inquiry.message || '',
+    'Created At': inquiry.createdAt ? new Date(inquiry.createdAt).toLocaleString() : '',
+    'User ID': inquiry.userId ? (inquiry.userId.phoneNumber || inquiry.userId._id || '') : ''
+  }));
 
-  const csvContent = [
-    csvHeaders.join(','),
-    ...csvRows
-  ].join('\n');
+  // Create workbook and worksheet
+  const worksheet = XLSX.utils.json_to_sheet(excelData);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Inquiries');
+
+  // Generate Excel buffer
+  const excelBuffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
 
   return {
-    csvContent,
+    excelBuffer,
     totalCount: inquiries.length,
   };
 };
