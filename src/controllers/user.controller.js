@@ -176,7 +176,49 @@ const updateUserProfile = asyncHandler(async (req, res) => {
   const file = req.file;
 
   const updatedProfile = await updateProfile(req.user._id, updates, file);
-  success(res, { profile: updatedProfile }, 'Profile updated');
+  
+  // Get city name
+  let cityName = null;
+  if (updatedProfile.city) {
+    if (typeof updatedProfile.city === 'object' && updatedProfile.city.name) {
+      // City is populated
+      cityName = updatedProfile.city.name;
+    } else if (mongoose.Types.ObjectId.isValid(updatedProfile.city)) {
+      // City is stored as ObjectId, fetch it
+      const city = await City.findById(updatedProfile.city);
+      if (city) {
+        cityName = city.name;
+      }
+    }
+  }
+  
+  // Get company name if company is a valid ObjectId
+  let companyName = updatedProfile.company;
+  if (updatedProfile.company && mongoose.Types.ObjectId.isValid(updatedProfile.company)) {
+    const company = await Company.findById(updatedProfile.company);
+    if (company) {
+      companyName = company.name;
+    }
+  }
+  
+  // Get industry name if industry is a valid ObjectId
+  let industryName = updatedProfile.industry;
+  if (updatedProfile.industry && mongoose.Types.ObjectId.isValid(updatedProfile.industry)) {
+    const industry = await Industry.findById(updatedProfile.industry);
+    if (industry) {
+      industryName = industry.name;
+    }
+  }
+  
+  // Replace IDs with names in the response
+  const profileWithNames = {
+    ...updatedProfile,
+    city: cityName,
+    company: companyName,
+    industry: industryName,
+  };
+  
+  success(res, { profile: profileWithNames }, 'Profile updated');
 });
 
 const logout = asyncHandler(async (req, res) => {
@@ -310,7 +352,7 @@ const getProfileProgress = asyncHandler(async (req, res) => {
   }
   
   // Fetch fresh data from database to ensure all fields are included
-  const userDetail = await UserDetail.findById(user.userDetailId._id);
+  const userDetail = await UserDetail.findById(user.userDetailId._id).populate('city');
   
   if (!userDetail) {
     return success(res, { 
@@ -318,6 +360,39 @@ const getProfileProgress = asyncHandler(async (req, res) => {
       profile: null,
       isProfileComplete: false 
     });
+  }
+  
+  // Get city name
+  let cityName = null;
+  if (userDetail.city) {
+    if (typeof userDetail.city === 'object' && userDetail.city.name) {
+      // City is populated
+      cityName = userDetail.city.name;
+    } else if (mongoose.Types.ObjectId.isValid(userDetail.city)) {
+      // City is stored as ObjectId, fetch it
+      const city = await City.findById(userDetail.city);
+      if (city) {
+        cityName = city.name;
+      }
+    }
+  }
+  
+  // Get company name if company is a valid ObjectId
+  let companyName = userDetail.company;
+  if (userDetail.company && mongoose.Types.ObjectId.isValid(userDetail.company)) {
+    const company = await Company.findById(userDetail.company);
+    if (company) {
+      companyName = company.name;
+    }
+  }
+  
+  // Get industry name if industry is a valid ObjectId
+  let industryName = userDetail.industry;
+  if (userDetail.industry && mongoose.Types.ObjectId.isValid(userDetail.industry)) {
+    const industry = await Industry.findById(userDetail.industry);
+    if (industry) {
+      industryName = industry.name;
+    }
   }
   
   // Convert to plain object with all fields, including undefined ones
@@ -328,6 +403,11 @@ const getProfileProgress = asyncHandler(async (req, res) => {
       return ret;
     }
   });
+  
+  // Replace IDs with names
+  profileData.city = cityName;
+  profileData.company = companyName;
+  profileData.industry = industryName;
   
   success(res, {
     lastCompletedStep: profileData.lastCompletedStep || 0,

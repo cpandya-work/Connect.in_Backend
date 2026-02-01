@@ -4,6 +4,7 @@ const UserConnections = require('../models/UserConnections.model');
 const UserSkips = require('../models/UserSkips.model');
 const User = require('../models/User.model');
 const UserDetail = require('../models/UserDetail.model');
+const City = require('../models/City.model');
 const { sendLikeNotification, sendConnectionRequestNotification, sendConnectionAcceptedNotification } = require('./notification.service');
 
 const likeUser = async (userId, likedUserId) => {
@@ -37,17 +38,53 @@ const getLikedUsers = async (userId, search = '') => {
   const likes = await UserLikes.find({ userId })
     .populate({
       path: 'likedUserId',
-      populate: { path: 'userDetailId', select: 'fullName city profileImage' },
+      populate: { 
+        path: 'userDetailId', 
+        select: 'fullName city profileImage',
+        populate: { path: 'city', model: 'City', select: 'name' }
+      },
       select: 'userDetailId',
     })
     .lean();
 
-  let result = likes.map(l => ({
-    _id: l.likedUserId._id,
-    fullName: l.likedUserId.userDetailId?.fullName,
-    city: l.likedUserId.userDetailId?.city,
-    profileImage: l.likedUserId.userDetailId?.profileImage,
-  }));
+  // Extract city IDs that need to be fetched (if not populated)
+  const cityIds = [];
+  likes.forEach((l) => {
+    const city = l.likedUserId?.userDetailId?.city;
+    if (city && typeof city !== 'object') {
+      cityIds.push(city);
+    }
+  });
+
+  // Fetch city names for unpopulated cities
+  let cityMap = new Map();
+  if (cityIds.length > 0) {
+    const uniqueCityIds = [...new Set(cityIds)];
+    const cities = await City.find({ _id: { $in: uniqueCityIds } }).select('name _id').lean();
+    cityMap = new Map(cities.map(c => [c._id.toString(), c.name]));
+  }
+
+  let result = likes.map((l) => {
+    let cityName = null;
+    const city = l.likedUserId?.userDetailId?.city;
+    
+    if (city) {
+      if (typeof city === 'object' && city.name) {
+        // City is populated
+        cityName = city.name;
+      } else {
+        // City is an ObjectId, get from map
+        cityName = cityMap.get(city.toString()) || null;
+      }
+    }
+
+    return {
+      _id: l.likedUserId._id,
+      fullName: l.likedUserId.userDetailId?.fullName,
+      city: cityName,
+      profileImage: l.likedUserId.userDetailId?.profileImage,
+    };
+  });
 
   if (search && search.trim()) {
     result = result.filter(user => 
