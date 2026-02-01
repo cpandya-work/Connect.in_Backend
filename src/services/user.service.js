@@ -68,7 +68,7 @@ const getPublicProfile = async (userId, loggedInUserId) => {
     company: userDetailObj.company,
     industry: userDetailObj.industry,
     // City name for display (if populated)
-    cityName: userDetailObj.cityName || (userDetailObj.city && typeof userDetailObj.city === 'object' ? userDetailObj.city.name : null),
+    city: userDetailObj.cityName || (userDetailObj.city && typeof userDetailObj.city === 'object' ? userDetailObj.city.name : null),
     isLiked,
     isConnected,
     hasSentRequest,
