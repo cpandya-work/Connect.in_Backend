@@ -96,19 +96,13 @@ const getFeed = async (userId, userGender, cursor = null, limit = 20, filters = 
   }
 
   if (filters.company && filters.company.length > 0) {
-    // Handle both ObjectId and string formats
-    const companyIds = filters.company.map(c => {
-      return mongoose.Types.ObjectId.isValid(c) ? new mongoose.Types.ObjectId(c) : c;
-    });
-    matchStage['details.company'] = { $in: companyIds };
+    // Company is stored as String in database, so match as strings
+    matchStage['details.company'] = { $in: filters.company };
   }
 
   if (filters.industry && filters.industry.length > 0) {
-    // Handle both ObjectId and string formats
-    const industryIds = filters.industry.map(i => {
-      return mongoose.Types.ObjectId.isValid(i) ? new mongoose.Types.ObjectId(i) : i;
-    });
-    matchStage['details.industry'] = { $in: industryIds };
+    // Industry is stored as String in database, so match as strings
+    matchStage['details.industry'] = { $in: filters.industry };
   }
 
   if (cursorObj) {
@@ -295,19 +289,13 @@ const getFeedWeb = async (userId, userGender, page = 1, limit = 20, filters = {}
   }
 
   if (filters.company && filters.company.length > 0) {
-    // Handle both ObjectId and string formats
-    const companyIds = filters.company.map(c => {
-      return mongoose.Types.ObjectId.isValid(c) ? new mongoose.Types.ObjectId(c) : c;
-    });
-    matchStage['details.company'] = { $in: companyIds };
+    // Company is stored as String in database, so match as strings
+    matchStage['details.company'] = { $in: filters.company };
   }
 
   if (filters.industry && filters.industry.length > 0) {
-    // Handle both ObjectId and string formats
-    const industryIds = filters.industry.map(i => {
-      return mongoose.Types.ObjectId.isValid(i) ? new mongoose.Types.ObjectId(i) : i;
-    });
-    matchStage['details.industry'] = { $in: industryIds };
+    // Industry is stored as String in database, so match as strings
+    matchStage['details.industry'] = { $in: filters.industry };
   }
 
   let pipeline = [];
