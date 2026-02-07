@@ -10,8 +10,8 @@ const inquirySchema = Joi.object({
     'string.email': 'Please provide a valid email address',
     'any.required': 'Email is required',
   }),
-  phone: Joi.string().pattern(/^[+]?[(]?[0-9]{1,4}[)]?[-\s.]?[(]?[0-9]{1,4}[)]?[-\s.]?[0-9]{1,9}$/).optional().allow('').messages({
-    'string.pattern.base': 'Please provide a valid phone number',
+  phone: Joi.string().pattern(/^[0-9]{10}$/).optional().allow('').messages({
+    'string.pattern.base': 'Phone number must be exactly 10 digits',
   }),
   subject: Joi.string().min(3).max(200).required().messages({
     'string.min': 'Subject must be at least 3 characters',

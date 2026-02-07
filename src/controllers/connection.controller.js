@@ -81,7 +81,7 @@ const getConnectionsCtrl = asyncHandler(async (req, res) => {
   const formatted = connections.map(c => ({
     _id: c._id,
     fullName: c.userDetailId?.fullName,
-    city: c.userDetailId?.city,
+    city: c.userDetailId?.city || null, // This is now the city name, not ID
     profileImage: c.userDetailId?.profileImage,
   }));
   success(res, { connections: formatted });

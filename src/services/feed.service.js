@@ -95,6 +95,22 @@ const getFeed = async (userId, userGender, cursor = null, limit = 20, filters = 
     matchStage['details.religion'] = { $in: filters.religion };
   }
 
+  if (filters.company && filters.company.length > 0) {
+    // Handle both ObjectId and string formats
+    const companyIds = filters.company.map(c => {
+      return mongoose.Types.ObjectId.isValid(c) ? new mongoose.Types.ObjectId(c) : c;
+    });
+    matchStage['details.company'] = { $in: companyIds };
+  }
+
+  if (filters.industry && filters.industry.length > 0) {
+    // Handle both ObjectId and string formats
+    const industryIds = filters.industry.map(i => {
+      return mongoose.Types.ObjectId.isValid(i) ? new mongoose.Types.ObjectId(i) : i;
+    });
+    matchStage['details.industry'] = { $in: industryIds };
+  }
+
   if (cursorObj) {
     matchStage._id = { ...matchStage._id, $lt: cursorObj };
   }
@@ -276,6 +292,22 @@ const getFeedWeb = async (userId, userGender, page = 1, limit = 20, filters = {}
 
   if (filters.religion && filters.religion.length > 0) {
     matchStage['details.religion'] = { $in: filters.religion };
+  }
+
+  if (filters.company && filters.company.length > 0) {
+    // Handle both ObjectId and string formats
+    const companyIds = filters.company.map(c => {
+      return mongoose.Types.ObjectId.isValid(c) ? new mongoose.Types.ObjectId(c) : c;
+    });
+    matchStage['details.company'] = { $in: companyIds };
+  }
+
+  if (filters.industry && filters.industry.length > 0) {
+    // Handle both ObjectId and string formats
+    const industryIds = filters.industry.map(i => {
+      return mongoose.Types.ObjectId.isValid(i) ? new mongoose.Types.ObjectId(i) : i;
+    });
+    matchStage['details.industry'] = { $in: industryIds };
   }
 
   let pipeline = [];
