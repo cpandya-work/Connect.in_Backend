@@ -95,6 +95,16 @@ const getFeed = async (userId, userGender, cursor = null, limit = 20, filters = 
     matchStage['details.religion'] = { $in: filters.religion };
   }
 
+  if (filters.company && filters.company.length > 0) {
+    // Company is stored as String in database, so match as strings
+    matchStage['details.company'] = { $in: filters.company };
+  }
+
+  if (filters.industry && filters.industry.length > 0) {
+    // Industry is stored as String in database, so match as strings
+    matchStage['details.industry'] = { $in: filters.industry };
+  }
+
   if (cursorObj) {
     matchStage._id = { ...matchStage._id, $lt: cursorObj };
   }
@@ -276,6 +286,16 @@ const getFeedWeb = async (userId, userGender, page = 1, limit = 20, filters = {}
 
   if (filters.religion && filters.religion.length > 0) {
     matchStage['details.religion'] = { $in: filters.religion };
+  }
+
+  if (filters.company && filters.company.length > 0) {
+    // Company is stored as String in database, so match as strings
+    matchStage['details.company'] = { $in: filters.company };
+  }
+
+  if (filters.industry && filters.industry.length > 0) {
+    // Industry is stored as String in database, so match as strings
+    matchStage['details.industry'] = { $in: filters.industry };
   }
 
   let pipeline = [];

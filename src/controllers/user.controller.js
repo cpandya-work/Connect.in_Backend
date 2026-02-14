@@ -311,6 +311,11 @@ const saveProfileStep = asyncHandler(async (req, res) => {
   // Update lastCompletedStep
   stepData.lastCompletedStep = stepNumber;
   
+  // If step 8 is completed, mark profile as complete
+  if (stepNumber === 8) {
+    stepData.isProfileComplete = true;
+  }
+  
   let userDetail;
   if (user.userDetailId) {
     // Update existing profile - use $set to update only provided fields, preserving existing ones
@@ -318,6 +323,11 @@ const saveProfileStep = asyncHandler(async (req, res) => {
       ...stepData,
       lastCompletedStep: stepNumber,
     };
+    
+    // If step 8, also set isProfileComplete
+    if (stepNumber === 8) {
+      updateObj.isProfileComplete = true;
+    }
     
     userDetail = await UserDetail.findByIdAndUpdate(
       user.userDetailId._id,
@@ -329,6 +339,7 @@ const saveProfileStep = asyncHandler(async (req, res) => {
     userDetail = await UserDetail.create({
       ...stepData,
       lastCompletedStep: stepNumber,
+      isProfileComplete: stepNumber === 8 ? true : false,
     });
     await User.findByIdAndUpdate(req.user._id, { userDetailId: userDetail._id });
   }

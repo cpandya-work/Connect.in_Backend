@@ -161,17 +161,62 @@ const getActiveConnections = async (userId, search = '') => {
   );
 
   let result = await User.find({ _id: { $in: connectedUserIds } })
-    .populate('userDetailId', 'fullName city profileImage')
+    .populate({
+      path: 'userDetailId',
+      select: 'fullName city profileImage',
+      populate: { path: 'city', model: 'City', select: 'name' }
+    })
     .select('userDetailId')
     .lean();
 
+  // Extract city IDs that need to be fetched (if not populated)
+  const cityIds = [];
+  result.forEach((user) => {
+    const city = user.userDetailId?.city;
+    if (city && typeof city !== 'object') {
+      cityIds.push(city);
+    }
+  });
+
+  // Fetch city names for unpopulated cities
+  let cityMap = new Map();
+  if (cityIds.length > 0) {
+    const uniqueCityIds = [...new Set(cityIds)];
+    const cities = await City.find({ _id: { $in: uniqueCityIds } }).select('name _id').lean();
+    cityMap = new Map(cities.map(c => [c._id.toString(), c.name]));
+  }
+
+  // Map results to include city names
+  let formattedResult = result.map((user) => {
+    let cityName = null;
+    const city = user.userDetailId?.city;
+    
+    if (city) {
+      if (typeof city === 'object' && city.name) {
+        // City is populated
+        cityName = city.name;
+      } else {
+        // City is an ObjectId, get from map
+        cityName = cityMap.get(city.toString()) || null;
+      }
+    }
+
+    return {
+      _id: user._id,
+      userDetailId: {
+        ...user.userDetailId,
+        city: cityName,
+      }
+    };
+  });
+
   if (search && search.trim()) {
-    result = result.filter(user => 
+    formattedResult = formattedResult.filter(user => 
       user.userDetailId?.fullName?.toLowerCase().includes(search.trim().toLowerCase())
     );
   }
 
-  return result;
+  return formattedResult;
 };
 
 const acceptRequest = async (requestId, receiverId) => {
@@ -244,13 +289,21 @@ const getUsersWhoLikedMe = async (userId, search = '') => {
 };
 
 const removeConnection = async (userId, connectionUserId) => {
-  // Delete any pending requests between these two users (both sent and received)
+  // Delete the active connection from UserConnections (bidirectional check)
+  await UserConnections.deleteOne({
+    $or: [
+      { connection1Id: userId, connection2Id: connectionUserId },
+      { connection1Id: connectionUserId, connection2Id: userId }
+    ]
+  });
+
+  // Delete ALL requests between these two users (both sent and received, any status)
   await UserRequests.deleteMany({
     $or: [
       // User sent request to connectionUserId
-      { senderId: userId, receiverId: connectionUserId, status: 'pending' },
+      { senderId: userId, receiverId: connectionUserId },
       // User received request from connectionUserId
-      { senderId: connectionUserId, receiverId: userId, status: 'pending' },
+      { senderId: connectionUserId, receiverId: userId },
     ],
   });
 

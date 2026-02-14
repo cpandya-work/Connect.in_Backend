@@ -15,6 +15,15 @@ const inquirySchema = new mongoose.Schema({
   phone: {
     type: String,
     trim: true,
+    validate: {
+      validator: function(v) {
+        // Allow empty string or null (optional field)
+        if (!v || v === '') return true;
+        // Must be exactly 10 digits
+        return /^[0-9]{10}$/.test(v);
+      },
+      message: 'Phone number must be exactly 10 digits'
+    }
   },
   subject: {
     type: String,
