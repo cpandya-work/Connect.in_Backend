@@ -65,7 +65,8 @@ const getFeed = async (userId, userGender, cursor = null, limit = 20, filters = 
   }
 
   // Apply city filter - show only profiles in the same city as the logged-in user
-  if (userCity) {
+  // Skip city filter when search is active (to search across all cities)
+  if (userCity && (!search || !search.trim())) {
     // Handle both ObjectId and string formats
     if (mongoose.Types.ObjectId.isValid(userCity)) {
       matchStage['details.city'] = new mongoose.Types.ObjectId(userCity);
@@ -263,7 +264,8 @@ const getFeedWeb = async (userId, userGender, page = 1, limit = 20, filters = {}
   }
   console.log(userCity,'userCity');
 
-  if (userCity) {
+  // Apply city filter - skip when search is active (to search across all cities)
+  if (userCity && (!search || !search.trim())) {
     matchStage['details.city'] = new mongoose.Types.ObjectId(userCity);
   }
 

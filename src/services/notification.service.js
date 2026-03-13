@@ -156,13 +156,13 @@ const getNotifications = async (userId, page = 1, limit = 20) => {
     .limit(limit)
     .lean();
 
-  // Store the original notifications before updating
+  // Map notifications to return format
   const originalNotifications = notifications.map(notification => ({
     _id: notification._id,
     title: notification.title,
     body: notification.body,
     type: notification.type,
-    isRead: notification.isRead, // Keep original isRead value
+    isRead: notification.isRead,
     createdAt: notification.createdAt,
     fromUser: notification.fromUserId ? {
       _id: notification.fromUserId._id,
@@ -171,23 +171,15 @@ const getNotifications = async (userId, page = 1, limit = 20) => {
     } : null
   }));
 
-  // After fetching, update all notifications to isRead: true in database
-  const notificationIds = notifications.map(n => n._id);
-  if (notificationIds.length > 0) {
-    await Notification.updateMany(
-      { _id: { $in: notificationIds }, userId },
-      { isRead: true }
-    );
-  }
-
-  // Return the previously fetched notifications (with original isRead values)
+  // Return notifications without marking them as read
+  // Notifications will be deleted when clicked/viewed
   return originalNotifications;
 };
 
 const markAsRead = async (userId, notificationId) => {
-  await Notification.findOneAndUpdate(
-    { _id: notificationId, userId },
-    { isRead: true }
+  // Delete notification instead of marking as read
+  await Notification.findOneAndDelete(
+    { _id: notificationId, userId }
   );
 };
 

@@ -11,7 +11,7 @@ const getNotificationsCtrl = asyncHandler(async (req, res) => {
 const markAsReadCtrl = asyncHandler(async (req, res) => {
   const { notificationId } = req.params;
   await markAsRead(req.user._id, notificationId);
-  success(res, null, 'Notification marked as read');
+  success(res, null, 'Notification deleted');
 });
 
 const getUnreadCountCtrl = asyncHandler(async (req, res) => {

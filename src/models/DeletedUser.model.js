@@ -10,7 +10,7 @@ const deletedUserSchema = new mongoose.Schema({
   email: { type: String, required: true },
   gender: { type: String, enum: ['Male', 'Female', 'Other'] },
   dateOfBirth: Date,
-  preferredLanguage: String,
+  preferredLanguage: [String],
   habits: [String],
   interests: [String],
   skills: [String],

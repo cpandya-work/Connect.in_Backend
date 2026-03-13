@@ -11,7 +11,7 @@ const userDetailSchema = new mongoose.Schema({
   originalPassword: { type: String }, // Store original password for display
   gender: { type: String, enum: ['Male', 'Female', 'Other'] },
   dateOfBirth: Date,
-  preferredLanguage: String,
+  preferredLanguage: [String],
   habits: [String],
   interests: [String],
   skills: [String],
