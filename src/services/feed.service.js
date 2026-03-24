@@ -23,16 +23,17 @@ const getFeed = async (userId, userGender, cursor = null, limit = 20, filters = 
 
   const excludedIds = new Set();
 
-  // Add liked
-  liked.forEach(l => excludedIds.add(l.likedUserId.toString()));
+  // Build sets for flag decoration (liked & sent-request profiles stay in feed)
+  const likedSet = new Set(liked.map(l => l.likedUserId.toString()));
+  const sentReqSet = new Set(sentReq.map(r => r.receiverId.toString()));
 
-  // Add sent requests
-  sentReq.forEach(r => excludedIds.add(r.receiverId.toString()));
+  // NOTE: liked and sentReq are intentionally NOT added to excludedIds so those
+  // profiles continue to appear in the feed with isLiked / isConnected flags.
 
-  // Add received requests
+  // Add received requests (the other person sent ME a request — hide from feed)
   receivedReq.forEach(r => excludedIds.add(r.senderId.toString()));
 
-  // Add connections
+  // Add active connections (fully connected — hide from feed)
   connections.forEach(c => {
     if (c.connection1Id.toString() !== userId.toString()) excludedIds.add(c.connection1Id.toString());
     if (c.connection2Id.toString() !== userId.toString()) excludedIds.add(c.connection2Id.toString());
@@ -197,6 +198,13 @@ const getFeed = async (userId, userGender, cursor = null, limit = 20, filters = 
     });
   }
 
+  // Decorate each profile with isLiked / isConnected flags
+  result = result.map(p => ({
+    ...p,
+    isLiked: likedSet.has((p.id || p._id).toString()),
+    isConnected: sentReqSet.has((p.id || p._id).toString()),
+  }));
+
   const hasMore = result.length > limit;
   const profiles = hasMore ? result.slice(0, limit) : result;
   const nextCursor = hasMore ? profiles[profiles.length - 1].id : null;
@@ -222,16 +230,17 @@ const getFeedWeb = async (userId, userGender, page = 1, limit = 20, filters = {}
 
   const excludedIds = new Set();
 
-  // Add liked
-  liked.forEach(l => excludedIds.add(l.likedUserId.toString()));
+  // Build sets for flag decoration (liked & sent-request profiles stay in feed)
+  const likedSet = new Set(liked.map(l => l.likedUserId.toString()));
+  const sentReqSet = new Set(sentReq.map(r => r.receiverId.toString()));
 
-  // Add sent requests
-  sentReq.forEach(r => excludedIds.add(r.receiverId.toString()));
+  // NOTE: liked and sentReq are intentionally NOT added to excludedIds so those
+  // profiles continue to appear in the feed with isLiked / isConnected flags.
 
-  // Add received requests
+  // Add received requests (the other person sent ME a request — hide from feed)
   receivedReq.forEach(r => excludedIds.add(r.senderId.toString()));
 
-  // Add connections
+  // Add active connections (fully connected — hide from feed)
   connections.forEach(c => {
     if (c.connection1Id.toString() !== userId.toString()) excludedIds.add(c.connection1Id.toString());
     if (c.connection2Id.toString() !== userId.toString()) excludedIds.add(c.connection2Id.toString());
@@ -391,6 +400,13 @@ const getFeedWeb = async (userId, userGender, page = 1, limit = 20, filters = {}
       return true;
     });
   }
+
+  // Decorate each profile with isLiked / isConnected flags
+  result = result.map(p => ({
+    ...p,
+    isLiked: likedSet.has((p.id || p._id).toString()),
+    isConnected: sentReqSet.has((p.id || p._id).toString()),
+  }));
 
   // Calculate pagination
   const totalCount = result.length;
