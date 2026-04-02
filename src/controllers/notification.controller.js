@@ -1,6 +1,6 @@
 const asyncHandler = require('../utils/asyncHandler');
 const { success } = require('../utils/response');
-const { getNotifications, markAsRead, getUnreadCount } = require('../services/notification.service');
+const { getNotifications, markAsRead, getUnreadCount, clearAllNotifications } = require('../services/notification.service');
 
 const getNotificationsCtrl = asyncHandler(async (req, res) => {
   const { page = 1, limit = 20 } = req.query;
@@ -19,8 +19,14 @@ const getUnreadCountCtrl = asyncHandler(async (req, res) => {
   success(res, { unreadCount: count }, 'Unread count fetched');
 });
 
+const clearAllNotificationsCtrl = asyncHandler(async (req, res) => {
+  await clearAllNotifications(req.user._id);
+  success(res, null, 'All notifications cleared');
+});
+
 module.exports = {
   getNotificationsCtrl,
   markAsReadCtrl,
   getUnreadCountCtrl,
+  clearAllNotificationsCtrl,
 };

@@ -188,6 +188,14 @@ const getUnreadCount = async (userId) => {
 };
 
 /**
+ * Clear all notifications for a user.
+ * Current semantics delete notifications (consistent with markAsRead).
+ */
+const clearAllNotifications = async (userId) => {
+  await Notification.deleteMany({ userId });
+};
+
+/**
  * Send push notification to all users (broadcast)
  * @param {string} title - Notification title
  * @param {string} description - Notification body/description
@@ -292,5 +300,6 @@ module.exports = {
   getNotifications,
   markAsRead,
   getUnreadCount,
+  clearAllNotifications,
   sendBroadcastNotification,
 };
