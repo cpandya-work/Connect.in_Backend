@@ -5,7 +5,7 @@ const userDetailSchema = new mongoose.Schema({
   fullName: String,
   city: { type: mongoose.Schema.Types.ObjectId, ref: 'City' },
   religion: String,
-  status: { type: String, enum: ['Married', 'Unmarried', 'Divorced'] },
+  status: { type: String, enum: ['Single', 'Married', 'Divorced', 'Prefer not to say'] },
   email: { type: String, unique: true, sparse: true },
   password: { type: String },
   originalPassword: { type: String }, // Store original password for display

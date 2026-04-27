@@ -133,6 +133,7 @@ const createProfile = asyncHandler(async (req, res) => {
         habits: Array.isArray(req.body.habits) ? req.body.habits : (req.body.habits?.split(',').map(h => h.trim()).filter(Boolean) || []),
         interests: Array.isArray(req.body.interests) ? req.body.interests : (req.body.interests?.split(',').map(i => i.trim()).filter(Boolean) || []),
         skills: Array.isArray(req.body.skills) ? req.body.skills : (req.body.skills?.split(',').map(s => s.trim()).filter(Boolean) || []),
+        preferredLanguage: Array.isArray(req.body.preferredLanguage) ? req.body.preferredLanguage : (req.body.preferredLanguage?.split(',').map(l => l.trim()).filter(Boolean) || []),
         lastCompletedStep: 8,
         isProfileComplete: true,
       },
@@ -146,6 +147,7 @@ const createProfile = asyncHandler(async (req, res) => {
       habits: Array.isArray(req.body.habits) ? req.body.habits : (req.body.habits?.split(',').map(h => h.trim()).filter(Boolean) || []),
       interests: Array.isArray(req.body.interests) ? req.body.interests : (req.body.interests?.split(',').map(i => i.trim()).filter(Boolean) || []),
       skills: Array.isArray(req.body.skills) ? req.body.skills : (req.body.skills?.split(',').map(s => s.trim()).filter(Boolean) || []),
+      preferredLanguage: Array.isArray(req.body.preferredLanguage) ? req.body.preferredLanguage : (req.body.preferredLanguage?.split(',').map(l => l.trim()).filter(Boolean) || []),
       lastCompletedStep: 8,
       isProfileComplete: true,
     });
@@ -267,7 +269,11 @@ const saveProfileStep = asyncHandler(async (req, res) => {
   
   // Step 3: Language
   if (stepNumber === 3) {
-    if (req.body.preferredLanguage) stepData.preferredLanguage = req.body.preferredLanguage;
+    if (req.body.preferredLanguage) {
+      stepData.preferredLanguage = Array.isArray(req.body.preferredLanguage)
+        ? req.body.preferredLanguage
+        : (req.body.preferredLanguage.split(',').map(l => l.trim()).filter(Boolean) || []);
+    }
   }
   
   // Step 4: Habits

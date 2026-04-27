@@ -7,6 +7,7 @@ const createCitySchema = Joi.object({
     'any.required': 'City name is required',
     'string.empty': 'City name cannot be empty'
   }),
+  isMetro: Joi.boolean().optional().default(false),
   isActive: Joi.boolean().optional().default(true)
 });
 
@@ -16,6 +17,7 @@ const updateCitySchema = Joi.object({
     'string.max': 'City name must not exceed 100 characters',
     'string.empty': 'City name cannot be empty'
   }),
+  isMetro: Joi.boolean().optional(),
   isActive: Joi.boolean().optional()
 }).min(1); // At least one field must be provided
 

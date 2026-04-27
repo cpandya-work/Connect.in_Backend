@@ -10,7 +10,7 @@ const { success } = require("../utils/response");
 
 
 const listCityCtrl = asyncHandler(async (req, res) => {
-  const city = await CityModel.find()
+  const city = await CityModel.find().sort({ isMetro: -1, name: 1 });
   success(res, { city }, 'City list fetched');
 });
 

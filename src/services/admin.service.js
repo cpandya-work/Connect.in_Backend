@@ -383,9 +383,9 @@ const getCitiesList = async ({ page = 1, limit = 10, search = '', isActive = nul
   // Get total count
   const total = await City.countDocuments(query);
 
-  // Get cities with pagination
+  // Get cities with pagination — metro cities first, then alphabetical
   const cities = await City.find(query)
-    .sort({ name: 1 }) // Sort alphabetically
+    .sort({ isMetro: -1, name: 1 })
     .skip(skip)
     .limit(limitNum)
     .lean();
@@ -423,6 +423,7 @@ const createCity = async (cityData) => {
 
   const city = await City.create({
     name: normalizedName,
+    isMetro: cityData.isMetro !== undefined ? cityData.isMetro : false,
     isActive: cityData.isActive !== undefined ? cityData.isActive : true,
   });
 

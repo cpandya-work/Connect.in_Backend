@@ -8,7 +8,7 @@ const profileSchema = Joi.object({
     'any.required': 'City is required'
   }),
   religion: Joi.string().required(),
-  status: Joi.string().valid('Married', 'Unmarried', 'Divorced').required(),
+  status: Joi.string().valid('Single', 'Married', 'Divorced', 'Prefer not to say').required(),
   email: Joi.string().email().required(),
   password: Joi.string().min(6).optional().allow('').messages({
     'string.min': 'Password must be at least 6 characters'
@@ -30,7 +30,7 @@ const updateProfileSchema = Joi.object({
     'string.length': 'City must be a valid ObjectId'
   }),
   religion: Joi.string(),
-  status: Joi.string().valid('Married', 'Unmarried', 'Divorced'),
+  status: Joi.string().valid('Single', 'Married', 'Divorced', 'Prefer not to say'),
   email: Joi.string().email(),
   password: Joi.string().min(6).messages({
     'string.min': 'Password must be at least 6 characters'

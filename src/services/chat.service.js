@@ -49,6 +49,8 @@ const getChatHistory = async (loggedInUserId, otherUserId) => {
   return messages;
 };
 
+const { getActiveConnections } = require('./connection.service');
+
 const getChatList = async (loggedInUserId, search = '') => {
   const pipeline = [
     {
@@ -131,12 +133,48 @@ const getChatList = async (loggedInUserId, search = '') => {
   let result = await UserChat.aggregate(pipeline).exec();
 
   if (search && search.trim()) {
+    const term = search.trim().toLowerCase();
+    
+    // Filter existing chats
     result = result.filter(item => 
-      item.fullName?.toLowerCase().includes(search.trim().toLowerCase())
+      item.fullName?.toLowerCase().includes(term)
     );
+
+    // Fetch active connections matching search
+    const connections = await getActiveConnections(loggedInUserId, search);
+
+    // Merge connections who are NOT already in the chat list
+    const existingChatUserIds = new Set(result.map(item => item._id.toString()));
+    
+    connections.forEach(conn => {
+      const connUserId = conn._id.toString();
+      if (!existingChatUserIds.has(connUserId)) {
+        result.push({
+          _id: conn._id,
+          fullName: conn.userDetailId?.fullName,
+          profileImage: conn.userDetailId?.profileImage,
+          lastMessage: '',
+          lastMessageTime: null,
+          unseenCount: 0
+        });
+      }
+    });
   }
 
-  result.sort((a, b) => new Date(b.lastMessageTime) - new Date(a.lastMessageTime));
+  // Sort: prioritize unread messages or latest messages
+  result.sort((a, b) => {
+    // If both have messages, sort by time
+    if (a.lastMessageTime && b.lastMessageTime) {
+      return new Date(b.lastMessageTime) - new Date(a.lastMessageTime);
+    }
+    // If only A has messages, A comes first
+    if (a.lastMessageTime) return -1;
+    // If only B has messages, B comes first
+    if (b.lastMessageTime) return 1;
+    // Both are new (from search), maintain order or sort alphabetically?
+    // Let's sort alphabetically for new ones
+    return (a.fullName || '').localeCompare(b.fullName || '');
+  });
 
   return result.map(item => ({
     ...item,

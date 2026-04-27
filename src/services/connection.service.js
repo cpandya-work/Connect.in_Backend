@@ -267,17 +267,53 @@ const getUsersWhoLikedMe = async (userId, search = '') => {
   const likes = await UserLikes.find({ likedUserId: userId })
     .populate({
       path: 'userId',
-      populate: { path: 'userDetailId', select: 'fullName city profileImage' },
+      populate: { 
+        path: 'userDetailId', 
+        select: 'fullName city profileImage',
+        populate: { path: 'city', model: 'City', select: 'name' }
+      },
       select: 'userDetailId',
     })
     .lean();
 
-  let result = likes.map(l => ({
-    _id: l.userId._id,
-    fullName: l.userId.userDetailId?.fullName,
-    city: l.userId.userDetailId?.city,
-    profileImage: l.userId.userDetailId?.profileImage,
-  }));
+  // Extract city IDs that need to be fetched (if not populated)
+  const cityIds = [];
+  likes.forEach((l) => {
+    const city = l.userId?.userDetailId?.city;
+    if (city && typeof city !== 'object') {
+      cityIds.push(city);
+    }
+  });
+
+  // Fetch city names for unpopulated cities
+  let cityMap = new Map();
+  if (cityIds.length > 0) {
+    const uniqueCityIds = [...new Set(cityIds)];
+    const cities = await City.find({ _id: { $in: uniqueCityIds } }).select('name _id').lean();
+    cityMap = new Map(cities.map(c => [c._id.toString(), c.name]));
+  }
+
+  let result = likes.map(l => {
+    let cityName = null;
+    const city = l.userId?.userDetailId?.city;
+    
+    if (city) {
+      if (typeof city === 'object' && city.name) {
+        // City is populated
+        cityName = city.name;
+      } else {
+        // City is an ObjectId, get from map
+        cityName = cityMap.get(city.toString()) || null;
+      }
+    }
+
+    return {
+      _id: l.userId._id,
+      fullName: l.userId.userDetailId?.fullName,
+      city: cityName,
+      profileImage: l.userId.userDetailId?.profileImage,
+    };
+  });
 
   if (search && search.trim()) {
     result = result.filter(user => 

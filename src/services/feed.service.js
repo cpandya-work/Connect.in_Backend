@@ -148,9 +148,40 @@ const getFeed = async (userId, userGender, cursor = null, limit = 20, filters = 
       },
     },
     {
+      $lookup: {
+        from: 'industries',
+        let: { industryId: '$details.industry' },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $or: [
+                  { $eq: ['$_id', '$$industryId'] },
+                  {
+                    $and: [
+                      { $eq: [{ $type: '$$industryId' }, 'string'] },
+                      { $eq: [{ $strLenCP: '$$industryId' }, 24] },
+                      { $eq: ['$_id', { $toObjectId: '$$industryId' }] }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        as: 'industryInfo',
+      },
+    },
+    {
       $addFields: {
         cityName: { $arrayElemAt: ['$cityInfo.name', 0] },
         cityId: '$details.city',
+        industryName: {
+          $ifNull: [
+            { $arrayElemAt: ['$industryInfo.name', 0] },
+            '$details.industry'
+          ]
+        },
       },
     },
     { $sort: userLocation ? { distance: 1, _id: -1 } : { _id: -1 } },
@@ -165,6 +196,7 @@ const getFeed = async (userId, userGender, cursor = null, limit = 20, filters = 
         gender: '$details.gender',
         religion: '$details.religion',
         status: '$details.status',
+        industry: '$industryName',
         distance: userLocation ? '$distance' : undefined,
       },
     },
@@ -348,9 +380,40 @@ const getFeedWeb = async (userId, userGender, page = 1, limit = 20, filters = {}
       },
     },
     {
+      $lookup: {
+        from: 'industries',
+        let: { industryId: '$details.industry' },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $or: [
+                  { $eq: ['$_id', '$$industryId'] },
+                  {
+                    $and: [
+                      { $eq: [{ $type: '$$industryId' }, 'string'] },
+                      { $eq: [{ $strLenCP: '$$industryId' }, 24] },
+                      { $eq: ['$_id', { $toObjectId: '$$industryId' }] }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        as: 'industryInfo',
+      },
+    },
+    {
       $addFields: {
         cityName: { $arrayElemAt: ['$cityInfo.name', 0] },
         cityId: '$details.city',
+        industryName: {
+          $ifNull: [
+            { $arrayElemAt: ['$industryInfo.name', 0] },
+            '$details.industry'
+          ]
+        },
       },
     },
     { $sort: userLocation ? { distance: 1, _id: -1 } : { _id: -1 } },
@@ -365,6 +428,7 @@ const getFeedWeb = async (userId, userGender, page = 1, limit = 20, filters = {}
         gender: '$details.gender',
         religion: '$details.religion',
         status: '$details.status',
+        industry: '$industryName',
         distance: userLocation ? '$distance' : undefined,
       },
     },
