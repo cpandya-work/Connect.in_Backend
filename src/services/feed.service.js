@@ -160,7 +160,7 @@ const getFeed = async (userId, userGender, cursor = null, limit = 20, filters = 
                   {
                     $and: [
                       { $eq: [{ $type: '$$industryId' }, 'string'] },
-                      { $eq: [{ $strLenCP: '$$industryId' }, 24] },
+                      { $eq: [{ $strLenCP: { $cond: { if: { $eq: [{ $type: '$$industryId' }, 'string'] }, then: '$$industryId', else: '' } } }, 24] },
                       { $eq: ['$_id', { $toObjectId: '$$industryId' }] }
                     ]
                   }
@@ -392,7 +392,7 @@ const getFeedWeb = async (userId, userGender, page = 1, limit = 20, filters = {}
                   {
                     $and: [
                       { $eq: [{ $type: '$$industryId' }, 'string'] },
-                      { $eq: [{ $strLenCP: '$$industryId' }, 24] },
+                      { $eq: [{ $strLenCP: { $cond: { if: { $eq: [{ $type: '$$industryId' }, 'string'] }, then: '$$industryId', else: '' } } }, 24] },
                       { $eq: ['$_id', { $toObjectId: '$$industryId' }] }
                     ]
                   }
