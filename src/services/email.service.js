@@ -1,0 +1,260 @@
+const nodemailer = require('nodemailer');
+
+// ─── Transporter ────────────────────────────────────────────────────────────
+
+const createTransporter = () =>
+  nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: parseInt(process.env.SMTP_PORT || '587', 10),
+    secure: process.env.SMTP_SECURE === 'true', // true for 465, false for 587
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+  });
+
+const FROM = `"Connect India" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`;
+const APP_URL = process.env.APP_URL || 'https://conect.in';
+const UNSUBSCRIBE_URL = 'https://base.connect.in/unsubscribe/index-org.php';
+
+// ─── Core sender ─────────────────────────────────────────────────────────────
+
+const sendEmail = async (to, subject, html) => {
+  if (!to || !process.env.SMTP_HOST) return; // silently skip if no email or SMTP not configured
+  try {
+    const transporter = createTransporter();
+    await transporter.sendMail({ from: FROM, to, subject, html });
+  } catch (err) {
+    console.error(`[Email] Failed to send "${subject}" to ${to}:`, err.message);
+  }
+};
+
+// ─── Base template wrapper ───────────────────────────────────────────────────
+
+const baseTemplate = (bodyContent) => `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Connect India</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f4f5f7;font-family:'Inter',Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f4f5f7;padding:32px 0;">
+    <tr>
+      <td align="center">
+        <table width="580" cellpadding="0" cellspacing="0" border="0" style="max-width:580px;width:100%;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.08);">
+
+          <!-- Header -->
+          <tr>
+            <td style="background:linear-gradient(135deg,#EC7523 0%,#d45a09 100%);padding:32px 40px;text-align:center;">
+              <h1 style="margin:0;color:#ffffff;font-size:28px;font-weight:700;letter-spacing:-0.5px;">Connect</h1>
+              <p style="margin:4px 0 0;color:rgba(255,255,255,0.85);font-size:13px;">India's Network for Real Connections</p>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="padding:36px 40px 28px;">
+              ${bodyContent}
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background:#f8f9fb;padding:20px 40px;border-top:1px solid #e9ecef;text-align:center;">
+              <p style="margin:0 0 6px;color:#adb5bd;font-size:12px;">© ${new Date().getFullYear()} Connect India. All rights reserved.</p>
+              <p style="margin:0;font-size:12px;color:#adb5bd;">
+                To unsubscribe from promotional emails,
+                <a href="${UNSUBSCRIBE_URL}" style="color:#EC7523;text-decoration:none;">click here</a>.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+// ─── Button helper ────────────────────────────────────────────────────────────
+
+const ctaButton = (href, label) => `
+<table cellpadding="0" cellspacing="0" border="0" style="margin:24px auto 0;">
+  <tr>
+    <td align="center" style="border-radius:10px;background:#EC7523;">
+      <a href="${href}" target="_blank"
+         style="display:inline-block;padding:14px 32px;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;border-radius:10px;">
+        ${label}
+      </a>
+    </td>
+  </tr>
+</table>`;
+
+// ─── 1. Registration / Welcome ───────────────────────────────────────────────
+
+const sendRegistrationEmail = async (email, fullName) => {
+  const subject = 'Welcome to Connect India! 🎉';
+  const html = baseTemplate(`
+    <h2 style="margin:0 0 8px;color:#081332;font-size:22px;font-weight:700;">Welcome, ${fullName}! 👋</h2>
+    <p style="margin:0 0 20px;color:#495057;font-size:15px;line-height:1.7;">
+      Your profile is live on <strong>Connect India</strong> — India's network for real professional connections.
+      Start exploring profiles, send connection requests, and grow your network today.
+    </p>
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;margin-bottom:24px;">
+      <tr>
+        <td style="padding:20px 24px;">
+          <p style="margin:0 0 12px;color:#081332;font-weight:600;font-size:14px;">Here's what you can do:</p>
+          <ul style="margin:0;padding-left:18px;color:#6b7280;font-size:14px;line-height:2;">
+            <li>Browse profiles near you</li>
+            <li>Send and accept connection requests</li>
+            <li>Like profiles you find interesting</li>
+            <li>Chat with your connections</li>
+            <li>Explore exclusive card offers</li>
+          </ul>
+        </td>
+      </tr>
+    </table>
+
+    ${ctaButton(APP_URL, 'Explore Connect →')}
+  `);
+  await sendEmail(email, subject, html);
+};
+
+// ─── 2. Connection Request ───────────────────────────────────────────────────
+
+const sendConnectionRequestEmail = async (receiverEmail, receiverName, senderName) => {
+  const subject = `${senderName} sent you a connection request on Connect`;
+  const html = baseTemplate(`
+    <h2 style="margin:0 0 8px;color:#081332;font-size:22px;font-weight:700;">New Connection Request 🤝</h2>
+    <p style="margin:0 0 20px;color:#495057;font-size:15px;line-height:1.7;">
+      Hi <strong>${receiverName}</strong>,<br/>
+      <strong>${senderName}</strong> has sent you a connection request on Connect India.
+      Log in to review and respond to it.
+    </p>
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;margin-bottom:8px;">
+      <tr>
+        <td style="padding:18px 24px;">
+          <p style="margin:0;color:#166534;font-size:14px;line-height:1.6;">
+            💡 Connecting with people in your city helps you build a genuine local network.
+          </p>
+        </td>
+      </tr>
+    </table>
+
+    ${ctaButton(`${APP_URL}/connection`, 'View Request →')}
+  `);
+  await sendEmail(receiverEmail, subject, html);
+};
+
+// ─── 3. Connection Accepted ──────────────────────────────────────────────────
+
+const sendConnectionAcceptedEmail = async (senderEmail, senderName, accepterName) => {
+  const subject = `${accepterName} accepted your connection request on Connect`;
+  const html = baseTemplate(`
+    <h2 style="margin:0 0 8px;color:#081332;font-size:22px;font-weight:700;">Connection Accepted! 🎉</h2>
+    <p style="margin:0 0 20px;color:#495057;font-size:15px;line-height:1.7;">
+      Hi <strong>${senderName}</strong>,<br/>
+      Great news! <strong>${accepterName}</strong> accepted your connection request.
+      You can now chat with each other directly on Connect India.
+    </p>
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;margin-bottom:8px;">
+      <tr>
+        <td style="padding:18px 24px;">
+          <p style="margin:0;color:#1e40af;font-size:14px;line-height:1.6;">
+            💬 Start a conversation — a simple "Hi" goes a long way!
+          </p>
+        </td>
+      </tr>
+    </table>
+
+    ${ctaButton(`${APP_URL}/chat`, 'Start Chatting →')}
+  `);
+  await sendEmail(senderEmail, subject, html);
+};
+
+// ─── 4. Incoming Like ────────────────────────────────────────────────────────
+
+const sendIncomingLikeEmail = async (likedUserEmail, likedUserName, likerName) => {
+  const subject = `${likerName} liked your profile on Connect`;
+  const html = baseTemplate(`
+    <h2 style="margin:0 0 8px;color:#081332;font-size:22px;font-weight:700;">Someone Liked You! 💖</h2>
+    <p style="margin:0 0 20px;color:#495057;font-size:15px;line-height:1.7;">
+      Hi <strong>${likedUserName}</strong>,<br/>
+      <strong>${likerName}</strong> liked your profile on Connect India.
+      Check out their profile and send a connection request if you're interested!
+    </p>
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#fdf4ff;border:1px solid #e9d5ff;border-radius:12px;margin-bottom:8px;">
+      <tr>
+        <td style="padding:18px 24px;">
+          <p style="margin:0;color:#6b21a8;font-size:14px;line-height:1.6;">
+            ✨ Profiles with a complete photo get 3× more likes and connections.
+          </p>
+        </td>
+      </tr>
+    </table>
+
+    ${ctaButton(`${APP_URL}/like`, 'See Who Liked You →')}
+  `);
+  await sendEmail(likedUserEmail, subject, html);
+};
+
+// ─── 5. Broadcast Offer ──────────────────────────────────────────────────────
+
+const sendBroadcastOfferEmail = async (recipientEmails, offerTitle, offerDescription) => {
+  if (!recipientEmails || recipientEmails.length === 0) return { sent: 0, skipped: 0 };
+
+  const subject = offerTitle || 'Exclusive Offer for Connect Members';
+  const html = baseTemplate(`
+    <h2 style="margin:0 0 8px;color:#081332;font-size:22px;font-weight:700;">Exclusive Offer 🎁</h2>
+    <p style="margin:0 0 20px;color:#495057;font-size:15px;line-height:1.7;">
+      We have a special offer just for Connect India members.
+    </p>
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;margin-bottom:24px;">
+      <tr>
+        <td style="padding:24px;">
+          <p style="margin:0 0 8px;color:#EC7523;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">Offer Details</p>
+          <p style="margin:0;color:#374151;font-size:15px;line-height:1.7;">${offerDescription}</p>
+        </td>
+      </tr>
+    </table>
+
+    ${ctaButton(`${APP_URL}/offer`, 'View Offer →')}
+  `);
+
+  let sent = 0;
+  let skipped = 0;
+
+  // Send in batches of 50 to avoid overwhelming the SMTP server
+  const BATCH_SIZE = 50;
+  for (let i = 0; i < recipientEmails.length; i += BATCH_SIZE) {
+    const batch = recipientEmails.slice(i, i + BATCH_SIZE);
+    await Promise.all(
+      batch.map(async (email) => {
+        if (!email) { skipped++; return; }
+        try {
+          await sendEmail(email, subject, html);
+          sent++;
+        } catch {
+          skipped++;
+        }
+      })
+    );
+  }
+
+  return { sent, skipped };
+};
+
+module.exports = {
+  sendRegistrationEmail,
+  sendConnectionRequestEmail,
+  sendConnectionAcceptedEmail,
+  sendIncomingLikeEmail,
+  sendBroadcastOfferEmail,
+};

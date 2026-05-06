@@ -1,6 +1,6 @@
 const asyncHandler = require('../utils/asyncHandler');
 const { success } = require('../utils/response');
-const { 
+const {
   getUsersList,
   getSkillsList,
   createSkill,
@@ -36,7 +36,12 @@ const {
   createCard,
   updateCard,
   deleteCard,
-  getCardById
+  getCardById,
+  getAuthBanners,
+  createAuthBanner,
+  deleteAuthBanner,
+  toggleAuthBanner,
+  broadcastOfferEmail,
 } = require('../services/admin.service');
 const { createSkillSchema, updateSkillSchema } = require('../validators/skill.validator');
 const { createInterestSchema, updateInterestSchema } = require('../validators/interest.validator');
@@ -614,6 +619,67 @@ const deleteCardCtrl = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Get all auth banners (admin)
+ */
+const getAuthBannersCtrl = asyncHandler(async (req, res) => {
+  const banners = await getAuthBanners();
+  success(res, { banners }, 'Auth banners retrieved successfully');
+});
+
+/**
+ * Upload a new auth banner
+ * Expects multipart/form-data with fields: image (file), type (desktop|mobile)
+ */
+const createAuthBannerCtrl = asyncHandler(async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ success: false, message: 'Image file is required' });
+  }
+  const { type } = req.body;
+  if (!type || !['desktop', 'mobile'].includes(type)) {
+    return res.status(400).json({ success: false, message: 'type must be "desktop" or "mobile"' });
+  }
+
+  const imageUrl = req.file.path;
+  const cloudinaryPublicId = req.file.filename;
+  const width = req.file.width || null;
+  const height = req.file.height || null;
+
+  const banner = await createAuthBanner({ imageUrl, cloudinaryPublicId, type, width, height });
+  success(res, { banner }, 'Auth banner uploaded successfully');
+});
+
+/**
+ * Delete an auth banner by ID (also removes from Cloudinary)
+ */
+const deleteAuthBannerCtrl = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  await deleteAuthBanner(id);
+  success(res, null, 'Auth banner deleted successfully');
+});
+
+/**
+ * Toggle isActive status of an auth banner
+ */
+const toggleAuthBannerCtrl = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const banner = await toggleAuthBanner(id);
+  success(res, { banner }, 'Auth banner status updated');
+});
+
+/**
+ * Send broadcast offer email to all users who have an email address
+ * Body: { title, description }
+ */
+const broadcastOfferEmailCtrl = asyncHandler(async (req, res) => {
+  const { title, description } = req.body;
+  if (!title || !description) {
+    return res.status(400).json({ success: false, message: 'title and description are required' });
+  }
+  const result = await broadcastOfferEmail(title, description);
+  success(res, result, `Offer email sent to ${result.sent} users`);
+});
+
+/**
  * Send push notification to all users (broadcast)
  * Requires title and description
  */
@@ -671,4 +737,9 @@ module.exports = {
   updateCardCtrl,
   deleteCardCtrl,
   sendBroadcastNotificationCtrl,
+  getAuthBannersCtrl,
+  createAuthBannerCtrl,
+  deleteAuthBannerCtrl,
+  toggleAuthBannerCtrl,
+  broadcastOfferEmailCtrl,
 };

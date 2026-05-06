@@ -36,10 +36,16 @@ const {
   createCardCtrl,
   updateCardCtrl,
   deleteCardCtrl,
-  sendBroadcastNotificationCtrl
+  sendBroadcastNotificationCtrl,
+  getAuthBannersCtrl,
+  createAuthBannerCtrl,
+  deleteAuthBannerCtrl,
+  toggleAuthBannerCtrl,
+  broadcastOfferEmailCtrl,
 } = require('../controllers/admin.controller');
 const { isAdmin } = require('../middlewares/admin.middleware');
 const uploadCardLogo = require('../middlewares/cardUpload.middleware');
+const authBannerUpload = require('../middlewares/authBannerUpload.middleware');
 
 const router = express.Router();
 
@@ -165,5 +171,21 @@ router.delete('/cards/:id', deleteCardCtrl);
 // Notification management routes
 // POST /api/admin/notifications/broadcast - Send push notification to all users
 router.post('/notifications/broadcast', sendBroadcastNotificationCtrl);
+
+// POST /api/admin/notifications/broadcast-offer - Send offer email to all users with emails
+router.post('/notifications/broadcast-offer', broadcastOfferEmailCtrl);
+
+// Auth banner management routes
+// GET /api/admin/auth-banners
+router.get('/auth-banners', getAuthBannersCtrl);
+
+// POST /api/admin/auth-banners - Requires image file upload
+router.post('/auth-banners', authBannerUpload.single('image'), createAuthBannerCtrl);
+
+// DELETE /api/admin/auth-banners/:id
+router.delete('/auth-banners/:id', deleteAuthBannerCtrl);
+
+// PATCH /api/admin/auth-banners/:id/toggle
+router.patch('/auth-banners/:id/toggle', toggleAuthBannerCtrl);
 
 module.exports = router;

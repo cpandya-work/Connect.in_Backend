@@ -6,21 +6,31 @@ const User = require('../models/User.model');
 const UserDetail = require('../models/UserDetail.model');
 const City = require('../models/City.model');
 const { sendLikeNotification, sendConnectionRequestNotification, sendConnectionAcceptedNotification } = require('./notification.service');
+const { sendConnectionRequestEmail, sendConnectionAcceptedEmail, sendIncomingLikeEmail } = require('./email.service');
+const { sendConnectionRequestSms, sendConnectionAcceptedSms } = require('./sms.service');
 
 const likeUser = async (userId, likedUserId) => {
   const like = await UserLikes.create({ userId, likedUserId });
-  
-  // Send notification
-  const liker = await User.findById(userId).populate('userDetailId');
+
+  // Send push notification + email (non-blocking)
+  const [liker, likedUser] = await Promise.all([
+    User.findById(userId).populate('userDetailId'),
+    User.findById(likedUserId).populate('userDetailId'),
+  ]);
+
   if (liker?.userDetailId?.fullName) {
-    await sendLikeNotification(
-      likedUserId, 
-      liker.userDetailId.fullName, 
-      userId,
-      liker.userDetailId.profileImage
-    );
+    sendLikeNotification(likedUserId, liker.userDetailId.fullName, userId, liker.userDetailId.profileImage)
+      .catch(console.error);
   }
-  
+
+  if (likedUser?.userDetailId?.email && likedUser?.userDetailId?.fullName && liker?.userDetailId?.fullName) {
+    sendIncomingLikeEmail(
+      likedUser.userDetailId.email,
+      likedUser.userDetailId.fullName,
+      liker.userDetailId.fullName
+    ).catch(console.error);
+  }
+
   return like;
 };
 
@@ -97,18 +107,34 @@ const getLikedUsers = async (userId, search = '') => {
 
 const sendConnectionRequest = async (senderId, receiverId) => {
   const request = await UserRequests.create({ senderId, receiverId });
-  
-  // Send notification
-  const sender = await User.findById(senderId).populate('userDetailId');
+
+  // Send push notification + email (non-blocking)
+  const [sender, receiver] = await Promise.all([
+    User.findById(senderId).populate('userDetailId'),
+    User.findById(receiverId).populate('userDetailId'),
+  ]);
+
   if (sender?.userDetailId?.fullName) {
-    await sendConnectionRequestNotification(
-      receiverId, 
-      sender.userDetailId.fullName, 
-      senderId,
-      sender.userDetailId.profileImage
-    );
+    sendConnectionRequestNotification(receiverId, sender.userDetailId.fullName, senderId, sender.userDetailId.profileImage)
+      .catch(console.error);
   }
-  
+
+  if (receiver?.userDetailId?.email && receiver?.userDetailId?.fullName && sender?.userDetailId?.fullName) {
+    sendConnectionRequestEmail(
+      receiver.userDetailId.email,
+      receiver.userDetailId.fullName,
+      sender.userDetailId.fullName
+    ).catch(console.error);
+  }
+
+  if (receiver?.phoneNumber && receiver?.userDetailId?.fullName && sender?.userDetailId?.fullName) {
+    sendConnectionRequestSms(
+      receiver.phoneNumber,
+      receiver.userDetailId.fullName,
+      sender.userDetailId.fullName
+    ).catch(console.error);
+  }
+
   return request;
 };
 
@@ -233,15 +259,31 @@ const acceptRequest = async (requestId, receiverId) => {
     connection2Id: request.receiverId,
   });
 
-  // Send notification
-  const accepter = await User.findById(receiverId).populate('userDetailId');
+  // Send push notification + email (non-blocking)
+  const [accepter, originalSender] = await Promise.all([
+    User.findById(receiverId).populate('userDetailId'),
+    User.findById(request.senderId).populate('userDetailId'),
+  ]);
+
   if (accepter?.userDetailId?.fullName) {
-    await sendConnectionAcceptedNotification(
-      request.senderId, 
-      accepter.userDetailId.fullName, 
-      receiverId,
-      accepter.userDetailId.profileImage
-    );
+    sendConnectionAcceptedNotification(request.senderId, accepter.userDetailId.fullName, receiverId, accepter.userDetailId.profileImage)
+      .catch(console.error);
+  }
+
+  if (originalSender?.userDetailId?.email && originalSender?.userDetailId?.fullName && accepter?.userDetailId?.fullName) {
+    sendConnectionAcceptedEmail(
+      originalSender.userDetailId.email,
+      originalSender.userDetailId.fullName,
+      accepter.userDetailId.fullName
+    ).catch(console.error);
+  }
+
+  if (originalSender?.phoneNumber && originalSender?.userDetailId?.fullName && accepter?.userDetailId?.fullName) {
+    sendConnectionAcceptedSms(
+      originalSender.phoneNumber,
+      originalSender.userDetailId.fullName,
+      accepter.userDetailId.fullName
+    ).catch(console.error);
   }
 
   await UserRequests.deleteOne({ _id: requestId });

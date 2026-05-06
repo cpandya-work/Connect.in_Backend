@@ -7,7 +7,9 @@ const Habit = require('../models/Habit.model');
 const Company = require('../models/Company.model');
 const Industry = require('../models/Industry.model');
 const Card = require('../models/Card.model');
+const AuthBanner = require('../models/AuthBanner.model');
 const { deleteFromCloudinary } = require('../utils/cloudinary');
+const { sendBroadcastOfferEmail } = require('./email.service');
 
 /**
  * Get paginated list of users with search functionality
@@ -28,13 +30,17 @@ const getUsersList = async ({ page = 1, limit = 10, search = '' } = {}) => {
   
   if (search && search.trim()) {
     const searchRegex = new RegExp(search.trim(), 'i');
-    
-    // Search in UserDetail fields
+
+    // Find cities matching the search term to support city-name search
+    const matchingCities = await City.find({ name: searchRegex }).select('_id').lean();
+    const matchingCityIds = matchingCities.map(c => c._id);
+
+    // Search in UserDetail fields (city is an ObjectId ref, so use matched IDs)
     const userDetailsWithSearch = await UserDetail.find({
       $or: [
         { fullName: searchRegex },
         { email: searchRegex },
-        { city: searchRegex },
+        ...(matchingCityIds.length > 0 ? [{ city: { $in: matchingCityIds } }] : []),
       ],
     }).select('_id');
 
@@ -1043,6 +1049,46 @@ const getCardById = async (cardId) => {
   return card;
 };
 
+const broadcastOfferEmail = async (title, description) => {
+  // Collect all user emails that are not null/empty
+  const userDetails = await UserDetail.find({ email: { $exists: true, $ne: null, $ne: '' } })
+    .select('email')
+    .lean();
+  const emails = userDetails.map((u) => u.email).filter(Boolean);
+  const result = await sendBroadcastOfferEmail(emails, title, description);
+  return { totalEmails: emails.length, ...result };
+};
+
+const getAuthBanners = async () => {
+  return await AuthBanner.find().sort({ createdAt: -1 }).lean();
+};
+
+const createAuthBanner = async ({ imageUrl, cloudinaryPublicId, type, width, height }) => {
+  return await AuthBanner.create({ imageUrl, cloudinaryPublicId, type, width, height, isActive: true });
+};
+
+const deleteAuthBanner = async (id) => {
+  const banner = await AuthBanner.findById(id);
+  if (!banner) throw new Error('Banner not found');
+  await deleteFromCloudinary(banner.cloudinaryPublicId);
+  await AuthBanner.deleteOne({ _id: id });
+  return { message: 'Banner deleted' };
+};
+
+const toggleAuthBanner = async (id) => {
+  const banner = await AuthBanner.findById(id);
+  if (!banner) throw new Error('Banner not found');
+  banner.isActive = !banner.isActive;
+  await banner.save();
+  return banner;
+};
+
+const getActiveAuthBanners = async (type) => {
+  const query = { isActive: true };
+  if (type) query.type = type;
+  return await AuthBanner.find(query).lean();
+};
+
 module.exports = {
   getUsersList,
   getSkillsList,
@@ -1080,5 +1126,11 @@ module.exports = {
   updateCard,
   deleteCard,
   getCardById,
+  getAuthBanners,
+  createAuthBanner,
+  deleteAuthBanner,
+  toggleAuthBanner,
+  getActiveAuthBanners,
+  broadcastOfferEmail,
 };
 

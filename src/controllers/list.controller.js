@@ -5,6 +5,7 @@ const IndustryModel = require("../models/Industry.model");
 const InterestModel = require("../models/Interest.model");
 const SkillModel = require("../models/Skill.model");
 const CardModel = require("../models/Card.model");
+const AuthBannerModel = require("../models/AuthBanner.model");
 const asyncHandler = require("../utils/asyncHandler");
 const { success } = require("../utils/response");
 
@@ -71,6 +72,16 @@ const listHabitsCtrl = asyncHandler(async (req, res) => {
 
 
 
+const listAuthBannersCtrl = asyncHandler(async (req, res) => {
+  const { type } = req.query;
+  const query = { isActive: true };
+  if (type && ['desktop', 'mobile'].includes(type)) {
+    query.type = type;
+  }
+  const banners = await AuthBannerModel.find(query).lean();
+  success(res, { banners }, 'auth banners fetched');
+});
+
 module.exports = {
   listCityCtrl,
   listSkillCtrl,
@@ -78,6 +89,6 @@ module.exports = {
   listHabitsCtrl,
   listCompaniesCtrl,
   listIndustriesCtrl,
-  listCardsCtrl
-
+  listCardsCtrl,
+  listAuthBannersCtrl,
 }

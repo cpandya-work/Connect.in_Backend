@@ -7,6 +7,8 @@ const Industry = require('../models/Industry.model');
 const { profileSchema, updateProfileSchema } = require('../validators/user.validator');
 const { success } = require('../utils/response');
 const { getPublicProfile, updateProfile, deleteAccount } = require('../services/user.service');
+const { sendRegistrationEmail } = require('../services/email.service');
+const { sendRegistrationSms } = require('../services/sms.service');
 const { verifyToken } = require('../config/jwt');
 const mongoose = require('mongoose');
 
@@ -82,7 +84,7 @@ const createProfile = asyncHandler(async (req, res) => {
   let user = null;
   const authHeader = req.headers.authorization;
   const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
-  
+  console.log("Token",token)
   if (token) {
     // If token is provided, verify it and get user
     try {
@@ -121,7 +123,7 @@ const createProfile = asyncHandler(async (req, res) => {
       return res.status(400).json({ success: false, message: 'Email already in use' });
     }
   }
-
+  console.log("Profile create api")
   let detail;
   if (user.userDetailId) {
     // Update existing profile and mark as complete
@@ -155,13 +157,24 @@ const createProfile = asyncHandler(async (req, res) => {
   }
   
   const updatedUser = await User.findById(user._id);
+  console.log("UpdatedUser data",updatedUser)
   const profile = {
     phoneNumber: updatedUser.phoneNumber,
     email: detail.email,
     ...detail.toObject(),
   };
-
+   console.log("Details email",detail)
   success(res, { profile }, 'Profile completed');
+
+  // Fire welcome email + SMS outside the request lifecycle
+  setImmediate(() => {
+    if (detail.email && detail.fullName) {
+      sendRegistrationEmail(detail.email, detail.fullName).catch(() => {});
+    }
+    if (updatedUser.phoneNumber && detail.fullName) {
+      sendRegistrationSms(updatedUser.phoneNumber, detail.fullName);
+    }
+  });
 });
 
 const getUserProfileById = asyncHandler(async (req, res) => {
@@ -350,9 +363,21 @@ const saveProfileStep = asyncHandler(async (req, res) => {
     await User.findByIdAndUpdate(req.user._id, { userDetailId: userDetail._id });
   }
   
-  success(res, { 
-    profile: userDetail, 
-    lastCompletedStep: stepNumber 
+  // Fire welcome email + SMS outside the request lifecycle
+  if (stepNumber === 8 && userDetail.fullName) {
+    setImmediate(() => {
+      if (userDetail.email) {
+        sendRegistrationEmail(userDetail.email, userDetail.fullName).catch(() => {});
+      }
+      if (req.user.phoneNumber) {
+        sendRegistrationSms(req.user.phoneNumber, userDetail.fullName);
+      }
+    });
+  }
+
+  success(res, {
+    profile: userDetail,
+    lastCompletedStep: stepNumber
   }, 'Step saved successfully');
 });
 
