@@ -8,6 +8,10 @@ const Company = require('../models/Company.model');
 const Industry = require('../models/Industry.model');
 const Card = require('../models/Card.model');
 const AuthBanner = require('../models/AuthBanner.model');
+const UserRequests = require('../models/UserRequests.model');
+const UserLikes = require('../models/UserLikes.model');
+const Post = require('../models/Post.model');
+const UserChat = require('../models/UserChat.model');
 const { deleteFromCloudinary } = require('../utils/cloudinary');
 const { sendBroadcastOfferEmail } = require('./email.service');
 
@@ -19,16 +23,73 @@ const { sendBroadcastOfferEmail } = require('./email.service');
  * @param {string} options.search - Search query (searches in name, email, phone, city)
  * @returns {Promise<Object>} Paginated user list with metadata
  */
-const getUsersList = async ({ page = 1, limit = 10, search = '' } = {}) => {
+const getUsersList = async ({ page = 1, limit = 10, search = '', city = '', industry = '', interest = '', religion = '' } = {}) => {
   // Convert page and limit to numbers
   const pageNum = parseInt(page, 10) || 1;
   const limitNum = parseInt(limit, 10) || 10;
   const skip = (pageNum - 1) * limitNum;
 
   // Build search query
+  const mongoose = require('mongoose');
   let searchQuery = {};
   
-  if (search && search.trim()) {
+  const hasFilters = (city && city.trim()) || (industry && industry.trim()) || (interest && interest.trim()) || (religion && religion.trim());
+
+  if (hasFilters) {
+    let detailQuery = {};
+    
+    if (city && city.trim()) {
+      if (mongoose.Types.ObjectId.isValid(city.trim())) {
+        detailQuery.city = city.trim();
+      } else {
+        const matchingCities = await City.find({ name: new RegExp(city.trim(), 'i') }).select('_id').lean();
+        detailQuery.city = { $in: matchingCities.map(c => c._id) };
+      }
+    }
+    
+    if (religion && religion.trim()) {
+      detailQuery.religion = new RegExp(religion.trim(), 'i');
+    }
+    
+    if (industry && industry.trim()) {
+      detailQuery.industry = new RegExp(industry.trim(), 'i');
+    }
+    
+    if (interest && interest.trim()) {
+      detailQuery.interests = new RegExp(interest.trim(), 'i');
+    }
+    
+    if (search && search.trim()) {
+      const searchRegex = new RegExp(search.trim(), 'i');
+      const matchingCitiesForSearch = await City.find({ name: searchRegex }).select('_id').lean();
+      
+      detailQuery.$and = detailQuery.$and || [];
+      detailQuery.$and.push({
+        $or: [
+          { fullName: searchRegex },
+          { email: searchRegex },
+          ...(matchingCitiesForSearch.length > 0 ? [{ city: { $in: matchingCitiesForSearch.map(c => c._id) } }] : []),
+        ]
+      });
+    }
+    
+    const userDetailsWithSearch = await UserDetail.find(detailQuery).select('_id');
+    const userDetailIds = userDetailsWithSearch.map((detail) => detail._id);
+    
+    if (search && search.trim()) {
+      const searchRegex = new RegExp(search.trim(), 'i');
+      searchQuery = {
+        $or: [
+          { phoneNumber: searchRegex },
+          { userDetailId: { $in: userDetailIds } }
+        ]
+      };
+    } else {
+      searchQuery = {
+        userDetailId: { $in: userDetailIds }
+      };
+    }
+  } else if (search && search.trim()) {
     const searchRegex = new RegExp(search.trim(), 'i');
 
     // Find cities matching the search term to support city-name search
@@ -66,6 +127,15 @@ const getUsersList = async ({ page = 1, limit = 10, search = '' } = {}) => {
     .limit(limitNum)
     .lean();
 
+  // Fetch all cities for matching IDs to names in memory
+  const allCities = await City.find({}).select('_id name').lean();
+  const cityMap = {};
+  allCities.forEach(c => {
+    if (c && c._id) {
+      cityMap[c._id.toString()] = c.name;
+    }
+  });
+
   // Format user data
   const formattedUsers = users.map((user) => {
     const userObj = {
@@ -78,11 +148,17 @@ const getUsersList = async ({ page = 1, limit = 10, search = '' } = {}) => {
     };
 
     if (user.userDetailId) {
+      let cityStr = null;
+      const cityVal = user.userDetailId.city;
+      if (cityVal) {
+        cityStr = cityMap[cityVal.toString()] || cityVal.toString();
+      }
+
       userObj.userDetails = {
         _id: user.userDetailId._id,
         fullName: user.userDetailId.fullName,
         email: user.userDetailId.email,
-        city: user.userDetailId.city,
+        city: cityStr,
         religion: user.userDetailId.religion,
         status: user.userDetailId.status,
         gender: user.userDetailId.gender,
@@ -91,6 +167,8 @@ const getUsersList = async ({ page = 1, limit = 10, search = '' } = {}) => {
         habits: user.userDetailId.habits,
         interests: user.userDetailId.interests,
         skills: user.userDetailId.skills,
+        industry: user.userDetailId.industry,
+        company: user.userDetailId.company,
         profileImage: user.userDetailId.profileImage,
         originalPassword: user.userDetailId.originalPassword, // Include original password for admin
       };
@@ -1089,6 +1167,210 @@ const getActiveAuthBanners = async (type) => {
   return await AuthBanner.find(query).lean();
 };
 
+/**
+ * Get count of users with incomplete profiles based on registration duration
+ * @param {string|number} days - Duration in days ('all', 7, 15, 30, 45)
+ */
+const getIncompleteProfileUsersCount = async (days) => {
+  let query = {};
+  
+  if (days !== 'all') {
+    const daysNum = parseInt(days, 10);
+    const date = new Date();
+    date.setDate(date.getDate() - daysNum);
+    query.createdAt = { $gte: date };
+  }
+
+  // Find user detail IDs that are incomplete (no profile image or incomplete flag)
+  const incompleteDetails = await UserDetail.find({
+    $or: [
+      { profileImage: { $exists: false } },
+      { profileImage: '' },
+      { profileImage: null },
+      { isProfileComplete: false }
+    ]
+  }).select('_id');
+
+  const detailIds = incompleteDetails.map(d => d._id);
+
+  // Filter users by these details and the duration
+  query.userDetailId = { $in: detailIds };
+  
+  return await User.countDocuments(query);
+};
+
+/**
+ * Get list of users with incomplete profiles for SMS broadcast
+ */
+const getIncompleteProfileUsers = async (days) => {
+  let query = {};
+  
+  if (days !== 'all') {
+    const daysNum = parseInt(days, 10);
+    const date = new Date();
+    date.setDate(date.getDate() - daysNum);
+    query.createdAt = { $gte: date };
+  }
+
+  // Find incomplete user details
+  const incompleteDetails = await UserDetail.find({
+    $or: [
+      { profileImage: { $exists: false } },
+      { profileImage: '' },
+      { profileImage: null },
+      { isProfileComplete: false }
+    ]
+  }).select('_id fullName');
+
+  const detailIds = incompleteDetails.map(d => d._id);
+  query.userDetailId = { $in: detailIds };
+
+  // Get users with their phone numbers and populated details
+  const users = await User.find(query)
+    .populate('userDetailId', 'fullName')
+    .select('phoneNumber userDetailId')
+    .lean();
+
+  return users.map(user => ({
+    phoneNumber: user.phoneNumber,
+    fullName: user.userDetailId?.fullName || 'User'
+  }));
+};
+
+/**
+ * Get count of all users based on registration duration
+ * @param {string|number} days - Duration in days ('all', 7, 15, 30, 45)
+ */
+const getUsersCountByRegistration = async (days) => {
+  let query = {};
+  
+  if (days !== 'all') {
+    const daysNum = parseInt(days, 10);
+    const date = new Date();
+    date.setDate(date.getDate() - daysNum);
+    query.createdAt = { $gte: date };
+  }
+  
+  return await User.countDocuments(query);
+};
+
+/**
+ * Get list of all users filtered by registration duration for SMS broadcast
+ * @param {string|number} days - Duration in days ('all', 7, 15, 30, 45)
+ */
+const getUsersByRegistration = async (days) => {
+  let query = {};
+  
+  if (days !== 'all') {
+    const daysNum = parseInt(days, 10);
+    const date = new Date();
+    date.setDate(date.getDate() - daysNum);
+    query.createdAt = { $gte: date };
+  }
+
+  // Get users with their phone numbers and populated details
+  const users = await User.find(query)
+    .populate('userDetailId', 'fullName email')
+    .select('phoneNumber userDetailId')
+    .lean();
+
+  return users.map(user => ({
+    phoneNumber: user.phoneNumber,
+    email: user.userDetailId?.email,
+    fullName: user.userDetailId?.fullName || 'User'
+  }));
+};
+
+
+/**
+ * Get count of users with email addresses based on registration duration
+ * @param {string|number} days - Duration in days ('all', 7, 15, 30, 45)
+ */
+const getEmailUsersCountByRegistration = async (days) => {
+  let query = {};
+  
+  if (days !== 'all') {
+    const daysNum = parseInt(days, 10);
+    const date = new Date();
+    date.setDate(date.getDate() - daysNum);
+    query.createdAt = { $gte: date };
+  }
+
+  // Find user details that have a registered email
+  const emailDetails = await UserDetail.find({
+    email: { $exists: true, $ne: null, $ne: '' }
+  }).select('_id');
+
+  const detailIds = emailDetails.map(d => d._id);
+  query.userDetailId = { $in: detailIds };
+  
+  return await User.countDocuments(query);
+};
+
+/**
+ * Get list of users with email addresses filtered by registration duration for Email broadcast
+ * @param {string|number} days - Duration in days ('all', 7, 15, 30, 45)
+ */
+const getEmailUsersByRegistration = async (days) => {
+  let query = {};
+  
+  if (days !== 'all') {
+    const daysNum = parseInt(days, 10);
+    const date = new Date();
+    date.setDate(date.getDate() - daysNum);
+    query.createdAt = { $gte: date };
+  }
+
+  // Find user details that have a registered email
+  const emailDetails = await UserDetail.find({
+    email: { $exists: true, $ne: null, $ne: '' }
+  }).select('_id email fullName');
+
+  const detailIds = emailDetails.map(d => d._id);
+  query.userDetailId = { $in: detailIds };
+
+  const users = await User.find(query)
+    .populate('userDetailId', 'fullName email')
+    .select('userDetailId')
+    .lean();
+
+  return users.map(user => ({
+    email: user.userDetailId?.email,
+    fullName: user.userDetailId?.fullName || 'User'
+  })).filter(user => user.email);
+};
+
+/**
+ * Get core platform metrics snapshot for Admin Dashboard
+ * @returns {Promise<Object>} Object containing stats counts
+ */
+const getDashboardStats = async () => {
+  const [
+    totalUsers,
+    totalConnectionRequests,
+    totalLikes,
+    totalOffers,
+    totalSharedItems,
+    totalChatMessages
+  ] = await Promise.all([
+    User.countDocuments({}),
+    UserRequests.countDocuments({}),
+    UserLikes.countDocuments({}),
+    Card.countDocuments({}),
+    Post.countDocuments({}),
+    UserChat.countDocuments({})
+  ]);
+
+  return {
+    totalUsers,
+    totalConnectionRequests,
+    totalLikes,
+    totalOffers,
+    totalSharedItems,
+    totalChatMessages
+  };
+};
+
 module.exports = {
   getUsersList,
   getSkillsList,
@@ -1132,5 +1414,12 @@ module.exports = {
   toggleAuthBanner,
   getActiveAuthBanners,
   broadcastOfferEmail,
+  getIncompleteProfileUsersCount,
+  getIncompleteProfileUsers,
+  getUsersCountByRegistration,
+  getUsersByRegistration,
+  getEmailUsersCountByRegistration,
+  getEmailUsersByRegistration,
+  getDashboardStats,
 };
 

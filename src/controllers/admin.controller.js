@@ -42,6 +42,13 @@ const {
   deleteAuthBanner,
   toggleAuthBanner,
   broadcastOfferEmail,
+  getIncompleteProfileUsersCount,
+  getIncompleteProfileUsers,
+  getUsersCountByRegistration,
+  getUsersByRegistration,
+  getEmailUsersCountByRegistration,
+  getEmailUsersByRegistration,
+  getDashboardStats,
 } = require('../services/admin.service');
 const { createSkillSchema, updateSkillSchema } = require('../validators/skill.validator');
 const { createInterestSchema, updateInterestSchema } = require('../validators/interest.validator');
@@ -50,20 +57,30 @@ const { createHabitSchema, updateHabitSchema } = require('../validators/habit.va
 const { createCompanySchema, updateCompanySchema } = require('../validators/company.validator');
 const { createIndustrySchema, updateIndustrySchema } = require('../validators/industry.validator');
 const { createCardSchema, updateCardSchema } = require('../validators/card.validator');
-const { broadcastNotificationSchema } = require('../validators/broadcast.validator');
+const { 
+  broadcastNotificationSchema,
+  generalSmsBroadcastSchema,
+  targetedEmailBroadcastSchema
+} = require('../validators/broadcast.validator');
 const { sendBroadcastNotification } = require('../services/notification.service');
+const { sendBulkSms } = require('../services/sms.service');
+const { sendBulkHtmlEmail } = require('../services/email.service');
 
 /**
  * Get paginated list of users with search
  * Query params: page, limit, search
  */
 const getUsersListCtrl = asyncHandler(async (req, res) => {
-  const { page, limit, search } = req.query;
+  const { page, limit, search, city, industry, interest, religion } = req.query;
 
   const result = await getUsersList({
     page,
     limit,
     search,
+    city,
+    industry,
+    interest,
+    religion,
   });
 
   success(res, result, 'Users retrieved successfully');
@@ -699,6 +716,121 @@ const sendBroadcastNotificationCtrl = asyncHandler(async (req, res) => {
   success(res, result, 'Broadcast notification sent successfully');
 });
 
+/**
+ * Get count of users with incomplete profiles
+ * Query: days (7, 15, 30, 45, all)
+ */
+const getIncompleteProfileCountCtrl = asyncHandler(async (req, res) => {
+  const { days = 'all' } = req.query;
+  const count = await getIncompleteProfileUsersCount(days);
+  success(res, { count }, 'Incomplete profile count retrieved');
+});
+
+/**
+ * Send SMS to users with incomplete profiles
+ * Body: { days, message }
+ */
+const sendIncompleteProfileSmsCtrl = asyncHandler(async (req, res) => {
+  const { days = 'all', message } = req.body;
+  
+  if (!message) {
+    return res.status(400).json({ success: false, message: 'SMS message content is required' });
+  }
+
+  const users = await getIncompleteProfileUsers(days);
+  
+  if (users.length === 0) {
+    return res.status(200).json({ success: true, message: 'No users found matching the criteria' });
+  }
+
+  // Trigger broadcast in background
+  const result = await sendBulkSms(users, message);
+  
+  success(res, result, `SMS broadcast initiated to ${result.sent} users`);
+});
+
+/**
+ * Get count of all users filtered by registration duration
+ * Query: days (7, 15, 30, 45, all)
+ */
+const getGeneralUserCountCtrl = asyncHandler(async (req, res) => {
+  const { days = 'all' } = req.query;
+  const count = await getUsersCountByRegistration(days);
+  success(res, { count }, 'User count retrieved');
+});
+
+/**
+ * Send SMS to all users filtered by registration duration
+ * Body: { days, message, templateId }
+ */
+const sendGeneralSmsBroadcastCtrl = asyncHandler(async (req, res) => {
+  const { error } = generalSmsBroadcastSchema.validate(req.body);
+  if (error) {
+    return res.status(400).json({ 
+      success: false, 
+      message: error.details[0].message 
+    });
+  }
+
+  const { days = 'all', message, templateId } = req.body;
+  
+  const users = await getUsersByRegistration(days);
+  
+  if (users.length === 0) {
+    return res.status(200).json({ success: true, message: 'No users found matching the criteria' });
+  }
+
+  // Trigger broadcast in background
+  const result = await sendBulkSms(users, message, templateId);
+  
+  success(res, result, `SMS broadcast initiated to ${result.sent} users`);
+});
+
+/**
+ * Get count of users with email address filtered by registration duration
+ * Query: days (7, 15, 30, 45, all)
+ */
+const getTargetedEmailUserCountCtrl = asyncHandler(async (req, res) => {
+  const { days = 'all' } = req.query;
+  const count = await getEmailUsersCountByRegistration(days);
+  success(res, { count }, 'Targeted email user count retrieved');
+});
+
+/**
+ * Send targeted HTML email to users filtered by registration duration
+ * Body: { days, subject, htmlContent }
+ */
+const sendTargetedEmailBroadcastCtrl = asyncHandler(async (req, res) => {
+  const { error } = targetedEmailBroadcastSchema.validate(req.body);
+  if (error) {
+    return res.status(400).json({ 
+      success: false, 
+      message: error.details[0].message 
+    });
+  }
+
+  const { days = 'all', subject, htmlContent } = req.body;
+  
+  const recipients = await getEmailUsersByRegistration(days);
+  
+  if (recipients.length === 0) {
+    return res.status(200).json({ success: true, message: 'No users found matching the criteria' });
+  }
+
+  // Trigger email broadcast
+  const result = await sendBulkHtmlEmail(recipients, subject, htmlContent);
+  
+  success(res, result, `Email broadcast initiated to ${result.sent} users`);
+});
+
+/**
+ * Get core platform metrics snapshot for Admin Dashboard
+ */
+const getDashboardStatsCtrl = asyncHandler(async (req, res) => {
+  const stats = await getDashboardStats();
+  success(res, stats, 'Dashboard stats retrieved successfully');
+});
+
 module.exports = {
   getUsersListCtrl,
   getSkillsListCtrl,
@@ -742,4 +874,11 @@ module.exports = {
   deleteAuthBannerCtrl,
   toggleAuthBannerCtrl,
   broadcastOfferEmailCtrl,
+  getIncompleteProfileCountCtrl,
+  sendIncompleteProfileSmsCtrl,
+  getGeneralUserCountCtrl,
+  sendGeneralSmsBroadcastCtrl,
+  getTargetedEmailUserCountCtrl,
+  sendTargetedEmailBroadcastCtrl,
+  getDashboardStatsCtrl,
 };

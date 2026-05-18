@@ -128,13 +128,30 @@ const sendConnectionAcceptedNotification = async (senderId, accepterName, accept
     `${accepterName} accepted your connection request`,
     { 
       type: 'connection_accepted', 
-      action: 'request_accepted',
+      action: 'request_accepted', 
       message: `${accepterName} accepted your connection request`,
       senderId: accepterId.toString(),
       senderName: accepterName,
       senderProfileImage: accepterProfileImage || ''
     },
     accepterId
+  );
+};
+
+const sendPostNotification = async (receiverId, posterName, posterId, posterProfileImage) => {
+  await sendNotification(
+    receiverId,
+    'New Post Shared! 📮',
+    `${posterName} shared a new post`,
+    {
+      type: 'post',
+      action: 'new_post',
+      message: `${posterName} shared a new post`,
+      senderId: posterId.toString(),
+      senderName: posterName,
+      senderProfileImage: posterProfileImage || ''
+    },
+    posterId
   );
 };
 
@@ -302,4 +319,5 @@ module.exports = {
   getUnreadCount,
   clearAllNotifications,
   sendBroadcastNotification,
+  sendPostNotification,
 };

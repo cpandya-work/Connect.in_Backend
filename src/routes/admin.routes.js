@@ -42,6 +42,13 @@ const {
   deleteAuthBannerCtrl,
   toggleAuthBannerCtrl,
   broadcastOfferEmailCtrl,
+  getIncompleteProfileCountCtrl,
+  sendIncompleteProfileSmsCtrl,
+  getGeneralUserCountCtrl,
+  sendGeneralSmsBroadcastCtrl,
+  getTargetedEmailUserCountCtrl,
+  sendTargetedEmailBroadcastCtrl,
+  getDashboardStatsCtrl,
 } = require('../controllers/admin.controller');
 const { isAdmin } = require('../middlewares/admin.middleware');
 const uploadCardLogo = require('../middlewares/cardUpload.middleware');
@@ -51,6 +58,9 @@ const router = express.Router();
 
 // All admin routes require admin authentication
 router.use(isAdmin);
+
+// Dashboard stats route
+router.get('/dashboard-stats', getDashboardStatsCtrl);
 
 // User management routes
 // GET /api/admin/users?page=1&limit=10&search=john
@@ -174,6 +184,25 @@ router.post('/notifications/broadcast', sendBroadcastNotificationCtrl);
 
 // POST /api/admin/notifications/broadcast-offer - Send offer email to all users with emails
 router.post('/notifications/broadcast-offer', broadcastOfferEmailCtrl);
+
+// GET /api/admin/notifications/broadcast-incomplete-profile-count - Get count of users with incomplete profiles
+router.get('/notifications/broadcast-incomplete-profile-count', getIncompleteProfileCountCtrl);
+
+// POST /api/admin/notifications/broadcast-incomplete-profile-sms - Send SMS to users with incomplete profiles
+router.post('/notifications/broadcast-incomplete-profile-sms', sendIncompleteProfileSmsCtrl);
+
+// GET /api/admin/notifications/broadcast-user-count - Get count of all users by registration
+router.get('/notifications/broadcast-user-count', getGeneralUserCountCtrl);
+
+// POST /api/admin/notifications/broadcast-general-sms - Send general SMS broadcast
+router.post('/notifications/broadcast-general-sms', sendGeneralSmsBroadcastCtrl);
+
+// GET /api/admin/notifications/broadcast-targeted-email-count - Get count of users with emails by registration
+router.get('/notifications/broadcast-targeted-email-count', getTargetedEmailUserCountCtrl);
+
+// POST /api/admin/notifications/broadcast-targeted-email - Send targeted HTML email broadcast
+router.post('/notifications/broadcast-targeted-email', sendTargetedEmailBroadcastCtrl);
+
 
 // Auth banner management routes
 // GET /api/admin/auth-banners

@@ -13,6 +13,7 @@ const offersRoutes = require('./routes/offers.routes');
 const notificationRoutes = require('./routes/notification.routes');
 const adminRoutes = require('./routes/admin.routes');
 const listRoutes = require('./routes/list.routes');
+const postRoutes = require('./routes/post.routes');
 const errorHandler = require('./middlewares/error.middleware');
 
 const app = express();
@@ -35,6 +36,7 @@ app.use('/api/info', infoRoutes);
 app.use('/api/offers', offersRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/posts', postRoutes);
 
 // 404
 app.use((req, res) => {

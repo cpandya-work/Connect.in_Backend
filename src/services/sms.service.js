@@ -13,15 +13,30 @@ const formatPhone = (phoneNumber) => {
   return `+${digits}`;
 };
 
-const sendSms = (phoneNumber, text) => {
+const sendSms = (phoneNumber, text, templateId = null, variables = null) => {
   if (!phoneNumber || !ACCOUNT_SID || !AUTH_TOKEN || !FROM_NUMBER) return;
+
+  const payload = {
+    from: FROM_NUMBER,
+    to: formatPhone(phoneNumber)
+  };
+
+  // If templateId starts with HX, use Twilio Content API
+  if (templateId && templateId.startsWith('HX')) {
+    payload.contentSid = templateId;
+    if (variables) {
+      payload.contentVariables = JSON.stringify(variables);
+    }
+  } else {
+    payload.body = text;
+  }
 
   // Wrap in a never-rejecting Promise so errors can never propagate to callers
   new Promise((resolve) => {
     const timer = setTimeout(resolve, 10000); // safety bail-out after 10 s
 
     twilio(ACCOUNT_SID, AUTH_TOKEN)
-      .messages.create({ body: text, from: FROM_NUMBER, to: formatPhone(phoneNumber) })
+      .messages.create(payload)
       .then(() => { clearTimeout(timer); resolve(); })
       .catch((err) => {
         clearTimeout(timer);
@@ -52,8 +67,44 @@ const sendConnectionAcceptedSms = async (phoneNumber, senderName, accepterName) 
   await sendSms(phoneNumber, text);
 };
 
+// ─── Bulk SMS ──────────────────────────────────────────────────────────────────
+/**
+ * Send SMS to multiple recipients
+ * @param {Array} recipients - Array of { phoneNumber, fullName }
+ * @param {string} message - The message template or text
+ * @param {string} templateId - Optional DLT template ID
+ */
+const sendBulkSms = async (recipients, message, templateId = null) => {
+  if (!recipients || !Array.isArray(recipients)) return { sent: 0, failed: 0 };
+  if (!message && !templateId) return { sent: 0, failed: 0 };
+
+  let sent = 0;
+  let failed = 0;
+
+  for (const recipient of recipients) {
+    try {
+      // Replace placeholder if exists for plain text fallback
+      const personalizedMsg = message ? message.replace(/{{name}}/g, recipient.fullName || 'User') : '';
+      
+      // If using Twilio Content Editor (HX ID), pass the name as variable {{1}}
+      const variables = (templateId && templateId.startsWith('HX')) 
+        ? { "1": recipient.fullName || 'User' } 
+        : null;
+
+      await sendSms(recipient.phoneNumber, personalizedMsg, templateId, variables);
+      sent++;
+    } catch (err) {
+      console.error(`[SMS] Bulk send failed for ${recipient.phoneNumber}:`, err.message);
+      failed++;
+    }
+  }
+
+  return { sent, failed };
+};
+
 module.exports = {
   sendRegistrationSms,
   sendConnectionRequestSms,
   sendConnectionAcceptedSms,
+  sendBulkSms,
 };

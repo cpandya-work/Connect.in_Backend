@@ -199,9 +199,36 @@ const sendIncomingLikeEmail = async (likedUserEmail, likedUserName, likerName) =
       </tr>
     </table>
 
-    ${ctaButton(`${APP_URL}/like`, 'See Who Liked You →')}
+    ${ctaButton(`${APP_URL}/likes`, 'See Who Liked You →')}
   `);
   await sendEmail(likedUserEmail, subject, html);
+};
+
+// ─── 5. New Post Shared ──────────────────────────────────────────────────────
+
+const sendNewPostEmail = async (receiverEmail, receiverName, posterName) => {
+  const subject = `${posterName} shared a new post on Connect`;
+  const html = baseTemplate(`
+    <h2 style="margin:0 0 8px;color:#081332;font-size:22px;font-weight:700;">New Post Shared! 📮</h2>
+    <p style="margin:0 0 20px;color:#495057;font-size:15px;line-height:1.7;">
+      Hi <strong>${receiverName}</strong>,<br/>
+      <strong>${posterName}</strong> has shared a new post on Connect India.
+      Check it out in the Shared section to see what's new in your network.
+    </p>
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#fefce8;border:1px solid #fef08a;border-radius:12px;margin-bottom:8px;">
+      <tr>
+        <td style="padding:18px 24px;">
+          <p style="margin:0;color:#854d0e;font-size:14px;line-height:1.6;">
+            📢 Engaging with posts helps you build stronger professional relationships.
+          </p>
+        </td>
+      </tr>
+    </table>
+
+    ${ctaButton(`${APP_URL}/share`, 'View Post →')}
+  `);
+  await sendEmail(receiverEmail, subject, html);
 };
 
 // ─── 5. Broadcast Offer ──────────────────────────────────────────────────────
@@ -251,10 +278,40 @@ const sendBroadcastOfferEmail = async (recipientEmails, offerTitle, offerDescrip
   return { sent, skipped };
 };
 
+const sendBulkHtmlEmail = async (recipients, subject, htmlContent) => {
+  if (!recipients || recipients.length === 0) return { sent: 0, skipped: 0 };
+
+  let sent = 0;
+  let skipped = 0;
+
+  // Send in batches of 50 to avoid overwhelming the SMTP server
+  const BATCH_SIZE = 50;
+  for (let i = 0; i < recipients.length; i += BATCH_SIZE) {
+    const batch = recipients.slice(i, i + BATCH_SIZE);
+    await Promise.all(
+      batch.map(async (recipient) => {
+        if (!recipient.email) { skipped++; return; }
+        try {
+          const personalizedHtml = htmlContent.replace(/{{name}}/g, recipient.fullName || 'User');
+          await sendEmail(recipient.email, subject, personalizedHtml);
+          sent++;
+        } catch (err) {
+          console.error(`[Email] Custom send failed for ${recipient.email}:`, err.message);
+          skipped++;
+        }
+      })
+    );
+  }
+
+  return { sent, skipped };
+};
+
 module.exports = {
   sendRegistrationEmail,
   sendConnectionRequestEmail,
   sendConnectionAcceptedEmail,
   sendIncomingLikeEmail,
   sendBroadcastOfferEmail,
+  sendNewPostEmail,
+  sendBulkHtmlEmail,
 };

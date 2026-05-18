@@ -15,5 +15,33 @@ const broadcastNotificationSchema = Joi.object({
   })
 });
 
-module.exports = { broadcastNotificationSchema };
+const generalSmsBroadcastSchema = Joi.object({
+  days: Joi.string().valid('7', '15', '30', '45', 'all').required(),
+  message: Joi.string().trim().min(5).max(500).allow('').optional().messages({
+    'string.min': 'Message must be at least 5 characters',
+    'string.max': 'Message must not exceed 500 characters',
+  }),
+  templateId: Joi.string().trim().allow('').optional()
+}).or('message', 'templateId');
+
+const targetedEmailBroadcastSchema = Joi.object({
+  days: Joi.string().valid('7', '15', '30', '45', 'all').required(),
+  subject: Joi.string().trim().min(2).max(150).required().messages({
+    'string.min': 'Subject must be at least 2 characters',
+    'string.max': 'Subject must not exceed 150 characters',
+    'any.required': 'Subject is required',
+    'string.empty': 'Subject cannot be empty'
+  }),
+  htmlContent: Joi.string().trim().min(5).required().messages({
+    'string.min': 'HTML Content must be at least 5 characters',
+    'any.required': 'HTML Content is required',
+    'string.empty': 'HTML Content cannot be empty'
+  })
+});
+
+module.exports = { 
+  broadcastNotificationSchema,
+  generalSmsBroadcastSchema,
+  targetedEmailBroadcastSchema
+};
 
