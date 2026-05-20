@@ -1,110 +1,94 @@
-const twilio = require('twilio');
+const axios = require('axios');
 
-const ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
-const AUTH_TOKEN  = process.env.TWILIO_AUTH_TOKEN;
-const FROM_NUMBER = process.env.TWILIO_PHONE_NUMBER; // e.g. +1415XXXXXXX
-
-// Ensure Indian numbers are in E.164 format (+91XXXXXXXXXX)
-const formatPhone = (phoneNumber) => {
-  if (!phoneNumber) return null;
-  const digits = phoneNumber.toString().replace(/\D/g, '');
-  if (digits.startsWith('91') && digits.length === 12) return `+${digits}`;
-  if (digits.length === 10) return `+91${digits}`;
-  return `+${digits}`;
-};
-
-const sendSms = (phoneNumber, text, templateId = null, variables = null) => {
-  if (!phoneNumber || !ACCOUNT_SID || !AUTH_TOKEN || !FROM_NUMBER) return;
-
-  const payload = {
-    from: FROM_NUMBER,
-    to: formatPhone(phoneNumber)
-  };
-
-  // If templateId starts with HX, use Twilio Content API
-  if (templateId && templateId.startsWith('HX')) {
-    payload.contentSid = templateId;
-    if (variables) {
-      payload.contentVariables = JSON.stringify(variables);
-    }
-  } else {
-    payload.body = text;
-  }
-
-  // Wrap in a never-rejecting Promise so errors can never propagate to callers
-  new Promise((resolve) => {
-    const timer = setTimeout(resolve, 10000); // safety bail-out after 10 s
-
-    twilio(ACCOUNT_SID, AUTH_TOKEN)
-      .messages.create(payload)
-      .then(() => { clearTimeout(timer); resolve(); })
-      .catch((err) => {
-        clearTimeout(timer);
-        console.error(`[SMS] Failed to send to ${formatPhone(phoneNumber)}:`, err.message);
-        resolve();
-      });
-  });
+// Helper to format/clean phone numbers for mytoday Bulk SMS API (e.g. stripping leading '+')
+const formatPhoneForMytoday = (phoneNumber) => {
+  if (!phoneNumber) return '';
+  return phoneNumber.toString().replace(/^\+/, '');
 };
 
 // ─── Registration Welcome ─────────────────────────────────────────────────────
 
 const sendRegistrationSms = async (phoneNumber, fullName) => {
-  const text = `Welcome to Connect India, ${fullName}! Your profile is now live. Start connecting at conect.in - Connect India Team`;
-  await sendSms(phoneNumber, text);
+  try {
+    const cleanPhone = formatPhoneForMytoday(phoneNumber);
+    if (!cleanPhone) return;
+
+    const text = `Hi ${fullName} \r\n\r\nYour profile is now live - start connecting, exploring opportunities, and showcasing your skills today.\r\n\r\nhttps://www.connect.in\r\n\r\n- Team Connect.in`;
+    const encText = encodeURIComponent(text);
+
+    const url = `https://test1bulksms.mytoday.com/BulkSms/SingleMsgApi?feedid=393258&username=9884196886&password=SuX@2egALigzEKZ&To=${cleanPhone}&Text=${encText}&templateid=1207177869921422898&entityid=1201160765852941646&senderid=CONCTN`;
+
+    console.log(`[SMS] Sending Registration SMS to ${cleanPhone}`);
+    await axios.get(url);
+  } catch (err) {
+    console.error(`[SMS] Failed to send Registration SMS to ${phoneNumber}:`, err.message);
+  }
 };
 
 // ─── Connection Request ───────────────────────────────────────────────────────
 
 const sendConnectionRequestSms = async (phoneNumber, receiverName, senderName) => {
-  const text = `Hi ${receiverName}, ${senderName} sent you a connection request on Connect India. Login to respond: conect.in - Connect India Team`;
-  await sendSms(phoneNumber, text);
+  try {
+    const cleanPhone = formatPhoneForMytoday(phoneNumber);
+    if (!cleanPhone) return;
+
+    const encReceiverName = encodeURIComponent(receiverName);
+    const encSenderName = encodeURIComponent(senderName);
+
+    const url = `https://test1bulksms.mytoday.com/BulkSms/SingleMsgApi?feedid=393258&username=9884196886&password=SuX@2egALigzEKZ&To=${cleanPhone}&Text=Dear%20${encReceiverName}%20You%20have%20received%20a%20Connection%20Request%20from%20${encSenderName}.%20To%20stay%20connected%20click%20here%20https://www.connect.in.-%20Team%20Connect.in&templateid=1207164380651856408&entityid=1201160765852941646&senderid=CONCTN`;
+
+    console.log(`[SMS] Sending Connection Request SMS tossss ${cleanPhone}`);
+    await axios.get(url);
+  } catch (err) {
+    console.error(`[SMS] Failed to send Connection Request SMS to ${phoneNumber}:`, err.message);
+  }
 };
 
 // ─── Connection Accepted ──────────────────────────────────────────────────────
 
 const sendConnectionAcceptedSms = async (phoneNumber, senderName, accepterName) => {
-  const text = `Hi ${senderName}, ${accepterName} accepted your connection request on Connect India. Start chatting: conect.in - Connect India Team`;
-  await sendSms(phoneNumber, text);
-};
+  try {
+    const cleanPhone = formatPhoneForMytoday(phoneNumber);
+    if (!cleanPhone) return;
 
-// ─── Bulk SMS ──────────────────────────────────────────────────────────────────
-/**
- * Send SMS to multiple recipients
- * @param {Array} recipients - Array of { phoneNumber, fullName }
- * @param {string} message - The message template or text
- * @param {string} templateId - Optional DLT template ID
- */
-const sendBulkSms = async (recipients, message, templateId = null) => {
-  if (!recipients || !Array.isArray(recipients)) return { sent: 0, failed: 0 };
-  if (!message && !templateId) return { sent: 0, failed: 0 };
+    const encSenderName = encodeURIComponent(senderName);
+    const encAccepterName = encodeURIComponent(accepterName);
 
-  let sent = 0;
-  let failed = 0;
+    const url = `https://test1bulksms.mytoday.com/BulkSms/SingleMsgApi?feedid=393258&username=9884196886&password=SuX@2egALigzEKZ&To=${cleanPhone}&Text=Dear%20${encSenderName}%0A${encAccepterName}%20has%20accepted%20your%20connection%20request.%20To%20stay%20connected%20click%20here%20https://www.connect.in.%20Team%20Connect.in&templateid=1207163471957799962&entityid=1201160765852941646&senderid=CONCTN`;
 
-  for (const recipient of recipients) {
-    try {
-      // Replace placeholder if exists for plain text fallback
-      const personalizedMsg = message ? message.replace(/{{name}}/g, recipient.fullName || 'User') : '';
-      
-      // If using Twilio Content Editor (HX ID), pass the name as variable {{1}}
-      const variables = (templateId && templateId.startsWith('HX')) 
-        ? { "1": recipient.fullName || 'User' } 
-        : null;
-
-      await sendSms(recipient.phoneNumber, personalizedMsg, templateId, variables);
-      sent++;
-    } catch (err) {
-      console.error(`[SMS] Bulk send failed for ${recipient.phoneNumber}:`, err.message);
-      failed++;
-    }
+    console.log(`[SMS] Sending Connection Acceptance SMS to ${cleanPhone}`);
+    await axios.get(url);
+  } catch (err) {
+    console.error(`[SMS] Failed to send Connection Acceptance SMS to ${phoneNumber}:`, err.message);
   }
-
-  return { sent, failed };
 };
+
+// ─── Profile Liked ────────────────────────────────────────────────────────────
+
+const sendProfileLikedSms = async (phoneNumber, receiverName, likerName) => {
+  try {
+    const cleanPhone = formatPhoneForMytoday(phoneNumber);
+    console.log("Cleanphone", cleanPhone)
+    if (!cleanPhone) return;
+
+    const text = `Dear ${receiverName} Great news! ${likerName} just liked your profile on Connect.in. Check it out and start a conversation now! https://www.connect.in Team Connect.in`;
+    const encText = encodeURIComponent(text);
+
+    const url = `https://test1bulksms.mytoday.com/BulkSms/SingleMsgApi?feedid=393258&username=9884196886&password=SuX@2egALigzEKZ&To=${cleanPhone}&Text=${encText}&templateid=1207177869522536093&entityid=1201160765852941646&senderid=CONCTN`;
+
+    console.log(`[SMS] Sending Profile Liked SMS to ${cleanPhone}`);
+    await axios.get(url);
+  } catch (err) {
+    console.error(`[SMS] Failed to send Profile Liked SMS to ${phoneNumber}:`, err.message);
+  }
+};
+
+
 
 module.exports = {
   sendRegistrationSms,
   sendConnectionRequestSms,
   sendConnectionAcceptedSms,
   sendBulkSms,
+  sendProfileLikedSms,
 };

@@ -7,7 +7,7 @@ const UserDetail = require('../models/UserDetail.model');
 const City = require('../models/City.model');
 const { sendLikeNotification, sendConnectionRequestNotification, sendConnectionAcceptedNotification } = require('./notification.service');
 const { sendConnectionRequestEmail, sendConnectionAcceptedEmail, sendIncomingLikeEmail } = require('./email.service');
-const { sendConnectionRequestSms, sendConnectionAcceptedSms } = require('./sms.service');
+const { sendConnectionRequestSms, sendConnectionAcceptedSms, sendProfileLikedSms } = require('./sms.service');
 
 const likeUser = async (userId, likedUserId) => {
   const like = await UserLikes.create({ userId, likedUserId });
@@ -26,6 +26,16 @@ const likeUser = async (userId, likedUserId) => {
   if (likedUser?.userDetailId?.email && likedUser?.userDetailId?.fullName && liker?.userDetailId?.fullName) {
     sendIncomingLikeEmail(
       likedUser.userDetailId.email,
+      likedUser.userDetailId.fullName,
+      liker.userDetailId.fullName
+    ).catch(console.error);
+  }
+  console.log("LikedUser",likedUser)
+  console.log("Liker user",liker)
+  if (likedUser?.phoneNumber && likedUser?.userDetailId?.fullName && liker?.userDetailId?.fullName) {
+   console.log("Sms send")
+    sendProfileLikedSms(
+      likedUser.phoneNumber,
       likedUser.userDetailId.fullName,
       liker.userDetailId.fullName
     ).catch(console.error);
@@ -277,7 +287,7 @@ const acceptRequest = async (requestId, receiverId) => {
       accepter.userDetailId.fullName
     ).catch(console.error);
   }
-
+  
   if (originalSender?.phoneNumber && originalSender?.userDetailId?.fullName && accepter?.userDetailId?.fullName) {
     sendConnectionAcceptedSms(
       originalSender.phoneNumber,
