@@ -63,7 +63,7 @@ const {
   targetedEmailBroadcastSchema
 } = require('../validators/broadcast.validator');
 const { sendBroadcastNotification } = require('../services/notification.service');
-const { sendBulkSms } = require('../services/sms.service');
+// const { sendBulkSms } = require('../services/sms.service');
 const { sendBulkHtmlEmail } = require('../services/email.service');
 
 /**
@@ -731,11 +731,7 @@ const getIncompleteProfileCountCtrl = asyncHandler(async (req, res) => {
  * Body: { days, message }
  */
 const sendIncompleteProfileSmsCtrl = asyncHandler(async (req, res) => {
-  const { days = 'all', message } = req.body;
-  
-  if (!message) {
-    return res.status(400).json({ success: false, message: 'SMS message content is required' });
-  }
+  const { days = 'all' } = req.body;
 
   const users = await getIncompleteProfileUsers(days);
   
@@ -743,10 +739,16 @@ const sendIncompleteProfileSmsCtrl = asyncHandler(async (req, res) => {
     return res.status(200).json({ success: true, message: 'No users found matching the criteria' });
   }
 
+  const { sendIncompleteProfileBulkSms } = require('../services/sms.service');
+
   // Trigger broadcast in background
-  const result = await sendBulkSms(users, message);
+  setImmediate(() => {
+    sendIncompleteProfileBulkSms(users).catch(err => {
+      console.error('Error in sendIncompleteProfileBulkSms:', err);
+    });
+  });
   
-  success(res, result, `SMS broadcast initiated to ${result.sent} users`);
+  success(res, { sent: users.length }, `SMS broadcast initiated to ${users.length} users`);
 });
 
 /**
@@ -781,7 +783,7 @@ const sendGeneralSmsBroadcastCtrl = asyncHandler(async (req, res) => {
   }
 
   // Trigger broadcast in background
-  const result = await sendBulkSms(users, message, templateId);
+  // const result = await sendBulkSms(users, message, templateId);
   
   success(res, result, `SMS broadcast initiated to ${result.sent} users`);
 });
