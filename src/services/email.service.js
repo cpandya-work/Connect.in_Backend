@@ -14,7 +14,7 @@ const createTransporter = () =>
   });
 
 const FROM = `"Connect India" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`;
-const APP_URL = process.env.APP_URL || 'https://conect.in';
+const APP_URL = process.env.APP_URL || 'https://connect.in';
 const UNSUBSCRIBE_URL = 'https://base.connect.in/unsubscribe/index-org.php';
 
 // ─── Core sender ─────────────────────────────────────────────────────────────
@@ -145,7 +145,7 @@ const sendConnectionRequestEmail = async (receiverEmail, receiverName, senderNam
       </tr>
     </table>
 
-    ${ctaButton(`${APP_URL}/connection`, 'View Request →')}
+    ${ctaButton(`${APP_URL}/connections`, 'View Request →')}
   `);
   await sendEmail(receiverEmail, subject, html);
 };
