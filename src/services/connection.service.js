@@ -60,7 +60,7 @@ const getLikedUsers = async (userId, search = '') => {
       path: 'likedUserId',
       populate: { 
         path: 'userDetailId', 
-        select: 'fullName city profileImage',
+        select: 'fullName city profileImage gender dateOfBirth',
         populate: { path: 'city', model: 'City', select: 'name' }
       },
       select: 'userDetailId',
@@ -103,6 +103,8 @@ const getLikedUsers = async (userId, search = '') => {
       fullName: l.likedUserId.userDetailId?.fullName,
       city: cityName,
       profileImage: l.likedUserId.userDetailId?.profileImage,
+      gender: l.likedUserId.userDetailId?.gender || null,
+      dateOfBirth: l.likedUserId.userDetailId?.dateOfBirth || null,
     };
   });
 
@@ -152,7 +154,7 @@ const getSentRequests = async (userId, search = '') => {
   const requests = await UserRequests.find({ senderId: userId, status: 'pending' })
     .populate({
       path: 'receiverId',
-      populate: { path: 'userDetailId', select: 'fullName profileImage' },
+      populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth' },
     })
     .select('receiverId')
     .lean();
@@ -170,7 +172,7 @@ const getReceivedRequests = async (userId, search = '') => {
   const requests = await UserRequests.find({ receiverId: userId, status: 'pending' })
     .populate({
       path: 'senderId',
-      populate: { path: 'userDetailId', select: 'fullName profileImage' },
+      populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth' },
     })
     .select('senderId _id')
     .lean();
@@ -199,7 +201,7 @@ const getActiveConnections = async (userId, search = '') => {
   let result = await User.find({ _id: { $in: connectedUserIds } })
     .populate({
       path: 'userDetailId',
-      select: 'fullName city profileImage',
+      select: 'fullName city profileImage gender dateOfBirth',
       populate: { path: 'city', model: 'City', select: 'name' }
     })
     .select('userDetailId')
@@ -321,7 +323,7 @@ const getUsersWhoLikedMe = async (userId, search = '') => {
       path: 'userId',
       populate: { 
         path: 'userDetailId', 
-        select: 'fullName city profileImage',
+        select: 'fullName city profileImage gender dateOfBirth',
         populate: { path: 'city', model: 'City', select: 'name' }
       },
       select: 'userDetailId',
@@ -364,6 +366,8 @@ const getUsersWhoLikedMe = async (userId, search = '') => {
       fullName: l.userId.userDetailId?.fullName,
       city: cityName,
       profileImage: l.userId.userDetailId?.profileImage,
+      gender: l.userId.userDetailId?.gender || null,
+      dateOfBirth: l.userId.userDetailId?.dateOfBirth || null,
     };
   });
 

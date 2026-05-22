@@ -59,6 +59,8 @@ const getSentRequestsCtrl = asyncHandler(async (req, res) => {
     _id: r.receiverId._id,
     fullName: r.receiverId.userDetailId?.fullName,
     profileImage: r.receiverId.userDetailId?.profileImage,
+    gender: r.receiverId.userDetailId?.gender || null,
+    dateOfBirth: r.receiverId.userDetailId?.dateOfBirth || null,
   }));
   success(res, { requests: formatted });
 });
@@ -71,6 +73,8 @@ const getReceivedRequestsCtrl = asyncHandler(async (req, res) => {
     _id: r.senderId._id,
     fullName: r.senderId.userDetailId?.fullName,
     profileImage: r.senderId.userDetailId?.profileImage,
+    gender: r.senderId.userDetailId?.gender || null,
+    dateOfBirth: r.senderId.userDetailId?.dateOfBirth || null,
   }));
   success(res, { requests: formatted });
 });
@@ -83,6 +87,8 @@ const getConnectionsCtrl = asyncHandler(async (req, res) => {
     fullName: c.userDetailId?.fullName,
     city: c.userDetailId?.city || null, // This is now the city name, not ID
     profileImage: c.userDetailId?.profileImage,
+    gender: c.userDetailId?.gender || null,
+    dateOfBirth: c.userDetailId?.dateOfBirth || null,
   }));
   success(res, { connections: formatted });
 });

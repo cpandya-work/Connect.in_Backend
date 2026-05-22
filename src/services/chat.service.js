@@ -126,6 +126,8 @@ const getChatList = async (loggedInUserId, search = '') => {
         unseenCount: 1,
         fullName: '$userDetail.fullName',
         profileImage: '$userDetail.profileImage',
+        gender: '$userDetail.gender',
+        dateOfBirth: '$userDetail.dateOfBirth',
       },
     },
   ];
@@ -153,6 +155,8 @@ const getChatList = async (loggedInUserId, search = '') => {
           _id: conn._id,
           fullName: conn.userDetailId?.fullName,
           profileImage: conn.userDetailId?.profileImage,
+          gender: conn.userDetailId?.gender || null,
+          dateOfBirth: conn.userDetailId?.dateOfBirth || null,
           lastMessage: '',
           lastMessageTime: null,
           unseenCount: 0

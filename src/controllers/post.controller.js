@@ -91,7 +91,7 @@ const getPosts = asyncHandler(async (req, res) => {
   const posts = await Post.find({ userId: { $in: allRelevantUserIds } })
     .populate({
       path: 'userId',
-      populate: { path: 'userDetailId', select: 'fullName profileImage' },
+      populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth' },
       select: 'userDetailId'
     })
     .sort({ createdAt: -1 })
