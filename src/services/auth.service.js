@@ -21,7 +21,7 @@ const sendOtp = async (phoneNumber) => {
   return { success: true };
 };
 
-const verifyOtp = async (phoneNumber, otp, fcmToken = null, deviceType = 'android') => {
+const verifyOtp = async (phoneNumber, otp, fcmToken = null, deviceType = 'android', trafficSource = null) => {
   const otpDoc = await Otp.findOne({ phoneNumber, code: otp });
   if (!otpDoc || otpDoc.expiresAt < new Date()) {
     throw new Error('The OTP you entered is invalid. Please try again.');
@@ -31,7 +31,10 @@ const verifyOtp = async (phoneNumber, otp, fcmToken = null, deviceType = 'androi
   const isNewUser = !user;
 
   if (!user) {
-    user = await User.create({ phoneNumber });
+    user = await User.create({ phoneNumber, trafficSource: trafficSource || 'direct' });
+  } else if (trafficSource && (!user.trafficSource || user.trafficSource === 'direct')) {
+    user.trafficSource = trafficSource;
+    await user.save();
   }
 
   // Save FCM token if provided

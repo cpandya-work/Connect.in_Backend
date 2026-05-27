@@ -1,5 +1,6 @@
 const express = require('express');
 const { 
+  getTrafficSourcesStatsCtrl,
   getUsersListCtrl,
   getSkillsListCtrl,
   getSkillByIdCtrl,
@@ -61,6 +62,7 @@ router.use(isAdmin);
 
 // Dashboard stats route
 router.get('/dashboard-stats', getDashboardStatsCtrl);
+router.get('/traffic-sources', getTrafficSourcesStatsCtrl);
 
 // User management routes
 // GET /api/admin/users?page=1&limit=10&search=john

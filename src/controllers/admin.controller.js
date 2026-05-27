@@ -1,6 +1,7 @@
 const asyncHandler = require('../utils/asyncHandler');
 const { success } = require('../utils/response');
 const {
+  getTrafficSourcesStats,
   getUsersList,
   getSkillsList,
   createSkill,
@@ -839,7 +840,13 @@ const getDashboardStatsCtrl = asyncHandler(async (req, res) => {
   success(res, stats, 'Dashboard stats retrieved successfully');
 });
 
+const getTrafficSourcesStatsCtrl = asyncHandler(async (req, res) => {
+  const stats = await getTrafficSourcesStats();
+  success(res, stats, 'Traffic source stats retrieved successfully');
+});
+
 module.exports = {
+  getTrafficSourcesStatsCtrl,
   getUsersListCtrl,
   getSkillsListCtrl,
   getSkillByIdCtrl,

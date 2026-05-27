@@ -15,8 +15,8 @@ const verifyOtpCtrl = asyncHandler(async (req, res) => {
   const { error } = verifyOtpSchema.validate(req.body);
   if (error) return res.status(400).json({ success: false, message: error.details[0].message });
 
-  const { phoneNumber, otp, fcmToken, deviceType } = req.body;
-  const { token, isNewUser, isProfileComplete } = await verifyOtp(phoneNumber, otp, fcmToken, deviceType);
+  const { phoneNumber, otp, fcmToken, deviceType, trafficSource } = req.body;
+  const { token, isNewUser, isProfileComplete } = await verifyOtp(phoneNumber, otp, fcmToken, deviceType, trafficSource);
 
   success(res, { token, isNewUser, isProfileComplete }, 'Login successful');
 });

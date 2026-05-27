@@ -18,6 +18,7 @@ const verifyOtpSchema = Joi.object({
   }),
   fcmToken: Joi.string().optional(),
   deviceType: Joi.string().valid('android', 'ios', 'web').default('android').optional(),
+  trafficSource: Joi.string().allow('', null).optional(),
 });
 
 const loginSchema = Joi.object({

@@ -141,6 +141,7 @@ const getUsersList = async ({ page = 1, limit = 10, search = '', city = '', indu
     const userObj = {
       _id: user._id,
       phoneNumber: user.phoneNumber,
+      trafficSource: user.trafficSource || 'direct',
       currentLocation: user.currentLocation,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
@@ -1370,8 +1371,34 @@ const getDashboardStats = async () => {
     totalChatMessages
   };
 };
+/**
+ * Get stats of users count grouped by traffic source
+ * @returns {Promise<Array>} Array of objects with trafficSource and count
+ */
+const getTrafficSourcesStats = async () => {
+  const stats = await User.aggregate([
+    {
+      $group: {
+        _id: { $ifNull: ['$trafficSource', 'direct'] },
+        count: { $sum: 1 }
+      }
+    },
+    {
+      $project: {
+        trafficSource: '$_id',
+        count: 1,
+        _id: 0
+      }
+    },
+    {
+      $sort: { count: -1 }
+    }
+  ]);
+  return stats;
+};
 
 module.exports = {
+  getTrafficSourcesStats,
   getUsersList,
   getSkillsList,
   createSkill,

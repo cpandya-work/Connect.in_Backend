@@ -8,6 +8,7 @@ const userSchema = new mongoose.Schema({
     enum: ['user', 'admin'], 
     default: 'user' 
   },
+  trafficSource: { type: String, default: 'direct' },
   currentLocation: {
     type: {
       type: String,
