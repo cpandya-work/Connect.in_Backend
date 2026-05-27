@@ -97,6 +97,9 @@ const updateProfile = async (userId, updates, file) => {
   if (updates.habits && typeof updates.habits === 'string') updates.habits = updates.habits.split(',').map(h => h.trim()).filter(Boolean);
   if (updates.interests && typeof updates.interests === 'string') updates.interests = updates.interests.split(',').map(i => i.trim()).filter(Boolean);
   if (updates.skills && typeof updates.skills === 'string') updates.skills = updates.skills.split(',').map(s => s.trim()).filter(Boolean);
+  if (updates.fastConnect !== undefined) {
+    updates.fastConnect = updates.fastConnect === 'true' || updates.fastConnect === true;
+  }
 
   Object.assign(detail, updates);
   await detail.save();

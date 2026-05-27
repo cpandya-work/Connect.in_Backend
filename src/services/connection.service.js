@@ -118,13 +118,48 @@ const getLikedUsers = async (userId, search = '') => {
 };
 
 const sendConnectionRequest = async (senderId, receiverId) => {
-  const request = await UserRequests.create({ senderId, receiverId });
-
-  // Send push notification + email (non-blocking)
   const [sender, receiver] = await Promise.all([
     User.findById(senderId).populate('userDetailId'),
     User.findById(receiverId).populate('userDetailId'),
   ]);
+
+  if (!receiver) {
+    throw new Error('Receiver not found');
+  }
+
+  if (receiver.userDetailId?.fastConnect) {
+    // Create the connection instantly
+    const connection = await UserConnections.create({
+      connection1Id: senderId,
+      connection2Id: receiverId,
+    });
+
+    // Send push notification + email that connection is accepted (non-blocking) to the sender
+    if (receiver.userDetailId.fullName) {
+      sendConnectionAcceptedNotification(senderId, receiver.userDetailId.fullName, receiverId, receiver.userDetailId.profileImage)
+        .catch(console.error);
+    }
+
+    if (sender?.userDetailId?.email && sender?.userDetailId?.fullName && receiver.userDetailId.fullName) {
+      sendConnectionAcceptedEmail(
+        sender.userDetailId.email,
+        sender.userDetailId.fullName,
+        receiver.userDetailId.fullName
+      ).catch(console.error);
+    }
+
+    if (sender?.phoneNumber && sender?.userDetailId?.fullName && receiver.userDetailId.fullName) {
+      sendConnectionAcceptedSms(
+        sender.phoneNumber,
+        sender.userDetailId.fullName,
+        receiver.userDetailId.fullName
+      ).catch(console.error);
+    }
+
+    return { isConnected: true, connection };
+  }
+
+  const request = await UserRequests.create({ senderId, receiverId });
 
   if (sender?.userDetailId?.fullName) {
     sendConnectionRequestNotification(receiverId, sender.userDetailId.fullName, senderId, sender.userDetailId.profileImage)

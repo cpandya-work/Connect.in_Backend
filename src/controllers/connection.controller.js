@@ -48,8 +48,11 @@ const sendRequestCtrl = asyncHandler(async (req, res) => {
     return res.status(400).json({ success: false, message: 'Invalid receiver ID' });
   }
 
-  await sendConnectionRequest(req.user._id, receiverId);
-  success(res, null, 'Request sent');
+  const result = await sendConnectionRequest(req.user._id, receiverId);
+  if (result && result.isConnected) {
+    return success(res, result, 'Connected instantly');
+  }
+  success(res, result, 'Request sent');
 });
 
 const getSentRequestsCtrl = asyncHandler(async (req, res) => {

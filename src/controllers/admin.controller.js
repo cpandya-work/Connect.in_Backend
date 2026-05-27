@@ -782,10 +782,16 @@ const sendGeneralSmsBroadcastCtrl = asyncHandler(async (req, res) => {
     return res.status(200).json({ success: true, message: 'No users found matching the criteria' });
   }
 
+  const { sendBulkSms } = require('../services/sms.service');
+
   // Trigger broadcast in background
-  // const result = await sendBulkSms(users, message, templateId);
+  setImmediate(() => {
+    sendBulkSms(users, message, templateId).catch(err => {
+      console.error('Error in sendBulkSms:', err);
+    });
+  });
   
-  success(res, result, `SMS broadcast initiated to ${result.sent} users`);
+  success(res, { sent: users.length }, `SMS broadcast initiated to ${users.length} users`);
 });
 
 /**

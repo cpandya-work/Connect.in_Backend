@@ -21,6 +21,7 @@ const profileSchema = Joi.object({
   skills: Joi.alternatives().try(Joi.array().items(Joi.string()), Joi.string()),
   company: Joi.string().allow('').optional(),
   industry: Joi.string().required(),
+  fastConnect: Joi.boolean().optional(),
 });
 
 const updateProfileSchema = Joi.object({
@@ -43,6 +44,7 @@ const updateProfileSchema = Joi.object({
   skills: Joi.alternatives().try(Joi.array().items(Joi.string()), Joi.string()),
   company: Joi.string().allow('').optional(),
   industry: Joi.string(),
+  fastConnect: Joi.boolean().optional(),
 }).min(1); // at least one field
 
 module.exports = { profileSchema, updateProfileSchema };

@@ -110,10 +110,44 @@ const sendIncompleteProfileBulkSms = async (users) => {
   return { sent: sentCount, errors: errorCount };
 };
 
+// ─── General Bulk SMS Broadcast ──────────────────────────────────────────────
+const sendBulkSms = async (users, message, templateId, entityId) => {
+  console.log(`[SMS] Initiating general bulk SMS for ${users.length} users`);
+  let sentCount = 0;
+  let errorCount = 0;
+  
+  // Use a default entity ID if none provided
+  const targetEntityId = entityId || '1201160765852941646';
+  
+  for (const user of users) {
+    try {
+      const cleanPhone = formatPhoneForMytoday(user.phoneNumber);
+      if (!cleanPhone) continue;
+      
+      // Personalize message if {{name}} is present
+      const personalizedMessage = message.replace(/\{\{\s*name\s*\}\}/gi, user.fullName || 'User');
+      const encText = encodeURIComponent(personalizedMessage);
+      
+      const url = `https://test1bulksms.mytoday.com/BulkSms/SingleMsgApi?feedid=393258&username=9884196886&password=SuX@2egALigzEKZ&To=${cleanPhone}&Text=${encText}&templateid=${templateId}&entityid=${targetEntityId}&senderid=CONCTN`;
+      
+      console.log(`[SMS] Sending Bulk SMS to ${cleanPhone} using template ${templateId}`);
+      await axios.get(url);
+      sentCount++;
+    } catch (err) {
+      console.error(`[SMS] Failed to send general bulk SMS to ${user.phoneNumber}:`, err.message);
+      errorCount++;
+    }
+  }
+  
+  console.log(`[SMS] General Bulk SMS completed. Sent: ${sentCount}, Errors: ${errorCount}`);
+  return { sent: sentCount, errors: errorCount };
+};
+
 module.exports = {
   sendRegistrationSms,
   sendConnectionRequestSms,
   sendConnectionAcceptedSms,
   sendProfileLikedSms,
   sendIncompleteProfileBulkSms,
+  sendBulkSms,
 };

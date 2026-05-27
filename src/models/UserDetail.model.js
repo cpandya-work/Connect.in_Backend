@@ -28,6 +28,10 @@ const userDetailSchema = new mongoose.Schema({
     type: Boolean, 
     default: false 
   },
+  fastConnect: {
+    type: Boolean,
+    default: false
+  },
 });
 
 // Hash password before saving
