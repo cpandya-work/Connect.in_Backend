@@ -52,7 +52,15 @@ const getUsersList = async ({ page = 1, limit = 10, search = '', city = '', indu
     }
     
     if (industry && industry.trim()) {
-      detailQuery.industry = new RegExp(industry.trim(), 'i');
+      const trimmedIndustry = industry.trim();
+      if (mongoose.Types.ObjectId.isValid(trimmedIndustry)) {
+        detailQuery.industry = { $in: [trimmedIndustry, new mongoose.Types.ObjectId(trimmedIndustry)] };
+      } else {
+        const matchingIndustries = await Industry.find({ name: new RegExp(trimmedIndustry, 'i') }).select('_id').lean();
+        const matchingIds = matchingIndustries.map(ind => ind._id);
+        const matchingIdStrings = matchingIds.map(id => id.toString());
+        detailQuery.industry = { $in: [...matchingIds, ...matchingIdStrings] };
+      }
     }
     
     if (interest && interest.trim()) {
