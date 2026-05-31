@@ -24,6 +24,18 @@ const postSchema = new mongoose.Schema({
       type: String,
     }
   }],
+  reactions: [{
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+    },
+    reaction: {
+      type: String,
+      enum: ['👍', '❤️', '😃', '🙏', '👏', '👌', '😮', '😢'],
+      required: true,
+    }
+  }],
 }, { timestamps: true });
 
 module.exports = mongoose.model('Post', postSchema);

@@ -94,13 +94,68 @@ const getPosts = asyncHandler(async (req, res) => {
       populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth' },
       select: 'userDetailId'
     })
+    .populate({
+      path: 'reactions.userId',
+      populate: { path: 'userDetailId', select: 'fullName' },
+      select: 'userDetailId'
+    })
     .sort({ createdAt: -1 })
     .lean();
 
   success(res, posts);
 });
 
+const reactToPost = asyncHandler(async (req, res) => {
+  const { postId } = req.params;
+  const { reaction } = req.body;
+  const userId = req.user._id;
+
+  const validReactions = ['👍', '❤️', '😃', '🙏', '👏', '👌', '😮', '😢'];
+  if (!reaction || !validReactions.includes(reaction)) {
+    return res.status(400).json({ success: false, message: 'Invalid or missing reaction' });
+  }
+
+  const post = await Post.findById(postId);
+  if (!post) {
+    return res.status(404).json({ success: false, message: 'Post not found' });
+  }
+
+  if (!post.reactions) {
+    post.reactions = [];
+  }
+
+  // Find user's existing reaction
+  const existingReactionIndex = post.reactions.findIndex(
+    (r) => r.userId.toString() === userId.toString()
+  );
+
+  if (existingReactionIndex > -1) {
+    if (post.reactions[existingReactionIndex].reaction === reaction) {
+      // Toggle off: remove the reaction
+      post.reactions.splice(existingReactionIndex, 1);
+    } else {
+      // Update reaction: change the emoji
+      post.reactions[existingReactionIndex].reaction = reaction;
+    }
+  } else {
+    // Add new reaction
+    post.reactions.push({ userId, reaction });
+  }
+
+  await post.save();
+
+  // Populate reactions before returning
+  const populatedPost = await Post.findById(postId).populate({
+    path: 'reactions.userId',
+    populate: { path: 'userDetailId', select: 'fullName' },
+    select: 'userDetailId'
+  });
+
+  success(res, populatedPost.reactions, 'Reaction updated successfully');
+});
+
 module.exports = {
   createPost,
-  getPosts
+  getPosts,
+  reactToPost
 };
