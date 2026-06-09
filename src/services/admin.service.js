@@ -1360,15 +1360,29 @@ const getDashboardStats = async () => {
     totalLikes,
     totalOffers,
     totalSharedItems,
-    totalChatMessages
+    totalChatMessages,
+    incompleteDetails
   ] = await Promise.all([
     User.countDocuments({}),
     UserRequests.countDocuments({}),
     UserLikes.countDocuments({}),
     Card.countDocuments({}),
     Post.countDocuments({}),
-    UserChat.countDocuments({})
+    UserChat.countDocuments({}),
+    UserDetail.find({
+      $or: [
+        { profileImage: { $exists: false } },
+        { profileImage: '' },
+        { profileImage: null },
+        { isProfileComplete: false }
+      ]
+    }).select('_id')
   ]);
+
+  const incompleteIds = incompleteDetails.map(d => d._id);
+  const totalCompleteProfiles = await User.countDocuments({
+    userDetailId: { $exists: true, $ne: null, $nin: incompleteIds }
+  });
 
   return {
     totalUsers,
@@ -1376,33 +1390,90 @@ const getDashboardStats = async () => {
     totalLikes,
     totalOffers,
     totalSharedItems,
-    totalChatMessages
+    totalChatMessages,
+    totalCompleteProfiles
   };
 };
 /**
  * Get stats of users count grouped by traffic source
- * @returns {Promise<Array>} Array of objects with trafficSource and count
+ * @returns {Promise<Object>} Object containing stats array and totalCompleteProfiles
  */
 const getTrafficSourcesStats = async () => {
-  const stats = await User.aggregate([
-    {
-      $group: {
-        _id: { $ifNull: ['$trafficSource', 'direct'] },
-        count: { $sum: 1 }
+  // Find incomplete user details
+  const incompleteDetails = await UserDetail.find({
+    $or: [
+      { profileImage: { $exists: false } },
+      { profileImage: '' },
+      { profileImage: null },
+      { isProfileComplete: false }
+    ]
+  }).select('_id');
+  const incompleteIds = incompleteDetails.map(d => d._id);
+
+  const [totalStats, completeStats] = await Promise.all([
+    // Aggregate total users by traffic source
+    User.aggregate([
+      {
+        $group: {
+          _id: { $ifNull: ['$trafficSource', 'direct'] },
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $project: {
+          trafficSource: '$_id',
+          count: 1,
+          _id: 0
+        }
       }
-    },
-    {
-      $project: {
-        trafficSource: '$_id',
-        count: 1,
-        _id: 0
+    ]),
+    // Aggregate completed profiles by traffic source
+    User.aggregate([
+      {
+        $match: {
+          userDetailId: { $exists: true, $ne: null, $nin: incompleteIds }
+        }
+      },
+      {
+        $group: {
+          _id: { $ifNull: ['$trafficSource', 'direct'] },
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $project: {
+          trafficSource: '$_id',
+          count: 1,
+          _id: 0
+        }
       }
-    },
-    {
-      $sort: { count: -1 }
-    }
+    ])
   ]);
-  return stats;
+
+  // Create a map of complete source counts
+  const completeMap = {};
+  completeStats.forEach(item => {
+    if (item.trafficSource) {
+      completeMap[item.trafficSource] = item.count;
+    }
+  });
+
+  // Combine results
+  const combinedStats = totalStats.map(item => ({
+    trafficSource: item.trafficSource,
+    count: item.count,
+    completeCount: completeMap[item.trafficSource] || 0
+  }));
+
+  // Sort by total count descending
+  combinedStats.sort((a, b) => b.count - a.count);
+
+  const totalCompleteProfiles = completeStats.reduce((sum, item) => sum + item.count, 0);
+
+  return {
+    stats: combinedStats,
+    totalCompleteProfiles
+  };
 };
 
 module.exports = {
