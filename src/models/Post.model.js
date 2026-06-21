@@ -36,6 +36,27 @@ const postSchema = new mongoose.Schema({
       required: true,
     }
   }],
+  linkPreview: {
+    title: { type: String },
+    description: { type: String },
+    image: { type: String },
+    url: { type: String }
+  },
+  targetSegments: {
+    connections: { type: Boolean, default: true },
+    city: { type: Boolean, default: false },
+    industries: [{ type: String }],
+    ageGroups: [{ type: String }]
+  },
+  authorCity: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'City',
+    default: null
+  },
+  isApproved: {
+    type: Boolean,
+    default: false
+  }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Post', postSchema);

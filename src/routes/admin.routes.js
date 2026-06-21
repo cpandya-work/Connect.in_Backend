@@ -50,6 +50,9 @@ const {
   getTargetedEmailUserCountCtrl,
   sendTargetedEmailBroadcastCtrl,
   getDashboardStatsCtrl,
+  getPendingPostsCtrl,
+  approvePostCtrl,
+  rejectPostCtrl,
 } = require('../controllers/admin.controller');
 const { isAdmin } = require('../middlewares/admin.middleware');
 const uploadCardLogo = require('../middlewares/cardUpload.middleware');
@@ -218,5 +221,10 @@ router.delete('/auth-banners/:id', deleteAuthBannerCtrl);
 
 // PATCH /api/admin/auth-banners/:id/toggle
 router.patch('/auth-banners/:id/toggle', toggleAuthBannerCtrl);
+
+// Post approval routes
+router.get('/posts/pending', getPendingPostsCtrl);
+router.put('/posts/:postId/approve', approvePostCtrl);
+router.delete('/posts/:postId/reject', rejectPostCtrl);
 
 module.exports = router;

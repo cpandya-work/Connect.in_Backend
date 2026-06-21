@@ -845,6 +845,88 @@ const getTrafficSourcesStatsCtrl = asyncHandler(async (req, res) => {
   success(res, stats, 'Traffic source stats retrieved successfully');
 });
 
+const getPendingPostsCtrl = asyncHandler(async (req, res) => {
+  const Post = require('../models/Post.model');
+  const posts = await Post.find({ isApproved: false })
+    .populate({
+      path: 'userId',
+      populate: { path: 'userDetailId', select: 'fullName profileImage' },
+      select: 'userDetailId'
+    })
+    .populate('authorCity')
+    .sort({ createdAt: -1 })
+    .lean();
+
+  success(res, { posts }, 'Pending posts retrieved successfully');
+});
+
+const approvePostCtrl = asyncHandler(async (req, res) => {
+  const { postId } = req.params;
+  const Post = require('../models/Post.model');
+  const User = require('../models/User.model');
+  const UserConnections = require('../models/UserConnections.model');
+  const { sendPostNotification } = require('../services/notification.service');
+  const { sendNewPostEmail } = require('../services/email.service');
+
+  const post = await Post.findById(postId);
+  if (!post) {
+    return res.status(404).json({ success: false, message: 'Post not found' });
+  }
+
+  post.isApproved = true;
+  await post.save();
+
+  // Find connections to notify
+  const userId = post.userId;
+  const poster = await User.findById(userId).populate('userDetailId');
+  const posterName = poster?.userDetailId?.fullName || 'A user';
+  const posterImage = poster?.userDetailId?.profileImage || '';
+
+  const connections = await UserConnections.find({
+    $or: [
+      { connection1Id: userId },
+      { connection2Id: userId },
+    ],
+  });
+
+  const connectionIds = connections.map(c =>
+    c.connection1Id.toString() === userId.toString() ? c.connection2Id : c.connection1Id
+  );
+
+  // Send notifications and emails (non-blocking)
+  setImmediate(async () => {
+    try {
+      const connectedUsers = await User.find({ _id: { $in: connectionIds } }).populate('userDetailId');
+
+      connectedUsers.forEach(user => {
+        // Send push notification
+        sendPostNotification(user._id, posterName, userId, posterImage).catch(console.error);
+
+        // Send email if user has email
+        if (user.userDetailId?.email) {
+          sendNewPostEmail(user.userDetailId.email, user.userDetailId.fullName, posterName).catch(console.error);
+        }
+      });
+    } catch (err) {
+      console.error('Error sending post approval notifications:', err);
+    }
+  });
+
+  success(res, { post }, 'Post approved successfully');
+});
+
+const rejectPostCtrl = asyncHandler(async (req, res) => {
+  const { postId } = req.params;
+  const Post = require('../models/Post.model');
+  
+  const post = await Post.findByIdAndDelete(postId);
+  if (!post) {
+    return res.status(404).json({ success: false, message: 'Post not found' });
+  }
+
+  success(res, null, 'Post rejected and deleted successfully');
+});
+
 module.exports = {
   getTrafficSourcesStatsCtrl,
   getUsersListCtrl,
@@ -896,4 +978,7 @@ module.exports = {
   getTargetedEmailUserCountCtrl,
   sendTargetedEmailBroadcastCtrl,
   getDashboardStatsCtrl,
+  getPendingPostsCtrl,
+  approvePostCtrl,
+  rejectPostCtrl,
 };
