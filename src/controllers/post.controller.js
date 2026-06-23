@@ -136,7 +136,13 @@ const createPost = asyncHandler(async (req, res) => {
     isApproved: false
   });
 
-  success(res, post, 'Post created successfully and pending admin approval');
+  const populatedPost = await Post.findById(post._id).populate({
+    path: 'userId',
+    populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth' },
+    select: 'userDetailId'
+  });
+
+  success(res, populatedPost, 'Post created successfully and pending admin approval');
 });
 
 function getAgeGroup(dateOfBirth) {
