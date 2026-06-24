@@ -305,6 +305,34 @@ const reactToPost = asyncHandler(async (req, res) => {
 
   await post.save();
 
+  // Only send notification if the reactor is not the owner of the post
+  if (post.userId.toString() !== userId.toString()) {
+    const currentReactionObj = post.reactions.find(
+      (r) => r.userId.toString() === userId.toString()
+    );
+    if (currentReactionObj) {
+      // Send notification in the background (non-blocking)
+      setImmediate(async () => {
+        try {
+          const reactor = await User.findById(userId).populate('userDetailId');
+          const reactorName = reactor?.userDetailId?.fullName || 'Someone';
+          const reactorImage = reactor?.userDetailId?.profileImage || '';
+          
+          const { sendPostReactionNotification } = require('../services/notification.service');
+          await sendPostReactionNotification(
+            post.userId,
+            reactorName,
+            userId,
+            reactorImage,
+            currentReactionObj.reaction
+          );
+        } catch (err) {
+          console.error('Error sending post reaction notification:', err);
+        }
+      });
+    }
+  }
+
   // Populate reactions before returning
   const populatedPost = await Post.findById(postId).populate({
     path: 'reactions.userId',

@@ -155,6 +155,23 @@ const sendPostNotification = async (receiverId, posterName, posterId, posterProf
   );
 };
 
+const sendPostReactionNotification = async (postOwnerId, reactorName, reactorId, reactorProfileImage, reactionEmoji) => {
+  await sendNotification(
+    postOwnerId,
+    `New Post Reaction! ${reactionEmoji}`,
+    `${reactorName} reacted ${reactionEmoji} to your post`,
+    {
+      type: 'post',
+      action: 'post_reacted',
+      message: `${reactorName} reacted ${reactionEmoji} to your post`,
+      senderId: reactorId.toString(),
+      senderName: reactorName,
+      senderProfileImage: reactorProfileImage || ''
+    },
+    reactorId
+  );
+};
+
 const getNotifications = async (userId, page = 1, limit = 20) => {
   const skip = (page - 1) * limit;
   
@@ -320,4 +337,5 @@ module.exports = {
   clearAllNotifications,
   sendBroadcastNotification,
   sendPostNotification,
+  sendPostReactionNotification,
 };

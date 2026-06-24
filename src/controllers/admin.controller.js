@@ -896,17 +896,74 @@ const approvePostCtrl = asyncHandler(async (req, res) => {
   // Send notifications and emails (non-blocking)
   setImmediate(async () => {
     try {
-      const connectedUsers = await User.find({ _id: { $in: connectionIds } }).populate('userDetailId');
+      // Find all users except the poster
+      const allUsers = await User.find({ _id: { $ne: userId } }).populate('userDetailId');
 
-      connectedUsers.forEach(user => {
-        // Send push notification
-        sendPostNotification(user._id, posterName, userId, posterImage).catch(console.error);
+      // Helper to calculate age group (same as in post.controller.js)
+      const getAgeGroup = (dateOfBirth) => {
+        if (!dateOfBirth) return null;
+        const birthDate = new Date(dateOfBirth);
+        const today = new Date();
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const m = today.getMonth() - birthDate.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+          age--;
+        }
+        if (age >= 20 && age <= 25) return '20-25';
+        if (age >= 26 && age <= 35) return '26-35';
+        if (age >= 36 && age <= 50) return '36-50';
+        if (age >= 51 && age <= 65) return '51-65';
+        if (age > 65) return '65+';
+        return null;
+      };
 
-        // Send email if user has email
-        if (user.userDetailId?.email) {
-          sendNewPostEmail(user.userDetailId.email, user.userDetailId.fullName, posterName).catch(console.error);
+      const connections = await UserConnections.find({
+        $or: [
+          { connection1Id: userId },
+          { connection2Id: userId },
+        ],
+      });
+
+      const connectionIds = new Set(
+        connections.map(c =>
+          c.connection1Id.toString() === userId.toString() ? c.connection2Id.toString() : c.connection1Id.toString()
+        )
+      );
+
+      const notifyPromises = allUsers.map(async (user) => {
+        const isConnection = connectionIds.has(user._id.toString());
+        
+        // Check if user matches post segments
+        let shouldNotify = false;
+        const segments = post.targetSegments;
+        if (!segments) {
+          shouldNotify = isConnection;
+        } else {
+          const { connections: targetConn, city: targetCity, industries: targetInd, ageGroups: targetAge } = segments;
+          if (targetConn && isConnection) shouldNotify = true;
+          else if (targetCity && post.authorCity && user.userDetailId?.city && user.userDetailId.city.toString() === post.authorCity.toString()) shouldNotify = true;
+          else if (targetInd && targetInd.length > 0 && user.userDetailId?.industry && targetInd.includes(user.userDetailId.industry)) shouldNotify = true;
+          else if (targetAge && targetAge.length > 0 && user.userDetailId?.dateOfBirth) {
+            const ageGrp = getAgeGroup(user.userDetailId.dateOfBirth);
+            if (ageGrp && targetAge.includes(ageGrp)) shouldNotify = true;
+          } else if (!targetConn && !targetCity && (!targetInd || targetInd.length === 0) && (!targetAge || targetAge.length === 0)) {
+            // Default to connections if no targets specified
+            if (isConnection) shouldNotify = true;
+          }
+        }
+
+        if (shouldNotify) {
+          // Send push notification
+          sendPostNotification(user._id, posterName, userId, posterImage).catch(console.error);
+
+          // Send email if user has email
+          if (user.userDetailId?.email) {
+            sendNewPostEmail(user.userDetailId.email, user.userDetailId.fullName, posterName).catch(console.error);
+          }
         }
       });
+
+      await Promise.all(notifyPromises);
     } catch (err) {
       console.error('Error sending post approval notifications:', err);
     }
