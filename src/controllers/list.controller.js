@@ -6,6 +6,7 @@ const InterestModel = require("../models/Interest.model");
 const SkillModel = require("../models/Skill.model");
 const CardModel = require("../models/Card.model");
 const AuthBannerModel = require("../models/AuthBanner.model");
+const SportModel = require("../models/Sport.model");
 const asyncHandler = require("../utils/asyncHandler");
 const { success } = require("../utils/response");
 
@@ -18,6 +19,11 @@ const listCityCtrl = asyncHandler(async (req, res) => {
 const listSkillCtrl = asyncHandler(async (req, res) => {
   const skills = await SkillModel.find()
   success(res, { skills }, 'skills list fetched');
+});
+
+const listSportCtrl = asyncHandler(async (req, res) => {
+  const sports = await SportModel.find({ isActive: true }).sort({ name: 1 });
+  success(res, { sports }, 'sports list fetched');
 });
 
 const listInterestCtrl = asyncHandler(async (req, res) => {
@@ -91,4 +97,5 @@ module.exports = {
   listIndustriesCtrl,
   listCardsCtrl,
   listAuthBannersCtrl,
+  listSportCtrl,
 }

@@ -1,6 +1,6 @@
 const express = require('express');
 const { protect } = require('../middlewares/auth.middleware');
-const { listCityCtrl, listSkillCtrl, listInterestCtrl, listHabitsCtrl, listCompaniesCtrl, listIndustriesCtrl, listCardsCtrl, listAuthBannersCtrl } = require('../controllers/list.controller');
+const { listCityCtrl, listSkillCtrl, listInterestCtrl, listHabitsCtrl, listCompaniesCtrl, listIndustriesCtrl, listCardsCtrl, listAuthBannersCtrl, listSportCtrl } = require('../controllers/list.controller');
 
 const router = express.Router();
 
@@ -16,5 +16,6 @@ router.get('/habits', listHabitsCtrl);
 router.get('/companies', listCompaniesCtrl);
 router.get('/industries', listIndustriesCtrl);
 router.get('/cards', listCardsCtrl);
+router.get('/sport', listSportCtrl);
 
 module.exports = router;

@@ -1,6 +1,7 @@
 const User = require('../models/User.model');
 const UserDetail = require('../models/UserDetail.model');
 const Skill = require('../models/Skill.model');
+const Sport = require('../models/Sport.model');
 const Interest = require('../models/Interest.model');
 const City = require('../models/City.model');
 const Habit = require('../models/Habit.model');
@@ -1476,7 +1477,129 @@ const getTrafficSourcesStats = async () => {
   };
 };
 
+/**
+ * Get all sports with pagination and search
+ */
+const getSportsList = async ({ page = 1, limit = 10, search = '', isActive = null } = {}) => {
+  const pageNum = parseInt(page, 10) || 1;
+  const limitNum = parseInt(limit, 10) || 10;
+  const skip = (pageNum - 1) * limitNum;
+
+  let query = {};
+  
+  if (search && search.trim()) {
+    const searchRegex = new RegExp(search.trim(), 'i');
+    query.$or = [
+      { name: searchRegex },
+      { description: searchRegex },
+    ];
+  }
+
+  if (isActive !== null && isActive !== undefined) {
+    query.isActive = isActive === 'true' || isActive === true;
+  }
+
+  const total = await Sport.countDocuments(query);
+  const sports = await Sport.find(query)
+    .sort({ name: 1 })
+    .skip(skip)
+    .limit(limitNum)
+    .lean();
+
+  const totalPages = Math.ceil(total / limitNum);
+  const hasNextPage = pageNum < totalPages;
+  const hasPrevPage = pageNum > 1;
+
+  return {
+    sports,
+    pagination: {
+      currentPage: pageNum,
+      totalPages,
+      totalItems: total,
+      itemsPerPage: limitNum,
+      hasNextPage,
+      hasPrevPage,
+    },
+  };
+};
+
+/**
+ * Create a new sport
+ */
+const createSport = async (sportData) => {
+  const normalizedName = sportData.name;
+  
+  const existingSport = await Sport.findOne({ name: normalizedName });
+  if (existingSport) {
+    throw new Error('Sport with this name already exists');
+  }
+
+  const sport = await Sport.create({
+    name: normalizedName,
+    description: sportData.description || '',
+    isActive: sportData.isActive !== undefined ? sportData.isActive : true,
+  });
+
+  return sport;
+};
+
+/**
+ * Update a sport by ID
+ */
+const updateSport = async (sportId, updateData) => {
+  const sport = await Sport.findById(sportId);
+  if (!sport) {
+    throw new Error('Sport not found');
+  }
+
+  if (updateData.name) {
+    const normalizedName = updateData.name;
+    const existingSport = await Sport.findOne({ 
+      name: normalizedName,
+      _id: { $ne: sportId }
+    });
+    if (existingSport) {
+      throw new Error('Sport with this name already exists');
+    }
+    updateData.name = normalizedName;
+  }
+
+  Object.assign(sport, updateData);
+  await sport.save();
+
+  return sport;
+};
+
+/**
+ * Delete a sport by ID
+ */
+const deleteSport = async (sportId) => {
+  const sport = await Sport.findById(sportId);
+  if (!sport) {
+    throw new Error('Sport not found');
+  }
+
+  await Sport.deleteOne({ _id: sportId });
+  return { message: 'Sport deleted successfully' };
+};
+
+/**
+ * Get a single sport by ID
+ */
+const getSportById = async (sportId) => {
+  const sport = await Sport.findById(sportId);
+  if (!sport) {
+    throw new Error('Sport not found');
+  }
+  return sport;
+};
+
 module.exports = {
+  getSportsList,
+  createSport,
+  updateSport,
+  deleteSport,
+  getSportById,
   getTrafficSourcesStats,
   getUsersList,
   getSkillsList,

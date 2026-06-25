@@ -135,8 +135,9 @@ const createProfile = asyncHandler(async (req, res) => {
         habits: Array.isArray(req.body.habits) ? req.body.habits : (req.body.habits?.split(',').map(h => h.trim()).filter(Boolean) || []),
         interests: Array.isArray(req.body.interests) ? req.body.interests : (req.body.interests?.split(',').map(i => i.trim()).filter(Boolean) || []),
         skills: Array.isArray(req.body.skills) ? req.body.skills : (req.body.skills?.split(',').map(s => s.trim()).filter(Boolean) || []),
+        sports: Array.isArray(req.body.sports) ? req.body.sports : (req.body.sports?.split(',').map(s => s.trim()).filter(Boolean) || []),
         preferredLanguage: Array.isArray(req.body.preferredLanguage) ? req.body.preferredLanguage : (req.body.preferredLanguage?.split(',').map(l => l.trim()).filter(Boolean) || []),
-        lastCompletedStep: 8,
+        lastCompletedStep: 9,
         isProfileComplete: true,
       },
       { new: true }
@@ -149,8 +150,9 @@ const createProfile = asyncHandler(async (req, res) => {
       habits: Array.isArray(req.body.habits) ? req.body.habits : (req.body.habits?.split(',').map(h => h.trim()).filter(Boolean) || []),
       interests: Array.isArray(req.body.interests) ? req.body.interests : (req.body.interests?.split(',').map(i => i.trim()).filter(Boolean) || []),
       skills: Array.isArray(req.body.skills) ? req.body.skills : (req.body.skills?.split(',').map(s => s.trim()).filter(Boolean) || []),
+      sports: Array.isArray(req.body.sports) ? req.body.sports : (req.body.sports?.split(',').map(s => s.trim()).filter(Boolean) || []),
       preferredLanguage: Array.isArray(req.body.preferredLanguage) ? req.body.preferredLanguage : (req.body.preferredLanguage?.split(',').map(l => l.trim()).filter(Boolean) || []),
-      lastCompletedStep: 8,
+      lastCompletedStep: 9,
       isProfileComplete: true,
     });
     await User.findByIdAndUpdate(user._id, { userDetailId: detail._id });
@@ -251,7 +253,7 @@ const saveProfileStep = asyncHandler(async (req, res) => {
   const stepNumber = parseInt(req.body.stepNumber, 10);
   const profileImage = req.file?.path || null;
   
-  if (!stepNumber || isNaN(stepNumber) || stepNumber < 1 || stepNumber > 8) {
+  if (!stepNumber || isNaN(stepNumber) || stepNumber < 1 || stepNumber > 9) {
     return res.status(400).json({ success: false, message: 'Invalid step number' });
   }
 
@@ -316,22 +318,32 @@ const saveProfileStep = asyncHandler(async (req, res) => {
     }
   }
   
-  // Step 7: Industry and Company
+  // Step 7: Sports
   if (stepNumber === 7) {
-    if (req.body.industry) stepData.industry = req.body.industry;
-    if (req.body.company) stepData.company = req.body.company;
+    if (req.body.sports) {
+      stepData.sports = Array.isArray(req.body.sports) 
+        ? req.body.sports 
+        : (req.body.sports.split(',').map(s => s.trim()).filter(Boolean) || []);
+    }
   }
   
-  // Step 8: Profile Image
-  if (stepNumber === 8 && profileImage) {
+  // Step 8: Industry and Company
+  if (stepNumber === 8) {
+    if (req.body.industry) stepData.industry = req.body.industry;
+    if (req.body.company) stepData.company = req.body.company;
+    if (req.body.position !== undefined) stepData.position = req.body.position;
+  }
+  
+  // Step 9: Profile Image
+  if (stepNumber === 9 && profileImage) {
     stepData.profileImage = profileImage;
   }
   
   // Update lastCompletedStep
   stepData.lastCompletedStep = stepNumber;
   
-  // If step 8 is completed, mark profile as complete
-  if (stepNumber === 8) {
+  // If step 9 is completed, mark profile as complete
+  if (stepNumber === 9) {
     stepData.isProfileComplete = true;
   }
   
@@ -343,8 +355,8 @@ const saveProfileStep = asyncHandler(async (req, res) => {
       lastCompletedStep: stepNumber,
     };
     
-    // If step 8, also set isProfileComplete
-    if (stepNumber === 8) {
+    // If step 9, also set isProfileComplete
+    if (stepNumber === 9) {
       updateObj.isProfileComplete = true;
     }
     
@@ -358,13 +370,13 @@ const saveProfileStep = asyncHandler(async (req, res) => {
     userDetail = await UserDetail.create({
       ...stepData,
       lastCompletedStep: stepNumber,
-      isProfileComplete: stepNumber === 8 ? true : false,
+      isProfileComplete: stepNumber === 9 ? true : false,
     });
     await User.findByIdAndUpdate(req.user._id, { userDetailId: userDetail._id });
   }
   
   // Fire welcome email + SMS outside the request lifecycle
-  if (stepNumber === 8 && userDetail.fullName) {
+  if (stepNumber === 9 && userDetail.fullName) {
     setImmediate(() => {
       if (userDetail.email) {
         sendRegistrationEmail(userDetail.email, userDetail.fullName).catch(() => {});

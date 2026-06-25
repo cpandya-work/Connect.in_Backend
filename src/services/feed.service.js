@@ -107,6 +107,10 @@ const getFeed = async (userId, userGender, cursor = null, limit = 20, filters = 
     matchStage['details.industry'] = { $in: filters.industry };
   }
 
+  if (filters.sports && filters.sports.length > 0) {
+    matchStage['details.sports'] = { $in: filters.sports };
+  }
+
   if (cursorObj) {
     matchStage._id = { ...matchStage._id, $lt: cursorObj };
   }
@@ -339,6 +343,10 @@ const getFeedWeb = async (userId, userGender, page = 1, limit = 20, filters = {}
   if (filters.industry && filters.industry.length > 0) {
     // Industry is stored as String in database, so match as strings
     matchStage['details.industry'] = { $in: filters.industry };
+  }
+
+  if (filters.sports && filters.sports.length > 0) {
+    matchStage['details.sports'] = { $in: filters.sports };
   }
 
   let pipeline = [];

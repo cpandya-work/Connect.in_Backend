@@ -7,6 +7,11 @@ const {
   createSkillCtrl,
   updateSkillCtrl,
   deleteSkillCtrl,
+  getSportsListCtrl,
+  getSportByIdCtrl,
+  createSportCtrl,
+  updateSportCtrl,
+  deleteSportCtrl,
   getInterestsListCtrl,
   getInterestByIdCtrl,
   createInterestCtrl,
@@ -86,6 +91,22 @@ router.put('/skills/:id', updateSkillCtrl);
 
 // DELETE /api/admin/skills/:id
 router.delete('/skills/:id', deleteSkillCtrl);
+
+// Sport management routes
+// GET /api/admin/sports?page=1&limit=10&search=football&isActive=true
+router.get('/sports', getSportsListCtrl);
+
+// GET /api/admin/sports/:id
+router.get('/sports/:id', getSportByIdCtrl);
+
+// POST /api/admin/sports
+router.post('/sports', createSportCtrl);
+
+// PUT /api/admin/sports/:id
+router.put('/sports/:id', updateSportCtrl);
+
+// DELETE /api/admin/sports/:id
+router.delete('/sports/:id', deleteSportCtrl);
 
 // Interest management routes
 // GET /api/admin/interests?page=1&limit=10&search=reading&isActive=true

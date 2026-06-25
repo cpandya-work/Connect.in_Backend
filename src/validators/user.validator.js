@@ -19,8 +19,10 @@ const profileSchema = Joi.object({
   habits: Joi.alternatives().try(Joi.array().items(Joi.string()), Joi.string()),
   interests: Joi.alternatives().try(Joi.array().items(Joi.string()), Joi.string()),
   skills: Joi.alternatives().try(Joi.array().items(Joi.string()), Joi.string()),
+  sports: Joi.alternatives().try(Joi.array().items(Joi.string()), Joi.string()),
   company: Joi.string().allow('').optional(),
   industry: Joi.string().required(),
+  position: Joi.string().allow('').optional(),
   fastConnect: Joi.boolean().optional(),
 });
 
@@ -42,8 +44,10 @@ const updateProfileSchema = Joi.object({
   habits: Joi.alternatives().try(Joi.array().items(Joi.string()), Joi.string()),
   interests: Joi.alternatives().try(Joi.array().items(Joi.string()), Joi.string()),
   skills: Joi.alternatives().try(Joi.array().items(Joi.string()), Joi.string()),
+  sports: Joi.alternatives().try(Joi.array().items(Joi.string()), Joi.string()),
   company: Joi.string().allow('').optional(),
   industry: Joi.string(),
+  position: Joi.string().allow('').optional(),
   fastConnect: Joi.boolean().optional(),
 }).min(1); // at least one field
 

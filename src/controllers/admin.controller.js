@@ -8,6 +8,11 @@ const {
   updateSkill,
   deleteSkill,
   getSkillById,
+  getSportsList,
+  createSport,
+  updateSport,
+  deleteSport,
+  getSportById,
   getInterestsList,
   createInterest,
   updateInterest,
@@ -52,6 +57,7 @@ const {
   getDashboardStats,
 } = require('../services/admin.service');
 const { createSkillSchema, updateSkillSchema } = require('../validators/skill.validator');
+const { createSportSchema, updateSportSchema } = require('../validators/sport.validator');
 const { createInterestSchema, updateInterestSchema } = require('../validators/interest.validator');
 const { createCitySchema, updateCitySchema } = require('../validators/city.validator');
 const { createHabitSchema, updateHabitSchema } = require('../validators/habit.validator');
@@ -984,6 +990,75 @@ const rejectPostCtrl = asyncHandler(async (req, res) => {
   success(res, null, 'Post rejected and deleted successfully');
 });
 
+/**
+ * Get paginated list of sports with search
+ * Query params: page, limit, search, isActive
+ */
+const getSportsListCtrl = asyncHandler(async (req, res) => {
+  const { page, limit, search, isActive } = req.query;
+
+  const result = await getSportsList({
+    page,
+    limit,
+    search,
+    isActive,
+  });
+
+  success(res, result, 'Sports retrieved successfully');
+});
+
+/**
+ * Get a single sport by ID
+ */
+const getSportByIdCtrl = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const sport = await getSportById(id);
+  success(res, { sport }, 'Sport retrieved successfully');
+});
+
+/**
+ * Create a new sport
+ */
+const createSportCtrl = asyncHandler(async (req, res) => {
+  const { error } = createSportSchema.validate(req.body);
+  if (error) {
+    return res.status(400).json({ 
+      success: false, 
+      message: error.details[0].message 
+    });
+  }
+
+  const sport = await createSport(req.body);
+  success(res, { sport }, 'Sport created successfully');
+});
+
+/**
+ * Update a sport by ID
+ */
+const updateSportCtrl = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { error } = updateSportSchema.validate(req.body);
+  
+  if (error) {
+    return res.status(400).json({ 
+      success: false, 
+      message: error.details[0].message 
+    });
+  }
+
+  const sport = await updateSport(id, req.body);
+  success(res, { sport }, 'Sport updated successfully');
+});
+
+/**
+ * Delete a sport by ID
+ */
+const deleteSportCtrl = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  await deleteSport(id);
+  success(res, null, 'Sport deleted successfully');
+});
+
 module.exports = {
   getTrafficSourcesStatsCtrl,
   getUsersListCtrl,
@@ -1038,4 +1113,9 @@ module.exports = {
   getPendingPostsCtrl,
   approvePostCtrl,
   rejectPostCtrl,
+  getSportsListCtrl,
+  getSportByIdCtrl,
+  createSportCtrl,
+  updateSportCtrl,
+  deleteSportCtrl,
 };

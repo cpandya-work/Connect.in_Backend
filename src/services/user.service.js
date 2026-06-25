@@ -67,6 +67,7 @@ const getPublicProfile = async (userId, loggedInUserId) => {
     // Explicitly ensure company and industry are included
     company: userDetailObj.company,
     industry: userDetailObj.industry,
+    position: userDetailObj.position,
     // City name for display (if populated)
     city: userDetailObj.cityName || (userDetailObj.city && typeof userDetailObj.city === 'object' ? userDetailObj.city.name : null),
     isLiked,
@@ -97,6 +98,7 @@ const updateProfile = async (userId, updates, file) => {
   if (updates.habits && typeof updates.habits === 'string') updates.habits = updates.habits.split(',').map(h => h.trim()).filter(Boolean);
   if (updates.interests && typeof updates.interests === 'string') updates.interests = updates.interests.split(',').map(i => i.trim()).filter(Boolean);
   if (updates.skills && typeof updates.skills === 'string') updates.skills = updates.skills.split(',').map(s => s.trim()).filter(Boolean);
+  if (updates.sports && typeof updates.sports === 'string') updates.sports = updates.sports.split(',').map(s => s.trim()).filter(Boolean);
   if (updates.fastConnect !== undefined) {
     updates.fastConnect = updates.fastConnect === 'true' || updates.fastConnect === true;
   }
@@ -135,7 +137,11 @@ const deleteAccount = async (userId) => {
       habits: userDetail.habits,
       interests: userDetail.interests,
       skills: userDetail.skills,
+      sports: userDetail.sports,
       profileImage: userDetail.profileImage,
+      company: userDetail.company,
+      industry: userDetail.industry,
+      position: userDetail.position,
     });
 
     await UserDetail.findByIdAndDelete(userDetail._id);

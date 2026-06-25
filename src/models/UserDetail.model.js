@@ -15,14 +15,16 @@ const userDetailSchema = new mongoose.Schema({
   habits: [String],
   interests: [String],
   skills: [String],
+  sports: [String],
   profileImage: String, // Cloudinary URL
   company: String,
   industry: String,
+  position: { type: String, default: "" },
   lastCompletedStep: { 
     type: Number, 
-    default: 0,  // 0 = not started, 1-8 = step number
+    default: 0,  // 0 = not started, 1-9 = step number
     min: 0,
-    max: 8
+    max: 9
   },
   isProfileComplete: { 
     type: Boolean, 
