@@ -9,6 +9,7 @@ const userSchema = new mongoose.Schema({
     default: 'user' 
   },
   trafficSource: { type: String, default: 'direct' },
+  isActive: { type: Boolean, default: true },
   currentLocation: {
     type: {
       type: String,

@@ -58,6 +58,8 @@ const {
   getPendingPostsCtrl,
   approvePostCtrl,
   rejectPostCtrl,
+  toggleUserStatusCtrl,
+  deleteUserCtrl,
 } = require('../controllers/admin.controller');
 const { isAdmin } = require('../middlewares/admin.middleware');
 const uploadCardLogo = require('../middlewares/cardUpload.middleware');
@@ -75,6 +77,10 @@ router.get('/traffic-sources', getTrafficSourcesStatsCtrl);
 // User management routes
 // GET /api/admin/users?page=1&limit=10&search=john
 router.get('/users', getUsersListCtrl);
+// PUT /api/admin/users/:id/toggle-status
+router.put('/users/:id/toggle-status', toggleUserStatusCtrl);
+// DELETE /api/admin/users/:id
+router.delete('/users/:id', deleteUserCtrl);
 
 // Skill management routes
 // GET /api/admin/skills?page=1&limit=10&search=javascript&isActive=true

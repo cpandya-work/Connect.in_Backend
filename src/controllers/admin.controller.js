@@ -1059,6 +1059,48 @@ const deleteSportCtrl = asyncHandler(async (req, res) => {
   success(res, null, 'Sport deleted successfully');
 });
 
+/**
+ * Toggle user active/disabled status
+ */
+const toggleUserStatusCtrl = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const User = require('../models/User.model');
+  const user = await User.findById(id);
+  if (!user) {
+    return res.status(404).json({ success: false, message: 'User not found' });
+  }
+
+  if (user.role === 'admin') {
+    return res.status(400).json({ success: false, message: 'Cannot disable an admin user' });
+  }
+
+  user.isActive = user.isActive === false ? true : false;
+  await user.save();
+
+  success(res, { user }, `User has been ${user.isActive ? 'enabled' : 'disabled'} successfully`);
+});
+
+/**
+ * Delete a user account by admin
+ */
+const deleteUserCtrl = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const User = require('../models/User.model');
+  const user = await User.findById(id);
+  if (!user) {
+    return res.status(404).json({ success: false, message: 'User not found' });
+  }
+
+  if (user.role === 'admin') {
+    return res.status(400).json({ success: false, message: 'Cannot delete an admin user' });
+  }
+
+  const { deleteAccount } = require('../services/user.service');
+  await deleteAccount(id);
+
+  success(res, null, 'User deleted successfully');
+});
+
 module.exports = {
   getTrafficSourcesStatsCtrl,
   getUsersListCtrl,
@@ -1118,4 +1160,6 @@ module.exports = {
   createSportCtrl,
   updateSportCtrl,
   deleteSportCtrl,
+  toggleUserStatusCtrl,
+  deleteUserCtrl,
 };

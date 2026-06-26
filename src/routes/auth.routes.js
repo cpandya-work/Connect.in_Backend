@@ -11,4 +11,10 @@ router.post('/login-with-email', loginWithEmailCtrl);
 router.post('/google-login', googleLoginCtrl);
 router.post('/logout', protect, logout);
 
-module.exports = router;    
+// Lightweight account-status check used by the frontend session poller.
+// protect middleware already handles disabled/deleted accounts with a 401.
+router.get('/status', protect, (req, res) => {
+  res.json({ success: true, isActive: true });
+});
+
+module.exports = router;

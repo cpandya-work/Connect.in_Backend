@@ -12,13 +12,19 @@ const protect = async (req, res, next) => {
   try {
     const decoded = verifyToken(token);
     const user = await User.findById(decoded.id);
-    if (!user) throw new Error();
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'Your account has been deleted. Please contact admin.' });
+    }
+    if (user.isActive === false) {
+      return res.status(401).json({ success: false, message: 'Your account has been disabled. Please contact admin.' });
+    }
     req.user = user;
     next();
   } catch (err) {
     res.status(401).json({ success: false, message: 'Invalid token' });
   }
 };
+
 
 // Optional authentication - doesn't fail if no token, but sets user if valid token is provided
 const optionalAuth = async (req, res, next) => {
@@ -32,7 +38,7 @@ const optionalAuth = async (req, res, next) => {
   try {
     const decoded = verifyToken(token);
     const user = await User.findById(decoded.id);
-    if (user) {
+    if (user && user.isActive !== false) {
       req.user = user;
     }
     next();

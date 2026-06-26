@@ -151,6 +151,7 @@ const getUsersList = async ({ page = 1, limit = 10, search = '', city = '', indu
       _id: user._id,
       phoneNumber: user.phoneNumber,
       trafficSource: user.trafficSource || 'direct',
+      isActive: user.isActive !== false,
       currentLocation: user.currentLocation,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,

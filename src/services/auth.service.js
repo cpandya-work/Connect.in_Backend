@@ -28,6 +28,9 @@ const verifyOtp = async (phoneNumber, otp, fcmToken = null, deviceType = 'androi
   }
 
   let user = await User.findOne({ phoneNumber });
+  if (user && user.isActive === false) {
+    throw new Error('Your account has been disabled. Please contact admin.');
+  }
   const isNewUser = !user;
 
   if (!user) {
@@ -45,7 +48,7 @@ const verifyOtp = async (phoneNumber, otp, fcmToken = null, deviceType = 'androi
   await Otp.deleteOne({ _id: otpDoc._id });
 
   const token = signToken({ id: user._id });
-  
+
   // Check if profile is actually complete by checking UserDetail.isProfileComplete
   let isProfileComplete = false;
   if (user.userDetailId) {
@@ -70,6 +73,9 @@ const loginWithEmail = async (email, password, fcmToken = null, deviceType = 'we
   const user = await User.findOne({ userDetailId: userDetail._id });
   if (!user) {
     throw new Error('User account not found');
+  }
+  if (user.isActive === false) {
+    throw new Error('Your account has been disabled. Please contact admin.');
   }
 
   // Save FCM token if provided
@@ -108,6 +114,9 @@ const loginWithGoogle = async (accessToken, fcmToken = null, deviceType = 'web')
   const user = await User.findOne({ userDetailId: userDetail._id });
   if (!user) {
     throw new Error('User account not found');
+  }
+  if (user.isActive === false) {
+    throw new Error('Your account has been disabled. Please contact admin.');
   }
 
   // Save FCM token if provided
