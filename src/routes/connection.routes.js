@@ -13,11 +13,25 @@ const {
   removeConnectionCtrl,
   skipUserCtrl,
 } = require('../controllers/connection.controller');
+const {
+  createGroupCtrl,
+  getGroupsCtrl,
+  getGroupByIdCtrl,
+  updateGroupCtrl,
+  deleteGroupCtrl,
+} = require('../controllers/connectionGroup.controller');
 const { protect } = require('../middlewares/auth.middleware');
 
 const router = express.Router();
 
 router.use(protect);
+
+// Group management routes
+router.post('/groups', createGroupCtrl);
+router.get('/groups', getGroupsCtrl);
+router.get('/groups/:groupId', getGroupByIdCtrl);
+router.put('/groups/:groupId', updateGroupCtrl);
+router.delete('/groups/:groupId', deleteGroupCtrl);
 
 router.post('/like/:likedUserId', likeUserCtrl);
 router.delete('/like/:likedUserId', dislikeUserCtrl);

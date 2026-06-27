@@ -2,13 +2,14 @@ const asyncHandler = require('../utils/asyncHandler');
 const Post = require('../models/Post.model');
 const UserConnections = require('../models/UserConnections.model');
 const User = require('../models/User.model');
+const ConnectionGroup = require('../models/ConnectionGroup.model');
 const { sendPostNotification } = require('../services/notification.service');
 const { sendNewPostEmail } = require('../services/email.service');
 const { success } = require('../utils/response');
 const axios = require('axios');
 
 const createPost = asyncHandler(async (req, res) => {
-  const { content } = req.body;
+  const { content, connectionGroupId } = req.body;
   const userId = req.user._id;
 
   if (!content) {
@@ -43,7 +44,7 @@ const createPost = asyncHandler(async (req, res) => {
 
         let description = '';
         const ogDescMatch = html.match(/<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']*)["']/i) ||
-                            html.match(/<meta[^>]*content=["']([^"']*)["'][^>]*property=["']og:description["']/i);
+                             html.match(/<meta[^>]*content=["']([^"']*)["'][^>]*property=["']og:description["']/i);
         if (ogDescMatch) {
           description = ogDescMatch[1];
         } else {
@@ -104,7 +105,7 @@ const createPost = asyncHandler(async (req, res) => {
   const authorCity = poster?.userDetailId?.city || null;
 
   let targetSegments = {
-    connections: true,
+    connections: connectionGroupId ? false : true,
     city: false,
     industries: [],
     ageGroups: []
@@ -116,7 +117,7 @@ const createPost = asyncHandler(async (req, res) => {
         ? JSON.parse(req.body.targetSegments)
         : req.body.targetSegments;
       targetSegments = {
-        connections: typeof parsed.connections === 'boolean' ? parsed.connections : true,
+        connections: connectionGroupId ? false : (typeof parsed.connections === 'boolean' ? parsed.connections : true),
         city: typeof parsed.city === 'boolean' ? parsed.city : false,
         industries: Array.isArray(parsed.industries) ? parsed.industries : [],
         ageGroups: Array.isArray(parsed.ageGroups) ? parsed.ageGroups : []
@@ -133,6 +134,7 @@ const createPost = asyncHandler(async (req, res) => {
     linkPreview,
     targetSegments,
     authorCity,
+    connectionGroupId: connectionGroupId || null,
     isApproved: false
   });
 
@@ -140,7 +142,7 @@ const createPost = asyncHandler(async (req, res) => {
     path: 'userId',
     populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth' },
     select: 'userDetailId'
-  });
+  }).populate('connectionGroupId', 'name');
 
   success(res, populatedPost, 'Post created successfully and pending admin approval');
 });
@@ -186,13 +188,21 @@ const getPosts = asyncHandler(async (req, res) => {
     c.connection1Id.toString() === userId.toString() ? c.connection2Id : c.connection1Id
   );
 
+  // Fetch connection groups where current user is a member
+  const myGroups = await ConnectionGroup.find({ connections: userId }).select('_id');
+  const myGroupIds = myGroups.map(g => g._id);
+
   const orQueries = [
     // 1. User sees their own posts
     { userId: userId },
 
-    // 2. User sees posts of connections targeted at connections or having no targetSegments
+    // 2. User sees posts shared with a group they are in
+    { connectionGroupId: { $in: myGroupIds } },
+
+    // 3. User sees posts of connections targeted at connections or having no targetSegments
     {
       userId: { $in: connectionIds },
+      connectionGroupId: null,
       $or: [
         { targetSegments: { $exists: false } },
         { 'targetSegments.connections': true },
@@ -206,24 +216,27 @@ const getPosts = asyncHandler(async (req, res) => {
     }
   ];
 
-  // 3. User sees posts targeted at their industry (even if not connected)
+  // 4. User sees posts targeted at their industry (even if not connected)
   if (userIndustry) {
     orQueries.push({
+      connectionGroupId: null,
       'targetSegments.industries': userIndustry
     });
   }
 
-  // 4. User sees posts targeted at their city (even if not connected)
+  // 5. User sees posts targeted at their city (even if not connected)
   if (userCityId) {
     orQueries.push({
+      connectionGroupId: null,
       'targetSegments.city': true,
       authorCity: userCityId
     });
   }
 
-  // 5. User sees posts targeted at their age group (even if not connected)
+  // 6. User sees posts targeted at their age group (even if not connected)
   if (userAgeGroup) {
     orQueries.push({
+      connectionGroupId: null,
       'targetSegments.ageGroups': userAgeGroup
     });
   }
@@ -249,6 +262,7 @@ const getPosts = asyncHandler(async (req, res) => {
       populate: { path: 'userDetailId', select: 'fullName' },
       select: 'userDetailId'
     })
+    .populate('connectionGroupId', 'name')
     .sort({ createdAt: -1 })
     .lean();
 

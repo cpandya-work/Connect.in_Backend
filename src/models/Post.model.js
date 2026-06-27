@@ -53,6 +53,11 @@ const postSchema = new mongoose.Schema({
     ref: 'City',
     default: null
   },
+  connectionGroupId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'ConnectionGroup',
+    default: null
+  },
   isApproved: {
     type: Boolean,
     default: false

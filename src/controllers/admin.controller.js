@@ -860,6 +860,7 @@ const getPendingPostsCtrl = asyncHandler(async (req, res) => {
       select: 'userDetailId'
     })
     .populate('authorCity')
+    .populate('connectionGroupId', 'name')
     .sort({ createdAt: -1 })
     .lean();
 
@@ -936,25 +937,40 @@ const approvePostCtrl = asyncHandler(async (req, res) => {
         )
       );
 
+      // Fetch connection group members if it's a group post
+      let groupMemberIds = new Set();
+      if (post.connectionGroupId) {
+        const ConnectionGroup = require('../models/ConnectionGroup.model');
+        const group = await ConnectionGroup.findById(post.connectionGroupId);
+        if (group) {
+          groupMemberIds = new Set(group.connections.map(id => id.toString()));
+        }
+      }
+
       const notifyPromises = allUsers.map(async (user) => {
         const isConnection = connectionIds.has(user._id.toString());
         
         // Check if user matches post segments
         let shouldNotify = false;
-        const segments = post.targetSegments;
-        if (!segments) {
-          shouldNotify = isConnection;
+        
+        if (post.connectionGroupId) {
+          shouldNotify = groupMemberIds.has(user._id.toString());
         } else {
-          const { connections: targetConn, city: targetCity, industries: targetInd, ageGroups: targetAge } = segments;
-          if (targetConn && isConnection) shouldNotify = true;
-          else if (targetCity && post.authorCity && user.userDetailId?.city && user.userDetailId.city.toString() === post.authorCity.toString()) shouldNotify = true;
-          else if (targetInd && targetInd.length > 0 && user.userDetailId?.industry && targetInd.includes(user.userDetailId.industry)) shouldNotify = true;
-          else if (targetAge && targetAge.length > 0 && user.userDetailId?.dateOfBirth) {
-            const ageGrp = getAgeGroup(user.userDetailId.dateOfBirth);
-            if (ageGrp && targetAge.includes(ageGrp)) shouldNotify = true;
-          } else if (!targetConn && !targetCity && (!targetInd || targetInd.length === 0) && (!targetAge || targetAge.length === 0)) {
-            // Default to connections if no targets specified
-            if (isConnection) shouldNotify = true;
+          const segments = post.targetSegments;
+          if (!segments) {
+            shouldNotify = isConnection;
+          } else {
+            const { connections: targetConn, city: targetCity, industries: targetInd, ageGroups: targetAge } = segments;
+            if (targetConn && isConnection) shouldNotify = true;
+            else if (targetCity && post.authorCity && user.userDetailId?.city && user.userDetailId.city.toString() === post.authorCity.toString()) shouldNotify = true;
+            else if (targetInd && targetInd.length > 0 && user.userDetailId?.industry && targetInd.includes(user.userDetailId.industry)) shouldNotify = true;
+            else if (targetAge && targetAge.length > 0 && user.userDetailId?.dateOfBirth) {
+              const ageGrp = getAgeGroup(user.userDetailId.dateOfBirth);
+              if (ageGrp && targetAge.includes(ageGrp)) shouldNotify = true;
+            } else if (!targetConn && !targetCity && (!targetInd || targetInd.length === 0) && (!targetAge || targetAge.length === 0)) {
+              // Default to connections if no targets specified
+              if (isConnection) shouldNotify = true;
+            }
           }
         }
 
@@ -1014,6 +1030,7 @@ const getAllPostsCtrl = asyncHandler(async (req, res) => {
         select: 'userDetailId',
       })
       .populate('authorCity')
+      .populate('connectionGroupId', 'name')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
