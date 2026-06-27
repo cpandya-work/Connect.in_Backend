@@ -991,6 +991,82 @@ const rejectPostCtrl = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Get all approved (live) shared posts for admin management, paginated
+ * Query params: page, limit, search
+ */
+const getAllPostsCtrl = asyncHandler(async (req, res) => {
+  const Post = require('../models/Post.model');
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 15;
+  const search = req.query.search || '';
+  const skip = (page - 1) * limit;
+
+  const query = { isApproved: true };
+  if (search) {
+    query.content = { $regex: search, $options: 'i' };
+  }
+
+  const [posts, total] = await Promise.all([
+    Post.find(query)
+      .populate({
+        path: 'userId',
+        populate: { path: 'userDetailId', select: 'fullName profileImage' },
+        select: 'userDetailId',
+      })
+      .populate('authorCity')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean(),
+    Post.countDocuments(query),
+  ]);
+
+  success(res, {
+    posts,
+    pagination: {
+      currentPage: page,
+      totalPages: Math.ceil(total / limit),
+      totalItems: total,
+      itemsPerPage: limit,
+    },
+  }, 'Posts retrieved successfully');
+});
+
+/**
+ * Toggle a post's visibility (isApproved true <-> false).
+ * Disabling hides it from all feeds; enabling restores it.
+ */
+const togglePostVisibilityCtrl = asyncHandler(async (req, res) => {
+  const { postId } = req.params;
+  const Post = require('../models/Post.model');
+
+  const post = await Post.findById(postId);
+  if (!post) {
+    return res.status(404).json({ success: false, message: 'Post not found' });
+  }
+
+  post.isApproved = !post.isApproved;
+  await post.save();
+
+  success(res, { post }, `Post has been ${post.isApproved ? 'enabled' : 'disabled'} successfully`);
+});
+
+/**
+ * Permanently delete a post by admin
+ */
+const adminDeletePostCtrl = asyncHandler(async (req, res) => {
+  const { postId } = req.params;
+  const Post = require('../models/Post.model');
+
+  const post = await Post.findByIdAndDelete(postId);
+  if (!post) {
+    return res.status(404).json({ success: false, message: 'Post not found' });
+  }
+
+  success(res, null, 'Post deleted successfully');
+});
+
+/**
  * Get paginated list of sports with search
  * Query params: page, limit, search, isActive
  */
@@ -1155,6 +1231,9 @@ module.exports = {
   getPendingPostsCtrl,
   approvePostCtrl,
   rejectPostCtrl,
+  getAllPostsCtrl,
+  togglePostVisibilityCtrl,
+  adminDeletePostCtrl,
   getSportsListCtrl,
   getSportByIdCtrl,
   createSportCtrl,

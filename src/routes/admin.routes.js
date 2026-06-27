@@ -58,6 +58,9 @@ const {
   getPendingPostsCtrl,
   approvePostCtrl,
   rejectPostCtrl,
+  getAllPostsCtrl,
+  togglePostVisibilityCtrl,
+  adminDeletePostCtrl,
   toggleUserStatusCtrl,
   deleteUserCtrl,
 } = require('../controllers/admin.controller');
@@ -253,5 +256,10 @@ router.patch('/auth-banners/:id/toggle', toggleAuthBannerCtrl);
 router.get('/posts/pending', getPendingPostsCtrl);
 router.put('/posts/:postId/approve', approvePostCtrl);
 router.delete('/posts/:postId/reject', rejectPostCtrl);
+
+// Post management routes (all live posts)
+router.get('/posts', getAllPostsCtrl);
+router.put('/posts/:postId/toggle-visibility', togglePostVisibilityCtrl);
+router.delete('/posts/:postId', adminDeletePostCtrl);
 
 module.exports = router;
