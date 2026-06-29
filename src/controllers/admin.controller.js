@@ -55,6 +55,7 @@ const {
   getEmailUsersCountByRegistration,
   getEmailUsersByRegistration,
   getDashboardStats,
+  getStatsTrend,
 } = require('../services/admin.service');
 const { createSkillSchema, updateSkillSchema } = require('../validators/skill.validator');
 const { createSportSchema, updateSportSchema } = require('../validators/sport.validator');
@@ -851,6 +852,16 @@ const getTrafficSourcesStatsCtrl = asyncHandler(async (req, res) => {
   success(res, stats, 'Traffic source stats retrieved successfully');
 });
 
+const getStatsTrendCtrl = asyncHandler(async (req, res) => {
+  const { statId } = req.query;
+  if (!statId) {
+    return res.status(400).json({ success: false, message: 'statId query parameter is required' });
+  }
+  const trend = await getStatsTrend(statId);
+  success(res, { trend }, 'Stats trend retrieved successfully');
+});
+
+
 const getPendingPostsCtrl = asyncHandler(async (req, res) => {
   const Post = require('../models/Post.model');
   const posts = await Post.find({ isApproved: false })
@@ -1245,6 +1256,7 @@ module.exports = {
   getTargetedEmailUserCountCtrl,
   sendTargetedEmailBroadcastCtrl,
   getDashboardStatsCtrl,
+  getStatsTrendCtrl,
   getPendingPostsCtrl,
   approvePostCtrl,
   rejectPostCtrl,

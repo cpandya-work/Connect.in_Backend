@@ -55,6 +55,7 @@ const {
   getTargetedEmailUserCountCtrl,
   sendTargetedEmailBroadcastCtrl,
   getDashboardStatsCtrl,
+  getStatsTrendCtrl,
   getPendingPostsCtrl,
   approvePostCtrl,
   rejectPostCtrl,
@@ -75,6 +76,7 @@ router.use(isAdmin);
 
 // Dashboard stats route
 router.get('/dashboard-stats', getDashboardStatsCtrl);
+router.get('/dashboard-stats/trend', getStatsTrendCtrl);
 router.get('/traffic-sources', getTrafficSourcesStatsCtrl);
 
 // User management routes

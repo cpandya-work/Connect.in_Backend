@@ -1396,6 +1396,82 @@ const getDashboardStats = async () => {
     totalCompleteProfiles
   };
 };
+
+/**
+ * Get daily stats counts for the last 7 days for a specific statistic
+ * @param {string} statId - ID of the statistic to get trend for
+ * @returns {Promise<Array>} Array of { date: string, count: number }
+ */
+const getStatsTrend = async (statId) => {
+  const trends = [];
+  
+  // Generate date ranges for the last 7 days (including today)
+  for (let i = 6; i >= 0; i--) {
+    const start = new Date();
+    start.setDate(start.getDate() - i);
+    start.setHours(0, 0, 0, 0);
+
+    const end = new Date();
+    end.setDate(end.getDate() - i);
+    end.setHours(23, 59, 59, 999);
+
+    const label = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    trends.push({ start, end, label });
+  }
+
+  // Pre-fetch incomplete user detail IDs if we are calculating complete profiles trend
+  let incompleteIds = [];
+  if (statId === 'complete-profiles') {
+    const incompleteDetails = await UserDetail.find({
+      $or: [
+        { profileImage: { $exists: false } },
+        { profileImage: '' },
+        { profileImage: null },
+        { isProfileComplete: false }
+      ]
+    }).select('_id').lean();
+    incompleteIds = incompleteDetails.map(d => d._id);
+  }
+
+  // Helper to count documents in date range for specified statId
+  const getCountForRange = async (start, end) => {
+    switch (statId) {
+      case 'users':
+        return await User.countDocuments({ createdAt: { $gte: start, $lte: end } });
+      case 'complete-profiles':
+        return await User.countDocuments({
+          userDetailId: { $exists: true, $ne: null, $nin: incompleteIds },
+          createdAt: { $gte: start, $lte: end }
+        });
+      case 'connections':
+        return await UserRequests.countDocuments({ createdAt: { $gte: start, $lte: end } });
+      case 'likes':
+        return await UserLikes.countDocuments({ createdAt: { $gte: start, $lte: end } });
+      case 'offers':
+        return await Card.countDocuments({ createdAt: { $gte: start, $lte: end } });
+      case 'shared':
+        return await Post.countDocuments({ createdAt: { $gte: start, $lte: end } });
+      case 'messages':
+        return await UserChat.countDocuments({ createdAt: { $gte: start, $lte: end } });
+      default:
+        throw new Error('Invalid statistic ID');
+    }
+  };
+
+  // Run queries in parallel
+  const results = await Promise.all(
+    trends.map(async (t) => {
+      const count = await getCountForRange(t.start, t.end);
+      return {
+        date: t.label,
+        count
+      };
+    })
+  );
+
+  return results;
+};
+
 /**
  * Get stats of users count grouped by traffic source
  * @returns {Promise<Object>} Object containing stats array and totalCompleteProfiles
@@ -1651,5 +1727,6 @@ module.exports = {
   getEmailUsersCountByRegistration,
   getEmailUsersByRegistration,
   getDashboardStats,
+  getStatsTrend,
 };
 
