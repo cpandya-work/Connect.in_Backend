@@ -1,6 +1,11 @@
 const asyncHandler = require('../utils/asyncHandler');
 const { success } = require('../utils/response');
 const {
+  getPositionsList,
+  getPositionById,
+  createPosition,
+  updatePosition,
+  deletePosition,
   getTrafficSourcesStats,
   getUsersList,
   getSkillsList,
@@ -58,6 +63,7 @@ const {
   getStatsTrend,
 } = require('../services/admin.service');
 const { createSkillSchema, updateSkillSchema } = require('../validators/skill.validator');
+const { createPositionSchema, updatePositionSchema } = require('../validators/position.validator');
 const { createSportSchema, updateSportSchema } = require('../validators/sport.validator');
 const { createInterestSchema, updateInterestSchema } = require('../validators/interest.validator');
 const { createCitySchema, updateCitySchema } = require('../validators/city.validator');
@@ -1164,6 +1170,74 @@ const deleteSportCtrl = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Get paginated list of positions
+ */
+const getPositionsListCtrl = asyncHandler(async (req, res) => {
+  const { page, limit, search, isActive } = req.query;
+
+  const result = await getPositionsList({
+    page,
+    limit,
+    search,
+    isActive,
+  });
+
+  success(res, result, 'Positions retrieved successfully');
+});
+
+/**
+ * Get a single position by ID
+ */
+const getPositionByIdCtrl = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const position = await getPositionById(id);
+  success(res, { position }, 'Position retrieved successfully');
+});
+
+/**
+ * Create a new position
+ */
+const createPositionCtrl = asyncHandler(async (req, res) => {
+  const { error } = createPositionSchema.validate(req.body);
+  if (error) {
+    return res.status(400).json({ 
+      success: false, 
+      message: error.details[0].message 
+    });
+  }
+
+  const position = await createPosition(req.body);
+  success(res, { position }, 'Position created successfully');
+});
+
+/**
+ * Update a position by ID
+ */
+const updatePositionCtrl = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { error } = updatePositionSchema.validate(req.body);
+  
+  if (error) {
+    return res.status(400).json({ 
+      success: false, 
+      message: error.details[0].message 
+    });
+  }
+
+  const position = await updatePosition(id, req.body);
+  success(res, { position }, 'Position updated successfully');
+});
+
+/**
+ * Delete a position by ID
+ */
+const deletePositionCtrl = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  await deletePosition(id);
+  success(res, null, 'Position deleted successfully');
+});
+
+/**
  * Toggle user active/disabled status
  */
 const toggleUserStatusCtrl = asyncHandler(async (req, res) => {
@@ -1206,6 +1280,11 @@ const deleteUserCtrl = asyncHandler(async (req, res) => {
 });
 
 module.exports = {
+  getPositionsListCtrl,
+  getPositionByIdCtrl,
+  createPositionCtrl,
+  updatePositionCtrl,
+  deletePositionCtrl,
   getTrafficSourcesStatsCtrl,
   getUsersListCtrl,
   getSkillsListCtrl,

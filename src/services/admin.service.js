@@ -12,6 +12,7 @@ const AuthBanner = require('../models/AuthBanner.model');
 const UserRequests = require('../models/UserRequests.model');
 const UserLikes = require('../models/UserLikes.model');
 const Post = require('../models/Post.model');
+const Position = require('../models/Position.model');
 const UserChat = require('../models/UserChat.model');
 const { deleteFromCloudinary } = require('../utils/cloudinary');
 const { sendBroadcastOfferEmail } = require('./email.service');
@@ -1671,7 +1672,129 @@ const getSportById = async (sportId) => {
   return sport;
 };
 
+/**
+ * Get paginated list of positions with search functionality
+ */
+const getPositionsList = async ({ page = 1, limit = 10, search = '', isActive = null } = {}) => {
+  const pageNum = parseInt(page, 10) || 1;
+  const limitNum = parseInt(limit, 10) || 10;
+  const skip = (pageNum - 1) * limitNum;
+
+  let query = {};
+  
+  if (search && search.trim()) {
+    const searchRegex = new RegExp(search.trim(), 'i');
+    query.$or = [
+      { name: searchRegex },
+      { description: searchRegex },
+    ];
+  }
+
+  if (isActive !== null && isActive !== undefined) {
+    query.isActive = isActive === 'true' || isActive === true;
+  }
+
+  const total = await Position.countDocuments(query);
+  const positions = await Position.find(query)
+    .sort({ name: 1 })
+    .skip(skip)
+    .limit(limitNum)
+    .lean();
+
+  const totalPages = Math.ceil(total / limitNum);
+  const hasNextPage = pageNum < totalPages;
+  const hasPrevPage = pageNum > 1;
+
+  return {
+    positions,
+    pagination: {
+      currentPage: pageNum,
+      totalPages,
+      totalItems: total,
+      itemsPerPage: limitNum,
+      hasNextPage,
+      hasPrevPage,
+    },
+  };
+};
+
+/**
+ * Create a new position
+ */
+const createPosition = async (positionData) => {
+  const normalizedName = positionData.name;
+  
+  const existingPosition = await Position.findOne({ name: normalizedName });
+  if (existingPosition) {
+    throw new Error('Position with this name already exists');
+  }
+
+  const position = await Position.create({
+    name: normalizedName,
+    description: positionData.description || '',
+    isActive: positionData.isActive !== undefined ? positionData.isActive : true,
+  });
+
+  return position;
+};
+
+/**
+ * Update a position by ID
+ */
+const updatePosition = async (positionId, updateData) => {
+  const position = await Position.findById(positionId);
+  if (!position) {
+    throw new Error('Position not found');
+  }
+
+  if (updateData.name) {
+    const normalizedName = updateData.name;
+    const existingPosition = await Position.findOne({ 
+      name: normalizedName,
+      _id: { $ne: positionId }
+    });
+    if (existingPosition) {
+      throw new Error('Position with this name already exists');
+    }
+    updateData.name = normalizedName;
+  }
+
+  Object.assign(position, updateData);
+  await position.save();
+
+  return position;
+};
+
+/**
+ * Delete a position by ID
+ */
+const deletePosition = async (positionId) => {
+  const position = await Position.findById(positionId);
+  if (!position) {
+    throw new Error('Position not found');
+  }
+
+  await Position.deleteOne({ _id: positionId });
+  return { message: 'Position deleted successfully' };
+};
+
+/**
+ * Get a single position by ID
+ */
+const getPositionById = async (positionId) => {
+  const position = await Position.findById(positionId);
+  if (!position) {
+    throw new Error('Position not found');
+  }
+  return position;
+};
+
 module.exports = {
+  getPositionsList,
+  createPosition,
+  updatePosition,
+  deletePosition,
+  getPositionById,
   getSportsList,
   createSport,
   updateSport,

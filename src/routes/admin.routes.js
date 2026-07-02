@@ -64,6 +64,11 @@ const {
   adminDeletePostCtrl,
   toggleUserStatusCtrl,
   deleteUserCtrl,
+  getPositionsListCtrl,
+  getPositionByIdCtrl,
+  createPositionCtrl,
+  updatePositionCtrl,
+  deletePositionCtrl,
 } = require('../controllers/admin.controller');
 const { isAdmin } = require('../middlewares/admin.middleware');
 const uploadCardLogo = require('../middlewares/cardUpload.middleware');
@@ -118,6 +123,22 @@ router.put('/sports/:id', updateSportCtrl);
 
 // DELETE /api/admin/sports/:id
 router.delete('/sports/:id', deleteSportCtrl);
+
+// Position management routes
+// GET /api/admin/positions?page=1&limit=10&search=manager&isActive=true
+router.get('/positions', getPositionsListCtrl);
+
+// GET /api/admin/positions/:id
+router.get('/positions/:id', getPositionByIdCtrl);
+
+// POST /api/admin/positions
+router.post('/positions', createPositionCtrl);
+
+// PUT /api/admin/positions/:id
+router.put('/positions/:id', updatePositionCtrl);
+
+// DELETE /api/admin/positions/:id
+router.delete('/positions/:id', deletePositionCtrl);
 
 // Interest management routes
 // GET /api/admin/interests?page=1&limit=10&search=reading&isActive=true

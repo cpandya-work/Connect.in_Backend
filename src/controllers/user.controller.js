@@ -4,6 +4,7 @@ const UserDetail = require('../models/UserDetail.model');
 const City = require('../models/City.model');
 const Company = require('../models/Company.model');
 const Industry = require('../models/Industry.model');
+const Position = require('../models/Position.model');
 const { profileSchema, updateProfileSchema } = require('../validators/user.validator');
 const { success } = require('../utils/response');
 const { getPublicProfile, updateProfile, deleteAccount } = require('../services/user.service');
@@ -54,6 +55,15 @@ const getProfile = asyncHandler(async (req, res) => {
       industryName = industry.name;
     }
   }
+
+  // Get position name if position is a valid ObjectId
+  let positionName = user.userDetailId.position;
+  if (user.userDetailId.position && mongoose.Types.ObjectId.isValid(user.userDetailId.position)) {
+    const positionObj = await Position.findById(user.userDetailId.position);
+    if (positionObj) {
+      positionName = positionObj.name;
+    }
+  }
   
   const userDetailObj = user.userDetailId.toObject();
   
@@ -69,6 +79,7 @@ const getProfile = asyncHandler(async (req, res) => {
     city: cityName, // Replace city ID with city name
     company: companyName, // Replace company ID with company name
     industry: industryName, // Replace industry ID with industry name
+    position: positionName, // Replace position ID with position name
   };
   
   success(res, { profile });
@@ -226,6 +237,15 @@ const updateUserProfile = asyncHandler(async (req, res) => {
       industryName = industry.name;
     }
   }
+
+  // Get position name if position is a valid ObjectId
+  let positionName = updatedProfile.position;
+  if (updatedProfile.position && mongoose.Types.ObjectId.isValid(updatedProfile.position)) {
+    const positionObj = await Position.findById(updatedProfile.position);
+    if (positionObj) {
+      positionName = positionObj.name;
+    }
+  }
   
   // Replace IDs with names in the response
   const profileWithNames = {
@@ -233,6 +253,7 @@ const updateUserProfile = asyncHandler(async (req, res) => {
     city: cityName,
     company: companyName,
     industry: industryName,
+    position: positionName,
   };
   
   success(res, { profile: profileWithNames }, 'Profile updated');
@@ -448,6 +469,15 @@ const getProfileProgress = asyncHandler(async (req, res) => {
       industryName = industry.name;
     }
   }
+
+  // Get position name if position is a valid ObjectId
+  let positionName = userDetail.position;
+  if (userDetail.position && mongoose.Types.ObjectId.isValid(userDetail.position)) {
+    const positionObj = await Position.findById(userDetail.position);
+    if (positionObj) {
+      positionName = positionObj.name;
+    }
+  }
   
   // Convert to plain object with all fields, including undefined ones
   const profileData = userDetail.toObject({ 
@@ -462,6 +492,7 @@ const getProfileProgress = asyncHandler(async (req, res) => {
   profileData.city = cityName;
   profileData.company = companyName;
   profileData.industry = industryName;
+  profileData.position = positionName;
   
   success(res, {
     lastCompletedStep: profileData.lastCompletedStep || 0,
