@@ -33,6 +33,12 @@ const createCardSchema = Joi.object({
     'string.min': 'Each eligible must be at least 1 character',
     'string.max': 'Each eligible must not exceed 200 characters'
   }),
+  targetAgeMin: Joi.number().integer().min(0).max(120).optional().allow(null, ''),
+  targetAgeMax: Joi.number().integer().min(0).max(120).optional().allow(null, ''),
+  targetCities: Joi.array().items(Joi.string().trim()).optional().default([]),
+  targetPositions: Joi.array().items(Joi.string().trim()).optional().default([]),
+  offer_image: Joi.string().uri().trim().optional().allow(null, ''),
+  clicks: Joi.number().integer().min(0).optional().default(0),
   isActive: Joi.boolean().optional().default(true)
 });
 
@@ -67,6 +73,12 @@ const updateCardSchema = Joi.object({
     'string.min': 'Each eligible must be at least 1 character',
     'string.max': 'Each eligible must not exceed 200 characters'
   }),
+  targetAgeMin: Joi.number().integer().min(0).max(120).optional().allow(null, ''),
+  targetAgeMax: Joi.number().integer().min(0).max(120).optional().allow(null, ''),
+  targetCities: Joi.array().items(Joi.string().trim()).optional(),
+  targetPositions: Joi.array().items(Joi.string().trim()).optional(),
+  offer_image: Joi.string().uri().trim().optional().allow(null, ''),
+  clicks: Joi.number().integer().min(0).optional(),
   isActive: Joi.boolean().optional()
 }).min(1); // At least one field must be provided
 

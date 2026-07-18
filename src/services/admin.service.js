@@ -1061,9 +1061,14 @@ const createCard = async (cardData) => {
     name: cardData.name,
     description: cardData.description || '',
     logo_image: cardData.logo_image, // Cloudinary URL from file upload
+    offer_image: cardData.offer_image || null, // Cloudinary URL from file upload
     url: cardData.url.trim(),
     features: cardData.features || [],
     eligibles: cardData.eligibles || [],
+    targetAgeMin: cardData.targetAgeMin !== undefined && cardData.targetAgeMin !== null ? parseInt(cardData.targetAgeMin, 10) : null,
+    targetAgeMax: cardData.targetAgeMax !== undefined && cardData.targetAgeMax !== null ? parseInt(cardData.targetAgeMax, 10) : null,
+    targetCities: cardData.targetCities || [],
+    targetPositions: cardData.targetPositions || [],
     isActive: cardData.isActive !== undefined ? cardData.isActive : true,
   });
 
@@ -1073,19 +1078,30 @@ const createCard = async (cardData) => {
 /**
  * Update a card by ID
  */
-const updateCard = async (cardId, updateData, file = null) => {
+const updateCard = async (cardId, updateData, files = null) => {
   const card = await Card.findById(cardId);
   if (!card) {
     throw new Error('Card not found');
   }
 
-  // If a new image file is uploaded, delete the old one and use the new URL
-  if (file && file.path) {
+  // Handle logo_image file upload
+  const logoFile = files && files['logo_image'] ? files['logo_image'][0] : null;
+  if (logoFile && logoFile.path) {
     // Delete old image if it exists
     if (card.logo_image) {
       await deleteFromCloudinary(card.logo_image);
     }
-    updateData.logo_image = file.path;
+    updateData.logo_image = logoFile.path;
+  }
+
+  // Handle offer_image file upload
+  const offerFile = files && files['offer_image'] ? files['offer_image'][0] : null;
+  if (offerFile && offerFile.path) {
+    // Delete old image if it exists
+    if (card.offer_image) {
+      await deleteFromCloudinary(card.offer_image);
+    }
+    updateData.offer_image = offerFile.path;
   }
 
   // Trim string fields if provided
@@ -1095,9 +1111,13 @@ const updateCard = async (cardId, updateData, file = null) => {
   if (updateData.description !== undefined) {
     updateData.description = updateData.description.trim();
   }
-  if (updateData.logo_image !== undefined && !file) {
+  if (updateData.logo_image !== undefined && (!files || !files['logo_image'])) {
     // Only trim if it's a URL string, not a file upload
     updateData.logo_image = updateData.logo_image.trim();
+  }
+  if (updateData.offer_image !== undefined && (!files || !files['offer_image'])) {
+    // Only trim if it's a URL string, not a file upload
+    updateData.offer_image = updateData.offer_image ? updateData.offer_image.trim() : null;
   }
   if (updateData.url !== undefined) {
     updateData.url = updateData.url.trim();
@@ -1107,6 +1127,18 @@ const updateCard = async (cardId, updateData, file = null) => {
   }
   if (updateData.eligibles !== undefined && Array.isArray(updateData.eligibles)) {
     updateData.eligibles = updateData.eligibles.map(e => e.trim()).filter(e => e.length > 0);
+  }
+  if (updateData.targetCities !== undefined && Array.isArray(updateData.targetCities)) {
+    updateData.targetCities = updateData.targetCities.map(c => c.trim()).filter(c => c.length > 0);
+  }
+  if (updateData.targetPositions !== undefined && Array.isArray(updateData.targetPositions)) {
+    updateData.targetPositions = updateData.targetPositions.map(p => p.trim()).filter(p => p.length > 0);
+  }
+  if (updateData.targetAgeMin !== undefined) {
+    updateData.targetAgeMin = updateData.targetAgeMin !== null && updateData.targetAgeMin !== '' ? parseInt(updateData.targetAgeMin, 10) : null;
+  }
+  if (updateData.targetAgeMax !== undefined) {
+    updateData.targetAgeMax = updateData.targetAgeMax !== null && updateData.targetAgeMax !== '' ? parseInt(updateData.targetAgeMax, 10) : null;
   }
 
   Object.assign(card, updateData);

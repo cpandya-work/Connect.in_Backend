@@ -34,6 +34,14 @@ const userDetailSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  lastOfferShownAt: {
+    type: Date,
+    default: null
+  },
+  shownOfferIds: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Card'
+  }]
 });
 
 // Hash password before saving

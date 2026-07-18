@@ -27,6 +27,31 @@ const cardSchema = new mongoose.Schema({
     type: String,
     trim: true
   }],
+  targetAgeMin: {
+    type: Number,
+    default: null
+  },
+  targetAgeMax: {
+    type: Number,
+    default: null
+  },
+  targetCities: [{
+    type: String,
+    trim: true
+  }],
+  targetPositions: [{
+    type: String,
+    trim: true
+  }],
+  offer_image: {
+    type: String,
+    trim: true,
+    default: null
+  },
+  clicks: {
+    type: Number,
+    default: 0
+  },
   isActive: { 
     type: Boolean, 
     default: true 

@@ -79,6 +79,29 @@ const {
 const { sendBroadcastNotification } = require('../services/notification.service');
 // const { sendBulkSms } = require('../services/sms.service');
 const { sendBulkHtmlEmail } = require('../services/email.service');
+const Setting = require('../models/Setting.model');
+const CardClick = require('../models/CardClick.model');
+const Card = require('../models/Card.model');
+const mongoose = require('mongoose');
+
+const getPopupSettingCtrl = asyncHandler(async (req, res) => {
+  const setting = await Setting.findOne({ key: 'isPopupEnabled' });
+  const isPopupEnabled = setting ? setting.value : true; // default to true
+  success(res, { isPopupEnabled }, 'Popup setting retrieved successfully');
+});
+
+const updatePopupSettingCtrl = asyncHandler(async (req, res) => {
+  const { isPopupEnabled } = req.body;
+  if (isPopupEnabled === undefined) {
+    return res.status(400).json({ success: false, message: 'isPopupEnabled is required' });
+  }
+  const setting = await Setting.findOneAndUpdate(
+    { key: 'isPopupEnabled' },
+    { value: !!isPopupEnabled },
+    { new: true, upsert: true }
+  );
+  success(res, { isPopupEnabled: setting.value }, 'Popup setting updated successfully');
+});
 
 /**
  * Get paginated list of users with search
@@ -574,24 +597,34 @@ const parseArrayField = (field) => {
  * Requires image upload - image is uploaded to Cloudinary and URL is saved automatically
  */
 const createCardCtrl = asyncHandler(async (req, res) => {
+  const logoFile = req.files && req.files['logo_image'] ? req.files['logo_image'][0] : null;
+  const offerFile = req.files && req.files['offer_image'] ? req.files['offer_image'][0] : null;
+
   // Image file is required for card creation
-  if (!req.file || !req.file.path) {
+  if (!logoFile || !logoFile.path) {
     return res.status(400).json({ 
       success: false, 
       message: 'Logo image is required. Please upload an image file.' 
     });
   }
 
-  // Parse features and eligibles from form-data
-  const features = parseArrayField(req.body.features);
-  const eligibles = parseArrayField(req.body.eligibles);
+  // Parse features and eligibles from form-data (checking both array format and plain formats)
+  const features = parseArrayField(req.body.features || req.body['features[]']);
+  const eligibles = parseArrayField(req.body.eligibles || req.body['eligibles[]']);
+  const targetCities = parseArrayField(req.body.targetCities || req.body['targetCities[]']);
+  const targetPositions = parseArrayField(req.body.targetPositions || req.body['targetPositions[]']);
 
   // Use the Cloudinary URL from the uploaded file
   const cardData = { 
     ...req.body,
-    logo_image: req.file.path, // Cloudinary URL
+    logo_image: logoFile.path, // Cloudinary URL
+    offer_image: offerFile ? offerFile.path : null, // Cloudinary URL
     features: features, // Parsed array
-    eligibles: eligibles // Parsed array
+    eligibles: eligibles, // Parsed array
+    targetCities: targetCities,
+    targetPositions: targetPositions,
+    targetAgeMin: req.body.targetAgeMin !== undefined && req.body.targetAgeMin !== '' && req.body.targetAgeMin !== 'null' ? parseInt(req.body.targetAgeMin, 10) : null,
+    targetAgeMax: req.body.targetAgeMax !== undefined && req.body.targetAgeMax !== '' && req.body.targetAgeMax !== 'null' ? parseInt(req.body.targetAgeMax, 10) : null,
   };
   
   const { error } = createCardSchema.validate(cardData);
@@ -613,18 +646,29 @@ const createCardCtrl = asyncHandler(async (req, res) => {
 const updateCardCtrl = asyncHandler(async (req, res) => {
   const { id } = req.params;
   
-  // If file is uploaded, use file path; otherwise use logo_image from body
+  // If file is uploaded, use file path; otherwise use logo_image/offer_image from body
   const updateData = { ...req.body };
-  if (req.file && req.file.path) {
-    updateData.logo_image = req.file.path;
+  const logoFile = req.files && req.files['logo_image'] ? req.files['logo_image'][0] : null;
+  const offerFile = req.files && req.files['offer_image'] ? req.files['offer_image'][0] : null;
+
+  if (logoFile && logoFile.path) {
+    updateData.logo_image = logoFile.path;
+  }
+  if (offerFile && offerFile.path) {
+    updateData.offer_image = offerFile.path;
   }
   
-  // Parse features and eligibles if provided
-  if (updateData.features !== undefined) {
-    updateData.features = parseArrayField(updateData.features);
+  // Parse array fields if provided
+  updateData.features = parseArrayField(updateData.features || updateData['features[]']);
+  updateData.eligibles = parseArrayField(updateData.eligibles || updateData['eligibles[]']);
+  updateData.targetCities = parseArrayField(updateData.targetCities || updateData['targetCities[]']);
+  updateData.targetPositions = parseArrayField(updateData.targetPositions || updateData['targetPositions[]']);
+
+  if (updateData.targetAgeMin !== undefined) {
+    updateData.targetAgeMin = updateData.targetAgeMin !== '' && updateData.targetAgeMin !== 'null' && updateData.targetAgeMin !== null ? parseInt(updateData.targetAgeMin, 10) : null;
   }
-  if (updateData.eligibles !== undefined) {
-    updateData.eligibles = parseArrayField(updateData.eligibles);
+  if (updateData.targetAgeMax !== undefined) {
+    updateData.targetAgeMax = updateData.targetAgeMax !== '' && updateData.targetAgeMax !== 'null' && updateData.targetAgeMax !== null ? parseInt(updateData.targetAgeMax, 10) : null;
   }
   
   const { error } = updateCardSchema.validate(updateData);
@@ -636,7 +680,7 @@ const updateCardCtrl = asyncHandler(async (req, res) => {
     });
   }
 
-  const card = await updateCard(id, updateData, req.file);
+  const card = await updateCard(id, updateData, req.files);
   success(res, { card }, 'Card updated successfully');
 });
 
@@ -647,6 +691,119 @@ const deleteCardCtrl = asyncHandler(async (req, res) => {
   const { id } = req.params;
   await deleteCard(id);
   success(res, null, 'Card deleted successfully');
+});
+
+/**
+ * Get all users who clicked on a specific card
+ */
+const getCardClicksCtrl = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ success: false, message: 'Invalid Card ID' });
+  }
+
+  const card = await Card.findById(id);
+  if (!card) {
+    return res.status(404).json({ success: false, message: 'Card not found' });
+  }
+
+  const clicks = await CardClick.aggregate([
+    { $match: { cardId: new mongoose.Types.ObjectId(id) } },
+    { $group: {
+        _id: "$userId",
+        clickCount: { $sum: 1 },
+        lastClickedAt: { $max: "$createdAt" }
+    }},
+    { $lookup: {
+        from: "users",
+        localField: "_id",
+        foreignField: "_id",
+        as: "user"
+    }},
+    { $unwind: "$user" },
+    { $lookup: {
+        from: "userdetails",
+        localField: "user.userDetailId",
+        foreignField: "_id",
+        as: "userDetail"
+    }},
+    { $unwind: { path: "$userDetail", preserveNullAndEmptyArrays: true } },
+    { $project: {
+        _id: 1,
+        clickCount: 1,
+        lastClickedAt: 1,
+        mobile: "$user.phoneNumber",
+        email: "$userDetail.email",
+        fullName: "$userDetail.fullName"
+    }},
+    { $sort: { clickCount: -1 } }
+  ]);
+
+  success(res, { card, clicks }, 'Card clicks retrieved successfully');
+});
+
+/**
+ * Send an email broadcast to all users who clicked on a card
+ */
+const broadcastCardMailerCtrl = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { subject, htmlContent } = req.body;
+
+  if (!subject || !htmlContent) {
+    return res.status(400).json({ success: false, message: 'Subject and content are required' });
+  }
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ success: false, message: 'Invalid Card ID' });
+  }
+
+  const card = await Card.findById(id);
+  if (!card) {
+    return res.status(404).json({ success: false, message: 'Card not found' });
+  }
+
+  // Find all unique users who clicked this card
+  const clicks = await CardClick.aggregate([
+    { $match: { cardId: new mongoose.Types.ObjectId(id) } },
+    { $group: {
+        _id: "$userId"
+    }},
+    { $lookup: {
+        from: "users",
+        localField: "_id",
+        foreignField: "_id",
+        as: "user"
+    }},
+    { $unwind: "$user" },
+    { $lookup: {
+        from: "userdetails",
+        localField: "user.userDetailId",
+        foreignField: "_id",
+        as: "userDetail"
+    }},
+    { $unwind: { path: "$userDetail", preserveNullAndEmptyArrays: true } },
+    { $project: {
+        email: "$userDetail.email",
+        fullName: "$userDetail.fullName"
+    }}
+  ]);
+
+  // Filter out any entries without emails
+  const recipients = clicks
+    .map(c => ({
+      email: c.email,
+      fullName: c.fullName
+    }))
+    .filter(r => !!r.email);
+
+  if (recipients.length === 0) {
+    return res.status(400).json({ success: false, message: 'No users with emails found who clicked this offer' });
+  }
+
+  // Send bulk emails using the helper function
+  const result = await sendBulkHtmlEmail(recipients, subject, htmlContent);
+
+  success(res, { sent: result.sent, skipped: result.skipped }, 'Broadcast mailer sent successfully');
 });
 
 /**
@@ -1322,6 +1479,8 @@ module.exports = {
   createCardCtrl,
   updateCardCtrl,
   deleteCardCtrl,
+  getCardClicksCtrl,
+  broadcastCardMailerCtrl,
   sendBroadcastNotificationCtrl,
   getAuthBannersCtrl,
   createAuthBannerCtrl,
@@ -1349,4 +1508,6 @@ module.exports = {
   deleteSportCtrl,
   toggleUserStatusCtrl,
   deleteUserCtrl,
+  getPopupSettingCtrl,
+  updatePopupSettingCtrl,
 };

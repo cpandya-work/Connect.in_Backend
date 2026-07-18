@@ -42,6 +42,10 @@ const {
   createCardCtrl,
   updateCardCtrl,
   deleteCardCtrl,
+  getCardClicksCtrl,
+  broadcastCardMailerCtrl,
+  getPopupSettingCtrl,
+  updatePopupSettingCtrl,
   sendBroadcastNotificationCtrl,
   getAuthBannersCtrl,
   createAuthBannerCtrl,
@@ -228,13 +232,25 @@ router.get('/cards', getCardsListCtrl);
 router.get('/cards/:id', getCardByIdCtrl);
 
 // POST /api/admin/cards - Requires logo_image file upload (uploaded to Cloudinary automatically)
-router.post('/cards', uploadCardLogo.single('logo_image'), createCardCtrl);
+router.post('/cards', uploadCardLogo.fields([{ name: 'logo_image', maxCount: 1 }, { name: 'offer_image', maxCount: 1 }]), createCardCtrl);
 
 // PUT /api/admin/cards/:id - Can accept image file or logo_image URL
-router.put('/cards/:id', uploadCardLogo.single('logo_image'), updateCardCtrl);
+router.put('/cards/:id', uploadCardLogo.fields([{ name: 'logo_image', maxCount: 1 }, { name: 'offer_image', maxCount: 1 }]), updateCardCtrl);
+
+// GET /api/admin/settings/popup
+router.get('/settings/popup', getPopupSettingCtrl);
+
+// POST /api/admin/settings/popup
+router.post('/settings/popup', updatePopupSettingCtrl);
 
 // DELETE /api/admin/cards/:id
 router.delete('/cards/:id', deleteCardCtrl);
+
+// GET /api/admin/cards/:id/clicks
+router.get('/cards/:id/clicks', getCardClicksCtrl);
+
+// POST /api/admin/cards/:id/broadcast
+router.post('/cards/:id/broadcast', broadcastCardMailerCtrl);
 
 // Notification management routes
 // POST /api/admin/notifications/broadcast - Send push notification to all users
