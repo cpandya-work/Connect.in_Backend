@@ -39,6 +39,7 @@ const createCardSchema = Joi.object({
   targetPositions: Joi.array().items(Joi.string().trim()).optional().default([]),
   offer_image: Joi.string().uri().trim().optional().allow(null, ''),
   clicks: Joi.number().integer().min(0).optional().default(0),
+  views: Joi.number().integer().min(0).optional().default(0),
   isActive: Joi.boolean().optional().default(true)
 });
 
@@ -79,6 +80,7 @@ const updateCardSchema = Joi.object({
   targetPositions: Joi.array().items(Joi.string().trim()).optional(),
   offer_image: Joi.string().uri().trim().optional().allow(null, ''),
   clicks: Joi.number().integer().min(0).optional(),
+  views: Joi.number().integer().min(0).optional(),
   isActive: Joi.boolean().optional()
 }).min(1); // At least one field must be provided
 
