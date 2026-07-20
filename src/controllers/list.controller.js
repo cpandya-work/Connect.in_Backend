@@ -249,6 +249,10 @@ const getPopupOfferCtrl = asyncHandler(async (req, res) => {
   userDetail.lastOfferShownAt = new Date();
   await userDetail.save();
 
+  // Increment view count on the card/offer
+  selectedOffer.views = (selectedOffer.views || 0) + 1;
+  await selectedOffer.save();
+
   // Return the selected offer
   return success(res, { showPopup: true, offer: selectedOffer }, 'Eligible offer fetched successfully');
 });
