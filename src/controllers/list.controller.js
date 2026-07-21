@@ -140,6 +140,12 @@ const listHabitsCtrl = asyncHandler(async (req, res) => {
       return true;
     });
 
+    // Shuffle the eligible cards randomly using Fisher-Yates algorithm
+    for (let i = eligibleCards.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [eligibleCards[i], eligibleCards[j]] = [eligibleCards[j], eligibleCards[i]];
+    }
+
     success(res, { cards: eligibleCards }, 'cards list fetched');
   })
 
@@ -235,13 +241,15 @@ const getPopupOfferCtrl = asyncHandler(async (req, res) => {
   let selectedOffer = null;
   
   if (unseenOffers.length > 0) {
-    // Pick the first unseen offer
-    selectedOffer = unseenOffers[0];
+    // Pick a random unseen offer
+    const randomIndex = Math.floor(Math.random() * unseenOffers.length);
+    selectedOffer = unseenOffers[randomIndex];
     userDetail.shownOfferIds.push(selectedOffer._id);
   } else {
     // All eligible offers have been shown. Reset the cycle.
     userDetail.shownOfferIds = [];
-    selectedOffer = eligibleOffers[0];
+    const randomIndex = Math.floor(Math.random() * eligibleOffers.length);
+    selectedOffer = eligibleOffers[randomIndex];
     userDetail.shownOfferIds.push(selectedOffer._id);
   }
 
