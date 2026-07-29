@@ -4,6 +4,7 @@ const bcrypt = require('bcryptjs');
 const userDetailSchema = new mongoose.Schema({
   fullName: String,
   city: { type: mongoose.Schema.Types.ObjectId, ref: 'City' },
+  pincode: String,
   religion: String,
   status: { type: String, enum: ['Single', 'Married', 'Divorced', 'Prefer not to say'] },
   email: { type: String, unique: true, sparse: true },
@@ -17,6 +18,7 @@ const userDetailSchema = new mongoose.Schema({
   skills: [String],
   sports: [String],
   profileImage: String, // Cloudinary URL
+  coverImage: String, // Cloudinary URL
   company: String,
   industry: String,
   position: { type: String, default: "" },

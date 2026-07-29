@@ -82,17 +82,25 @@ const getPublicProfile = async (userId, loggedInUserId) => {
   };
 };
 
-const updateProfile = async (userId, updates, file) => {
+const updateProfile = async (userId, updates, files) => {
   const user = await User.findById(userId).populate('userDetailId');
   if (!user || !user.userDetailId) throw new Error('Profile not found');
 
   const detail = user.userDetailId;
 
-  if (file) {
-    if (detail.profileImage) {
-      await deleteFromCloudinary(detail.profileImage);
+  if (files) {
+    if (files.profileImage && files.profileImage[0]) {
+      if (detail.profileImage) {
+        await deleteFromCloudinary(detail.profileImage);
+      }
+      updates.profileImage = files.profileImage[0].path;
     }
-    updates.profileImage = file.path;
+    if (files.coverImage && files.coverImage[0]) {
+      if (detail.coverImage) {
+        await deleteFromCloudinary(detail.coverImage);
+      }
+      updates.coverImage = files.coverImage[0].path;
+    }
   }
 
   if (updates.habits && typeof updates.habits === 'string') updates.habits = updates.habits.split(',').map(h => h.trim()).filter(Boolean);
@@ -139,6 +147,7 @@ const deleteAccount = async (userId) => {
       skills: userDetail.skills,
       sports: userDetail.sports,
       profileImage: userDetail.profileImage,
+      coverImage: userDetail.coverImage,
       company: userDetail.company,
       industry: userDetail.industry,
       position: userDetail.position,

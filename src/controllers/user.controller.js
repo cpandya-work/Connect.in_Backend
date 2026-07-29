@@ -89,7 +89,8 @@ const createProfile = asyncHandler(async (req, res) => {
   const { error } = profileSchema.validate(req.body);
   if (error) return res.status(400).json({ success: false, message: error.details[0].message });
 
-  const profileImage = req.file?.path || null;
+  const profileImage = req.files?.profileImage?.[0]?.path || null;
+  const coverImage = req.files?.coverImage?.[0]?.path || null;
   
   // Get user - check token first, then userId/phoneNumber from body
   let user = null;
@@ -143,6 +144,7 @@ const createProfile = asyncHandler(async (req, res) => {
       {
         ...req.body,
         profileImage: profileImage || user.userDetailId.profileImage,
+        coverImage: coverImage || user.userDetailId.coverImage,
         habits: Array.isArray(req.body.habits) ? req.body.habits : (req.body.habits?.split(',').map(h => h.trim()).filter(Boolean) || []),
         interests: Array.isArray(req.body.interests) ? req.body.interests : (req.body.interests?.split(',').map(i => i.trim()).filter(Boolean) || []),
         skills: Array.isArray(req.body.skills) ? req.body.skills : (req.body.skills?.split(',').map(s => s.trim()).filter(Boolean) || []),
@@ -158,6 +160,7 @@ const createProfile = asyncHandler(async (req, res) => {
     detail = await UserDetail.create({
       ...req.body,
       profileImage,
+      coverImage,
       habits: Array.isArray(req.body.habits) ? req.body.habits : (req.body.habits?.split(',').map(h => h.trim()).filter(Boolean) || []),
       interests: Array.isArray(req.body.interests) ? req.body.interests : (req.body.interests?.split(',').map(i => i.trim()).filter(Boolean) || []),
       skills: Array.isArray(req.body.skills) ? req.body.skills : (req.body.skills?.split(',').map(s => s.trim()).filter(Boolean) || []),
@@ -197,13 +200,20 @@ const getUserProfileById = asyncHandler(async (req, res) => {
 });
 
 const updateUserProfile = asyncHandler(async (req, res) => {
-  const { error } = updateProfileSchema.validate(req.body);
-  if (error) return res.status(400).json({ success: false, message: error.details[0].message });
+  const hasFiles = req.files && (
+    (req.files.profileImage && req.files.profileImage.length > 0) ||
+    (req.files.coverImage && req.files.coverImage.length > 0)
+  );
+
+  if (Object.keys(req.body).length > 0 || !hasFiles) {
+    const { error } = updateProfileSchema.validate(req.body);
+    if (error) return res.status(400).json({ success: false, message: error.details[0].message });
+  }
   
   const updates = req.body;
-  const file = req.file;
+  const files = req.files;
 
-  const updatedProfile = await updateProfile(req.user._id, updates, file);
+  const updatedProfile = await updateProfile(req.user._id, updates, files);
   
   // Get city name
   let cityName = null;
@@ -272,7 +282,8 @@ const deleteUserAccount = asyncHandler(async (req, res) => {
 const saveProfileStep = asyncHandler(async (req, res) => {
   // stepNumber comes from FormData, so it might be a string
   const stepNumber = parseInt(req.body.stepNumber, 10);
-  const profileImage = req.file?.path || null;
+  const profileImage = req.files?.profileImage?.[0]?.path || null;
+  const coverImage = req.files?.coverImage?.[0]?.path || null;
   
   if (!stepNumber || isNaN(stepNumber) || stepNumber < 1 || stepNumber > 9) {
     return res.status(400).json({ success: false, message: 'Invalid step number' });
@@ -287,6 +298,7 @@ const saveProfileStep = asyncHandler(async (req, res) => {
   if (stepNumber === 1) {
     if (req.body.fullName) stepData.fullName = req.body.fullName;
     if (req.body.city) stepData.city = req.body.city;
+    if (req.body.pincode) stepData.pincode = req.body.pincode;
     if (req.body.religion) stepData.religion = req.body.religion;
     if (req.body.status) stepData.status = req.body.status;
   }

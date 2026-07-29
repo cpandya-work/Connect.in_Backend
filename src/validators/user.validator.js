@@ -7,6 +7,10 @@ const profileSchema = Joi.object({
     'string.length': 'City must be a valid ObjectId',
     'any.required': 'City is required'
   }),
+  pincode: Joi.string().regex(/^[1-9][0-9]{5}$/).required().messages({
+    'string.pattern.base': 'Pincode must be a valid 6-digit number',
+    'any.required': 'Pincode is required'
+  }),
   religion: Joi.string().required(),
   status: Joi.string().valid('Single', 'Married', 'Divorced', 'Prefer not to say').required(),
   email: Joi.string().email().required(),
@@ -23,6 +27,7 @@ const profileSchema = Joi.object({
   company: Joi.string().allow('').optional(),
   industry: Joi.string().required(),
   position: Joi.string().allow('').optional(),
+  coverImage: Joi.string().allow('', null).optional(),
   fastConnect: Joi.boolean().optional(),
 });
 
@@ -31,6 +36,9 @@ const updateProfileSchema = Joi.object({
   city: Joi.string().hex().length(24).messages({
     'string.hex': 'City must be a valid ObjectId',
     'string.length': 'City must be a valid ObjectId'
+  }),
+  pincode: Joi.string().regex(/^[1-9][0-9]{5}$/).messages({
+    'string.pattern.base': 'Pincode must be a valid 6-digit number'
   }),
   religion: Joi.string(),
   status: Joi.string().valid('Single', 'Married', 'Divorced', 'Prefer not to say'),
@@ -48,6 +56,7 @@ const updateProfileSchema = Joi.object({
   company: Joi.string().allow('').optional(),
   industry: Joi.string(),
   position: Joi.string().allow('').optional(),
+  coverImage: Joi.string().allow('', null).optional(),
   fastConnect: Joi.boolean().optional(),
 }).min(1); // at least one field
 

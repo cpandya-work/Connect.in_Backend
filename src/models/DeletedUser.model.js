@@ -16,6 +16,7 @@ const deletedUserSchema = new mongoose.Schema({
   skills: [String],
   sports: [String],
   profileImage: String,
+  coverImage: String,
   company: String,
   industry: String,
   position: { type: String, default: "" },
