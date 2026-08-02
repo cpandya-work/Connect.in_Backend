@@ -73,6 +73,8 @@ const {
   createPositionCtrl,
   updatePositionCtrl,
   deletePositionCtrl,
+  getScheduledMailersStatsCtrl,
+  getScheduledMailersLogsCtrl,
 } = require('../controllers/admin.controller');
 const { isAdmin } = require('../middlewares/admin.middleware');
 const uploadCardLogo = require('../middlewares/cardUpload.middleware');
@@ -300,5 +302,9 @@ router.delete('/posts/:postId/reject', rejectPostCtrl);
 router.get('/posts', getAllPostsCtrl);
 router.put('/posts/:postId/toggle-visibility', togglePostVisibilityCtrl);
 router.delete('/posts/:postId', adminDeletePostCtrl);
+
+// Scheduled Mailers routes
+router.get('/scheduled-mailers/stats', getScheduledMailersStatsCtrl);
+router.get('/scheduled-mailers/logs', getScheduledMailersLogsCtrl);
 
 module.exports = router;

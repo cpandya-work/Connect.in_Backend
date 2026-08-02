@@ -306,7 +306,106 @@ const sendBulkHtmlEmail = async (recipients, subject, htmlContent) => {
   return { sent, skipped };
 };
 
+// ─── 6. Scheduled Mailers Templates ──────────────────────────────────────────
+
+const renderIncompleteProfileEmailHtml = (fullName) => baseTemplate(`
+  <h2 style="margin:0 0 8px;color:#081332;font-size:22px;font-weight:700;">Complete your profile, ${fullName}! 🚀</h2>
+  <p style="margin:0 0 20px;color:#495057;font-size:15px;line-height:1.7;">
+    We noticed that your profile is incomplete. Completing your profile helps you gain 3x more professional visibility, connect with people in your industry, and get discovered by top companies.
+  </p>
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;margin-bottom:24px;">
+    <tr>
+      <td style="padding:20px 24px;">
+        <p style="margin:0 0 12px;color:#081332;font-weight:600;font-size:14px;">Here is what's missing on your profile:</p>
+        <ul style="margin:0;padding-left:18px;color:#6b7280;font-size:14px;line-height:2;">
+          <li>Add a professional Profile Image</li>
+          <li>Select your City & Industry</li>
+          <li>Add your current Position & Company</li>
+          <li>Specify your Hobbies, Interests, & Skills</li>
+        </ul>
+      </td>
+    </tr>
+  </table>
+  ${ctaButton(APP_URL, 'Complete Profile Now →')}
+`);
+
+const renderCityIndustrySnapshotEmailHtml = (fullName, matches) => {
+  let matchesHtml = '';
+  if (matches && matches.length > 0) {
+    matchesHtml = `
+      <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 20px; border-collapse: collapse;">
+        ${matches.map(match => `
+          <tr style="border-bottom: 1px solid #e9ecef;">
+            <td style="padding: 12px 0; vertical-align: middle;">
+              <div style="font-weight: 600; color: #081332; font-size: 15px;">${match.fullName}</div>
+              <div style="color: #6b7280; font-size: 13px;">
+                ${match.position ? match.position : ''} ${match.company ? `at ${match.company}` : ''}
+              </div>
+            </td>
+          </tr>
+        `).join('')}
+      </table>
+    `;
+  } else {
+    matchesHtml = `
+      <p style="color: #6b7280; font-style: italic; margin-bottom: 20px;">
+        No new users joined in your city/industry this week. Invite colleagues to grow your local network!
+      </p>
+    `;
+  }
+
+  return baseTemplate(`
+    <h2 style="margin:0 0 8px;color:#081332;font-size:22px;font-weight:700;">Weekly Network Snapshot 🌐</h2>
+    <p style="margin:0 0 20px;color:#495057;font-size:15px;line-height:1.7;">
+      Hi <strong>${fullName}</strong>,<br/>
+      Here is a snapshot of recently registered users in your city and industry. Connect with them to expand your local professional network!
+    </p>
+    ${matchesHtml}
+    ${ctaButton(APP_URL, 'Explore Network →')}
+  `);
+};
+
+const renderOfferOfTheDayEmailHtml = (fullName, offer) => {
+  const featuresList = offer.features && offer.features.length > 0
+    ? offer.features.map(f => `<li>${f}</li>`).join('')
+    : '';
+
+  return baseTemplate(`
+    <h2 style="margin:0 0 8px;color:#081332;font-size:22px;font-weight:700;">Offer of the Day! 🎁</h2>
+    <p style="margin:0 0 20px;color:#495057;font-size:15px;line-height:1.7;">
+      Hi <strong>${fullName}</strong>,<br/>
+      Here is today's exclusive offer handpicked for you on Connect India. Check it out and unlock great benefits today!
+    </p>
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;margin-bottom:24px;overflow:hidden;">
+      ${offer.logo_image ? `
+      <tr>
+        <td align="center" style="padding: 24px 24px 0;">
+          <img src="${offer.logo_image}" alt="${offer.name}" style="max-height: 80px; width: auto; border-radius: 8px;" />
+        </td>
+      </tr>
+      ` : ''}
+      <tr>
+        <td style="padding:20px 24px;">
+          <h3 style="margin:0 0 8px;color:#081332;font-size:18px;font-weight:700;">${offer.name}</h3>
+          <p style="margin:0 0 16px;color:#495057;font-size:14px;line-height:1.6;">${offer.description || ''}</p>
+          
+          ${featuresList ? `
+          <p style="margin:0 0 8px;color:#081332;font-weight:600;font-size:13px;text-transform:uppercase;letter-spacing:0.5px;">Key Benefits:</p>
+          <ul style="margin:0 0 16px;padding-left:18px;color:#6b7280;font-size:13px;line-height:1.8;">
+            ${featuresList}
+          </ul>
+          ` : ''}
+        </td>
+      </tr>
+    </table>
+
+    ${ctaButton(offer.url || `${APP_URL}/offer`, 'Get This Offer →')}
+  `);
+};
+
 module.exports = {
+  sendEmail,
   sendRegistrationEmail,
   sendConnectionRequestEmail,
   sendConnectionAcceptedEmail,
@@ -314,4 +413,8 @@ module.exports = {
   sendBroadcastOfferEmail,
   sendNewPostEmail,
   sendBulkHtmlEmail,
+  renderIncompleteProfileEmailHtml,
+  renderCityIndustrySnapshotEmailHtml,
+  renderOfferOfTheDayEmailHtml,
 };
+

@@ -1436,6 +1436,85 @@ const deleteUserCtrl = asyncHandler(async (req, res) => {
   success(res, null, 'User deleted successfully');
 });
 
+/**
+ * Get scheduled mailers stats
+ */
+const getScheduledMailersStatsCtrl = asyncHandler(async (req, res) => {
+  const MailQueue = require('../models/MailQueue.model');
+  
+  const stats = await MailQueue.aggregate([
+    {
+      $group: {
+        _id: { type: '$type', status: '$status' },
+        count: { $sum: 1 }
+      }
+    }
+  ]);
+
+  // Construct a cleaner stats object
+  const formattedStats = {
+    INCOMPLETE_PROFILE: { pending: 0, sent: 0, failed: 0 },
+    CITY_INDUSTRY_SNAPSHOT: { pending: 0, sent: 0, failed: 0 },
+    OFFER_OF_THE_DAY: { pending: 0, sent: 0, failed: 0 }
+  };
+
+  stats.forEach(item => {
+    const type = item._id.type;
+    const status = item._id.status;
+    if (formattedStats[type] && status) {
+      formattedStats[type][status] = item.count;
+    }
+  });
+
+  success(res, { stats: formattedStats }, 'Scheduled mailer stats retrieved successfully');
+});
+
+/**
+ * Get scheduled mailers history/logs
+ */
+const getScheduledMailersLogsCtrl = asyncHandler(async (req, res) => {
+  const MailQueue = require('../models/MailQueue.model');
+  const page = parseInt(req.query.page, 10) || 1;
+  const limit = parseInt(req.query.limit, 10) || 20;
+  const search = req.query.search || '';
+  const type = req.query.type || '';
+  const skip = (page - 1) * limit;
+
+  const query = {};
+  if (type) {
+    query.type = type;
+  }
+  if (search) {
+    const searchRegex = new RegExp(search.trim(), 'i');
+    query.$or = [
+      { recipient: searchRegex },
+      { recipientName: searchRegex },
+      { subject: searchRegex }
+    ];
+  }
+
+  const total = await MailQueue.countDocuments(query);
+  const logs = await MailQueue.find(query)
+    .sort({ scheduledFor: -1 })
+    .skip(skip)
+    .limit(limit)
+    .lean();
+
+  const totalPages = Math.ceil(total / limit);
+
+  success(res, {
+    logs,
+    pagination: {
+      currentPage: page,
+      totalPages,
+      totalItems: total,
+      itemsPerPage: limit,
+      hasNextPage: page < totalPages,
+      hasPrevPage: page > 1
+    }
+  }, 'Scheduled mailer logs retrieved successfully');
+});
+
 module.exports = {
   getPositionsListCtrl,
   getPositionByIdCtrl,
@@ -1510,4 +1589,6 @@ module.exports = {
   deleteUserCtrl,
   getPopupSettingCtrl,
   updatePopupSettingCtrl,
+  getScheduledMailersStatsCtrl,
+  getScheduledMailersLogsCtrl,
 };
