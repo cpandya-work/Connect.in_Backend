@@ -182,7 +182,7 @@ const getNotifications = async (userId, page = 1, limit = 20) => {
       path: 'fromUserId',
       populate: {
         path: 'userDetailId',
-        select: 'fullName profileImage'
+        select: 'fullName profileImage isBusinessProfile businessName businessLogo'
       }
     })
     .sort({ createdAt: -1 })
@@ -191,19 +191,25 @@ const getNotifications = async (userId, page = 1, limit = 20) => {
     .lean();
 
   // Map notifications to return format
-  const originalNotifications = notifications.map(notification => ({
-    _id: notification._id,
-    title: notification.title,
-    body: notification.body,
-    type: notification.type,
-    isRead: notification.isRead,
-    createdAt: notification.createdAt,
-    fromUser: notification.fromUserId ? {
-      _id: notification.fromUserId._id,
-      fullName: notification.fromUserId.userDetailId?.fullName,
-      profileImage: notification.fromUserId.userDetailId?.profileImage
-    } : null
-  }));
+  const originalNotifications = notifications.map(notification => {
+    const userDetail = notification.fromUserId?.userDetailId;
+    const fullName = userDetail?.isBusinessProfile ? userDetail?.businessName : userDetail?.fullName;
+    const profileImage = userDetail?.isBusinessProfile ? userDetail?.businessLogo : userDetail?.profileImage;
+
+    return {
+      _id: notification._id,
+      title: notification.title,
+      body: notification.body,
+      type: notification.type,
+      isRead: notification.isRead,
+      createdAt: notification.createdAt,
+      fromUser: notification.fromUserId ? {
+        _id: notification.fromUserId._id,
+        fullName: fullName,
+        profileImage: profileImage
+      } : null
+    };
+  });
 
   // Return notifications without marking them as read
   // Notifications will be deleted when clicked/viewed

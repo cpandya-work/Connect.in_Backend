@@ -53,6 +53,7 @@ const getFeed = async (userId, userGender, cursor = null, limit = 20, filters = 
     _id: {
       $nin: Array.from(excludedIds).map(id => new mongoose.Types.ObjectId(id)),
     },
+    'details.isBusinessProfile': { $ne: true }
   };
 
   // Apply gender filter only if specified
@@ -296,6 +297,7 @@ const getFeedWeb = async (userId, userGender, page = 1, limit = 20, filters = {}
     _id: {
       $nin: Array.from(excludedIds).map(id => new mongoose.Types.ObjectId(id)),
     },
+    'details.isBusinessProfile': { $ne: true }
   };
 
   // Apply gender filter only if specified
@@ -501,4 +503,136 @@ const getFeedWeb = async (userId, userGender, page = 1, limit = 20, filters = {}
   };
 };
 
-module.exports = { getFeed, getFeedWeb };
+const getBusinessFeed = async (userId, page = 1, limit = 20, filters = {}, search = '', userCity = null) => {
+  // Build excluded user IDs
+  const [liked, sentReq, receivedReq, connections, skippedByMe, skippedMe] = await Promise.all([
+    UserLikes.find({ userId }).select('likedUserId'),
+    UserRequests.find({ senderId: userId, status: 'pending' }).select('receiverId'),
+    UserRequests.find({ receiverId: userId, status: 'pending' }).select('senderId'),
+    UserConnections.find({
+      $or: [{ connection1Id: userId }, { connection2Id: userId }],
+    }),
+    UserSkips.find({ userId }).select('skippedUserId'),
+    UserSkips.find({ skippedUserId: userId }).select('userId'),
+  ]);
+
+  const excludedIds = new Set();
+  const likedSet = new Set(liked.map(l => l.likedUserId.toString()));
+  const sentReqSet = new Set(sentReq.map(r => r.receiverId.toString()));
+
+  receivedReq.forEach(r => excludedIds.add(r.senderId.toString()));
+  
+  connections.forEach(c => {
+    if (c.connection1Id.toString() !== userId.toString()) excludedIds.add(c.connection1Id.toString());
+    if (c.connection2Id.toString() !== userId.toString()) excludedIds.add(c.connection2Id.toString());
+  });
+
+  skippedByMe.forEach(s => excludedIds.add(s.skippedUserId.toString()));
+  skippedMe.forEach(s => excludedIds.add(s.userId.toString()));
+  excludedIds.add(userId.toString());
+
+  const matchStage = {
+    _id: {
+      $nin: Array.from(excludedIds).map(id => new mongoose.Types.ObjectId(id)),
+    },
+    'details.isBusinessProfile': true
+  };
+
+  // Filter by business category if provided
+  if (filters.category) {
+    matchStage['details.businessCategory'] = new mongoose.Types.ObjectId(filters.category);
+  }
+
+  // Filter by city if userCity is provided and search is not active
+  if (userCity && (!search || !search.trim())) {
+    matchStage['details.city'] = new mongoose.Types.ObjectId(userCity);
+  }
+
+  // Filter by search query (businessName or businessTagline)
+  if (search && search.trim()) {
+    matchStage['details.businessName'] = { $regex: search.trim(), $options: 'i' };
+  }
+
+  const skip = (page - 1) * limit;
+
+  let pipeline = [
+    {
+      $lookup: {
+        from: 'userdetails',
+        localField: 'userDetailId',
+        foreignField: '_id',
+        as: 'details',
+      },
+    },
+    { $unwind: '$details' },
+    { $match: matchStage },
+    {
+      $lookup: {
+        from: 'cities',
+        localField: 'details.city',
+        foreignField: '_id',
+        as: 'cityInfo',
+      },
+    },
+    {
+      $lookup: {
+        from: 'businesscategories',
+        localField: 'details.businessCategory',
+        foreignField: '_id',
+        as: 'categoryInfo',
+      },
+    },
+    {
+      $addFields: {
+        cityName: { $arrayElemAt: ['$cityInfo.name', 0] },
+        cityId: '$details.city',
+        businessCategoryName: { $arrayElemAt: ['$categoryInfo.name', 0] }
+      },
+    },
+    { $sort: { _id: -1 } },
+    { $skip: skip },
+    { $limit: limit + 1 }, // Check if there is next page
+    {
+      $project: {
+        id: '$_id',
+        isBusinessProfile: '$details.isBusinessProfile',
+        businessName: '$details.businessName',
+        businessLogo: '$details.businessLogo',
+        businessCoverImage: '$details.businessCoverImage',
+        businessTagline: '$details.businessTagline',
+        businessCategory: '$businessCategoryName',
+        businessCategoryId: '$details.businessCategory',
+        city: '$cityName',
+        cityId: '$cityId',
+        website: '$details.website',
+        contactPerson: '$details.contactPerson',
+        whatsappNumber: '$details.whatsappNumber',
+        facebook: '$details.facebook',
+        instagram: '$details.instagram',
+        linkedIn: '$details.linkedIn',
+        youtube: '$details.youtube',
+        twitter: '$details.twitter',
+      },
+    },
+  ];
+
+  let result = await User.aggregate(pipeline);
+
+  const hasMore = result.length > limit;
+  const profiles = hasMore ? result.slice(0, limit) : result;
+
+  // Decorate each profile with isLiked / isConnected flags
+  const decoratedProfiles = profiles.map(p => ({
+    ...p,
+    isLiked: likedSet.has((p.id || p._id).toString()),
+    isConnected: sentReqSet.has((p.id || p._id).toString()),
+  }));
+
+  return {
+    profiles: decoratedProfiles,
+    hasMore,
+    nextPage: hasMore ? page + 1 : null,
+  };
+};
+
+module.exports = { getFeed, getFeedWeb, getBusinessFeed };

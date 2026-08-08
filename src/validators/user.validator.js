@@ -58,6 +58,26 @@ const updateProfileSchema = Joi.object({
   position: Joi.string().allow('').optional(),
   coverImage: Joi.string().allow('', null).optional(),
   fastConnect: Joi.boolean().optional(),
+  
+  // Business Profile fields
+  isBusinessProfile: Joi.boolean().optional(),
+  businessName: Joi.string().min(2).optional(),
+  businessLogo: Joi.string().allow('', null).optional(),
+  businessCoverImage: Joi.string().allow('', null).optional(),
+  businessTagline: Joi.string().max(160).allow('').optional(),
+  businessCategory: Joi.string().hex().length(24).optional().messages({
+    'string.hex': 'Business category must be a valid ObjectId',
+    'string.length': 'Business category must be a valid ObjectId'
+  }),
+  website: Joi.string().allow('').optional(),
+  contactPerson: Joi.string().optional(),
+  whatsappNumber: Joi.string().allow('').optional(),
+  facebook: Joi.string().allow('').optional(),
+  instagram: Joi.string().allow('').optional(),
+  linkedIn: Joi.string().allow('').optional(),
+  youtube: Joi.string().allow('').optional(),
+  twitter: Joi.string().allow('').optional(),
+  businessDescription: Joi.string().allow('').optional(),
 }).min(1); // at least one field
 
 module.exports = { profileSchema, updateProfileSchema };

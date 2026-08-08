@@ -1,6 +1,6 @@
 const asyncHandler = require('../utils/asyncHandler');
 const { success } = require('../utils/response');
-const { getFeed, getFeedWeb } = require('../services/feed.service');
+const { getFeed, getFeedWeb, getBusinessFeed } = require('../services/feed.service');
 const User = require('../models/User.model');
 
 const getFeedCtrl = asyncHandler(async (req, res) => {
@@ -165,4 +165,36 @@ const getFeedWebCtrl = asyncHandler(async (req, res) => {
   success(res, { profiles, pagination }, 'Feed loaded');
 });
 
-module.exports = { getFeedCtrl, getFeedWebCtrl };
+const getBusinessFeedCtrl = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id).populate('userDetailId');
+  if (!user.userDetailId) {
+    return res.status(400).json({ success: false, message: 'Complete your profile first' });
+  }
+
+  const { page = 1, limit = 20, category, search } = req.query;
+  const pageNum = parseInt(page) || 1;
+  const limitNum = parseInt(limit) || 20;
+
+  const filters = {
+    category: category || null,
+  };
+
+  // Extract city ID
+  let userCityId = user.userDetailId.city;
+  if (userCityId && typeof userCityId === 'object' && userCityId._id) {
+    userCityId = userCityId._id;
+  }
+
+  const { profiles, hasMore, nextPage } = await getBusinessFeed(
+    req.user._id,
+    pageNum,
+    limitNum,
+    filters,
+    search,
+    userCityId
+  );
+
+  success(res, { profiles, hasMore, nextPage }, 'Business feed loaded');
+});
+
+module.exports = { getFeedCtrl, getFeedWebCtrl, getBusinessFeedCtrl };

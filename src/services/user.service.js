@@ -14,7 +14,10 @@ const getPublicProfile = async (userId, loggedInUserId) => {
 
   const user = await User.findById(userId).populate({
     path: 'userDetailId',
-    populate: { path: 'city', model: 'City' }
+    populate: [
+      { path: 'city', model: 'City' },
+      { path: 'businessCategory', model: 'BusinessCategory' }
+    ]
   });
   if (!user) throw new Error('User not found');
   if (!user.userDetailId) throw new Error('Profile not completed');
@@ -56,6 +59,10 @@ const getPublicProfile = async (userId, loggedInUserId) => {
         ret.cityName = ret.city.name;
         ret.city = ret.city._id; // Keep the ID as well
       }
+      if (ret.businessCategory && typeof ret.businessCategory === 'object' && ret.businessCategory.name) {
+        ret.businessCategoryName = ret.businessCategory.name;
+        ret.businessCategory = ret.businessCategory._id;
+      }
       return ret;
     }
   });
@@ -88,18 +95,32 @@ const updateProfile = async (userId, updates, files) => {
 
   const detail = user.userDetailId;
 
+  const isBusiness = detail.isBusinessProfile === true || updates.isBusinessProfile === 'true' || updates.isBusinessProfile === true;
+
   if (files) {
     if (files.profileImage && files.profileImage[0]) {
       if (detail.profileImage) {
         await deleteFromCloudinary(detail.profileImage);
       }
       updates.profileImage = files.profileImage[0].path;
+      if (isBusiness) {
+        if (detail.businessLogo && detail.businessLogo !== detail.profileImage) {
+          await deleteFromCloudinary(detail.businessLogo);
+        }
+        updates.businessLogo = files.profileImage[0].path;
+      }
     }
     if (files.coverImage && files.coverImage[0]) {
       if (detail.coverImage) {
         await deleteFromCloudinary(detail.coverImage);
       }
       updates.coverImage = files.coverImage[0].path;
+      if (isBusiness) {
+        if (detail.businessCoverImage && detail.businessCoverImage !== detail.coverImage) {
+          await deleteFromCloudinary(detail.businessCoverImage);
+        }
+        updates.businessCoverImage = files.coverImage[0].path;
+      }
     }
   }
 
