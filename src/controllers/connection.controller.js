@@ -37,8 +37,8 @@ const dislikeUserCtrl = asyncHandler(async (req, res) => {
 });
 
 const getLikesCtrl = asyncHandler(async (req, res) => {
-  const { search } = req.query;
-  const liked = await getLikedUsers(req.user._id, search);
+  const { search, filter } = req.query;
+  const liked = await getLikedUsers(req.user._id, search, filter);
   success(res, { liked });
 });
 
@@ -56,43 +56,70 @@ const sendRequestCtrl = asyncHandler(async (req, res) => {
 });
 
 const getSentRequestsCtrl = asyncHandler(async (req, res) => {
-  const { search } = req.query;
-  const requests = await getSentRequests(req.user._id, search);
-  const formatted = requests.map(r => ({
-    _id: r.receiverId._id,
-    fullName: r.receiverId.userDetailId?.fullName,
-    profileImage: r.receiverId.userDetailId?.profileImage,
-    gender: r.receiverId.userDetailId?.gender || null,
-    dateOfBirth: r.receiverId.userDetailId?.dateOfBirth || null,
-  }));
+  const { search, filter } = req.query;
+  const requests = await getSentRequests(req.user._id, search, filter);
+  const formatted = requests.map(r => {
+    const isBiz = r.receiverId.userDetailId?.isBusinessProfile === true;
+    const catName = isBiz ? (r.receiverId.userDetailId?.businessCategory?.name || r.receiverId.userDetailId?.businessCategory || null) : null;
+    return {
+      _id: r.receiverId._id,
+      fullName: isBiz ? r.receiverId.userDetailId?.businessName : r.receiverId.userDetailId?.fullName,
+      profileImage: isBiz ? r.receiverId.userDetailId?.businessLogo : r.receiverId.userDetailId?.profileImage,
+      gender: isBiz ? null : (r.receiverId.userDetailId?.gender || null),
+      dateOfBirth: isBiz ? null : (r.receiverId.userDetailId?.dateOfBirth || null),
+      isBusinessProfile: isBiz,
+      businessName: isBiz ? r.receiverId.userDetailId?.businessName : null,
+      businessLogo: isBiz ? r.receiverId.userDetailId?.businessLogo : null,
+      businessCategory: catName,
+      businessCategoryName: catName,
+    };
+  });
   success(res, { requests: formatted });
 });
 
 const getReceivedRequestsCtrl = asyncHandler(async (req, res) => {
-  const { search } = req.query;
-  const requests = await getReceivedRequests(req.user._id, search);
-  const formatted = requests.map(r => ({
-    requestId: r._id,
-    _id: r.senderId._id,
-    fullName: r.senderId.userDetailId?.fullName,
-    profileImage: r.senderId.userDetailId?.profileImage,
-    gender: r.senderId.userDetailId?.gender || null,
-    dateOfBirth: r.senderId.userDetailId?.dateOfBirth || null,
-  }));
+  const { search, filter } = req.query;
+  const requests = await getReceivedRequests(req.user._id, search, filter);
+  const formatted = requests.map(r => {
+    const isBiz = r.senderId.userDetailId?.isBusinessProfile === true;
+    const catName = isBiz ? (r.senderId.userDetailId?.businessCategory?.name || r.senderId.userDetailId?.businessCategory || null) : null;
+    return {
+      requestId: r._id,
+      _id: r.senderId._id,
+      fullName: isBiz ? r.senderId.userDetailId?.businessName : r.senderId.userDetailId?.fullName,
+      profileImage: isBiz ? r.senderId.userDetailId?.businessLogo : r.senderId.userDetailId?.profileImage,
+      gender: isBiz ? null : (r.senderId.userDetailId?.gender || null),
+      dateOfBirth: isBiz ? null : (r.senderId.userDetailId?.dateOfBirth || null),
+      isBusinessProfile: isBiz,
+      businessName: isBiz ? r.senderId.userDetailId?.businessName : null,
+      businessLogo: isBiz ? r.senderId.userDetailId?.businessLogo : null,
+      businessCategory: catName,
+      businessCategoryName: catName,
+    };
+  });
   success(res, { requests: formatted });
 });
 
 const getConnectionsCtrl = asyncHandler(async (req, res) => {
-  const { search } = req.query;
-  const connections = await getActiveConnections(req.user._id, search);
-  const formatted = connections.map(c => ({
-    _id: c._id,
-    fullName: c.userDetailId?.fullName,
-    city: c.userDetailId?.city || null, // This is now the city name, not ID
-    profileImage: c.userDetailId?.profileImage,
-    gender: c.userDetailId?.gender || null,
-    dateOfBirth: c.userDetailId?.dateOfBirth || null,
-  }));
+  const { search, filter } = req.query;
+  const connections = await getActiveConnections(req.user._id, search, filter);
+  const formatted = connections.map(c => {
+    const isBiz = c.userDetailId?.isBusinessProfile === true;
+    const catName = isBiz ? (c.userDetailId?.businessCategory?.name || c.userDetailId?.businessCategory || null) : null;
+    return {
+      _id: c._id,
+      fullName: c.userDetailId?.fullName,
+      city: c.userDetailId?.city || null, // This is now the city name, not ID
+      profileImage: c.userDetailId?.profileImage,
+      gender: c.userDetailId?.gender || null,
+      dateOfBirth: c.userDetailId?.dateOfBirth || null,
+      isBusinessProfile: isBiz,
+      businessName: isBiz ? c.userDetailId?.businessName : null,
+      businessLogo: isBiz ? c.userDetailId?.businessLogo : null,
+      businessCategory: catName,
+      businessCategoryName: catName,
+    };
+  });
   success(res, { connections: formatted });
 });
 
@@ -109,8 +136,8 @@ const rejectRequestCtrl = asyncHandler(async (req, res) => {
 });
 
 const getWhoLikedMeCtrl = asyncHandler(async (req, res) => {
-  const { search } = req.query;
-  const whoLikedMe = await getUsersWhoLikedMe(req.user._id, search);
+  const { search, filter } = req.query;
+  const whoLikedMe = await getUsersWhoLikedMe(req.user._id, search, filter);
   success(res, { whoLikedMe });
 });
 

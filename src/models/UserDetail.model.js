@@ -43,7 +43,32 @@ const userDetailSchema = new mongoose.Schema({
   shownOfferIds: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Card'
-  }]
+  }],
+  // Business Profile fields
+  isBusinessProfile: {
+    type: Boolean,
+    default: false
+  },
+  businessName: String,
+  businessLogo: String,
+  businessCoverImage: String,
+  businessTagline: {
+    type: String,
+    maxLength: 160
+  },
+  businessCategory: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'BusinessCategory'
+  },
+  website: String,
+  contactPerson: String,
+  whatsappNumber: String,
+  facebook: String,
+  instagram: String,
+  linkedIn: String,
+  youtube: String,
+  twitter: String,
+  businessDescription: String
 });
 
 // Hash password before saving

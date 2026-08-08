@@ -18,26 +18,30 @@ const likeUser = async (userId, likedUserId) => {
     User.findById(likedUserId).populate('userDetailId'),
   ]);
 
-  if (liker?.userDetailId?.fullName) {
-    sendLikeNotification(likedUserId, liker.userDetailId.fullName, userId, liker.userDetailId.profileImage)
+  const likerName = liker?.userDetailId?.isBusinessProfile ? liker.userDetailId.businessName : liker?.userDetailId?.fullName;
+  const likerImage = liker?.userDetailId?.isBusinessProfile ? liker.userDetailId.businessLogo : liker?.userDetailId?.profileImage;
+  const likedName = likedUser?.userDetailId?.isBusinessProfile ? likedUser.userDetailId.businessName : likedUser?.userDetailId?.fullName;
+
+  if (likerName) {
+    sendLikeNotification(likedUserId, likerName, userId, likerImage)
       .catch(console.error);
   }
 
-  if (likedUser?.userDetailId?.email && likedUser?.userDetailId?.fullName && liker?.userDetailId?.fullName) {
+  if (likedUser?.userDetailId?.email && likedName && likerName) {
     sendIncomingLikeEmail(
       likedUser.userDetailId.email,
-      likedUser.userDetailId.fullName,
-      liker.userDetailId.fullName
+      likedName,
+      likerName
     ).catch(console.error);
   }
   console.log("LikedUser",likedUser)
   console.log("Liker user",liker)
-  if (likedUser?.phoneNumber && likedUser?.userDetailId?.fullName && liker?.userDetailId?.fullName) {
+  if (likedUser?.phoneNumber && likedName && likerName) {
    console.log("Sms send")
     sendProfileLikedSms(
       likedUser.phoneNumber,
-      likedUser.userDetailId.fullName,
-      liker.userDetailId.fullName
+      likedName,
+      likerName
     ).catch(console.error);
   }
 
@@ -54,14 +58,17 @@ const dislikeUser = async (userId, likedUserId) => {
   return { success: true };
 };
 
-const getLikedUsers = async (userId, search = '') => {
+const getLikedUsers = async (userId, search = '', filter = '') => {
   const likes = await UserLikes.find({ userId })
     .populate({
       path: 'likedUserId',
       populate: { 
         path: 'userDetailId', 
-        select: 'fullName city profileImage gender dateOfBirth',
-        populate: { path: 'city', model: 'City', select: 'name' }
+        select: 'fullName city profileImage gender dateOfBirth isBusinessProfile businessName businessLogo businessCoverImage businessTagline businessCategory',
+        populate: [
+          { path: 'city', model: 'City', select: 'name' },
+          { path: 'businessCategory', model: 'BusinessCategory', select: 'name' }
+        ]
       },
       select: 'userDetailId',
     })
@@ -84,29 +91,45 @@ const getLikedUsers = async (userId, search = '') => {
     cityMap = new Map(cities.map(c => [c._id.toString(), c.name]));
   }
 
-  let result = likes.map((l) => {
-    let cityName = null;
-    const city = l.likedUserId?.userDetailId?.city;
-    
-    if (city) {
-      if (typeof city === 'object' && city.name) {
-        // City is populated
-        cityName = city.name;
-      } else {
-        // City is an ObjectId, get from map
-        cityName = cityMap.get(city.toString()) || null;
+  let result = likes
+    .filter(l => l.likedUserId && l.likedUserId.userDetailId)
+    .map((l) => {
+      let cityName = null;
+      const city = l.likedUserId?.userDetailId?.city;
+      
+      if (city) {
+        if (typeof city === 'object' && city.name) {
+          // City is populated
+          cityName = city.name;
+        } else {
+          // City is an ObjectId, get from map
+          cityName = cityMap.get(city.toString()) || null;
+        }
       }
-    }
 
-    return {
-      _id: l.likedUserId._id,
-      fullName: l.likedUserId.userDetailId?.fullName,
-      city: cityName,
-      profileImage: l.likedUserId.userDetailId?.profileImage,
-      gender: l.likedUserId.userDetailId?.gender || null,
-      dateOfBirth: l.likedUserId.userDetailId?.dateOfBirth || null,
-    };
-  });
+      const isBiz = l.likedUserId.userDetailId?.isBusinessProfile === true;
+      const catName = isBiz ? (l.likedUserId.userDetailId?.businessCategory?.name || l.likedUserId.userDetailId?.businessCategory || null) : null;
+      return {
+        _id: l.likedUserId._id,
+        fullName: isBiz ? l.likedUserId.userDetailId?.businessName : l.likedUserId.userDetailId?.fullName,
+        city: cityName,
+        profileImage: isBiz ? l.likedUserId.userDetailId?.businessLogo : l.likedUserId.userDetailId?.profileImage,
+        gender: isBiz ? null : (l.likedUserId.userDetailId?.gender || null),
+        dateOfBirth: isBiz ? null : (l.likedUserId.userDetailId?.dateOfBirth || null),
+        isBusinessProfile: isBiz,
+        businessTagline: l.likedUserId.userDetailId?.businessTagline || null,
+        businessName: isBiz ? l.likedUserId.userDetailId?.businessName : null,
+        businessLogo: isBiz ? l.likedUserId.userDetailId?.businessLogo : null,
+        businessCategory: catName,
+        businessCategoryName: catName,
+      };
+    });
+
+  if (filter === 'business') {
+    result = result.filter(user => user.isBusinessProfile === true);
+  } else if (filter === 'personal' || filter === 'people') {
+    result = result.filter(user => user.isBusinessProfile !== true);
+  }
 
   if (search && search.trim()) {
     result = result.filter(user => 
@@ -134,25 +157,29 @@ const sendConnectionRequest = async (senderId, receiverId) => {
       connection2Id: receiverId,
     });
 
+    const senderName = sender?.userDetailId?.isBusinessProfile ? sender.userDetailId.businessName : sender?.userDetailId?.fullName;
+    const receiverName = receiver?.userDetailId?.isBusinessProfile ? receiver.userDetailId.businessName : receiver?.userDetailId?.fullName;
+    const receiverImage = receiver?.userDetailId?.isBusinessProfile ? receiver.userDetailId.businessLogo : receiver?.userDetailId?.profileImage;
+
     // Send push notification + email that connection is accepted (non-blocking) to the sender
-    if (receiver.userDetailId.fullName) {
-      sendConnectionAcceptedNotification(senderId, receiver.userDetailId.fullName, receiverId, receiver.userDetailId.profileImage)
+    if (receiverName) {
+      sendConnectionAcceptedNotification(senderId, receiverName, receiverId, receiverImage)
         .catch(console.error);
     }
 
-    if (sender?.userDetailId?.email && sender?.userDetailId?.fullName && receiver.userDetailId.fullName) {
+    if (sender?.userDetailId?.email && senderName && receiverName) {
       sendConnectionAcceptedEmail(
         sender.userDetailId.email,
-        sender.userDetailId.fullName,
-        receiver.userDetailId.fullName
+        senderName,
+        receiverName
       ).catch(console.error);
     }
 
-    if (sender?.phoneNumber && sender?.userDetailId?.fullName && receiver.userDetailId.fullName) {
+    if (sender?.phoneNumber && senderName && receiverName) {
       sendConnectionAcceptedSms(
         sender.phoneNumber,
-        sender.userDetailId.fullName,
-        receiver.userDetailId.fullName
+        senderName,
+        receiverName
       ).catch(console.error);
     }
 
@@ -161,67 +188,99 @@ const sendConnectionRequest = async (senderId, receiverId) => {
 
   const request = await UserRequests.create({ senderId, receiverId });
 
-  if (sender?.userDetailId?.fullName) {
-    sendConnectionRequestNotification(receiverId, sender.userDetailId.fullName, senderId, sender.userDetailId.profileImage)
+  const senderName = sender?.userDetailId?.isBusinessProfile ? sender.userDetailId.businessName : sender?.userDetailId?.fullName;
+  const senderImage = sender?.userDetailId?.isBusinessProfile ? sender.userDetailId.businessLogo : sender?.userDetailId?.profileImage;
+  const receiverName = receiver?.userDetailId?.isBusinessProfile ? receiver.userDetailId.businessName : receiver?.userDetailId?.fullName;
+
+  if (senderName) {
+    sendConnectionRequestNotification(receiverId, senderName, senderId, senderImage)
       .catch(console.error);
   }
 
-  if (receiver?.userDetailId?.email && receiver?.userDetailId?.fullName && sender?.userDetailId?.fullName) {
+  if (receiver?.userDetailId?.email && receiverName && senderName) {
     sendConnectionRequestEmail(
       receiver.userDetailId.email,
-      receiver.userDetailId.fullName,
-      sender.userDetailId.fullName
+      receiverName,
+      senderName
     ).catch(console.error);
   }
 
-  if (receiver?.phoneNumber && receiver?.userDetailId?.fullName && sender?.userDetailId?.fullName) {
+  if (receiver?.phoneNumber && receiverName && senderName) {
     sendConnectionRequestSms(
       receiver.phoneNumber,
-      receiver.userDetailId.fullName,
-      sender.userDetailId.fullName
+      receiverName,
+      senderName
     ).catch(console.error);
   }
 
   return request;
 };
 
-const getSentRequests = async (userId, search = '') => {
+const getSentRequests = async (userId, search = '', filter = '') => {
   const requests = await UserRequests.find({ senderId: userId, status: 'pending' })
     .populate({
       path: 'receiverId',
-      populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth' },
+      populate: { 
+        path: 'userDetailId', 
+        select: 'fullName profileImage gender dateOfBirth isBusinessProfile businessName businessLogo businessCategory',
+        populate: { path: 'businessCategory', model: 'BusinessCategory', select: 'name' }
+      },
     })
     .select('receiverId')
     .lean();
 
-  if (search && search.trim()) {
-    return requests.filter(r => 
-      r.receiverId.userDetailId?.fullName?.toLowerCase().includes(search.trim().toLowerCase())
-    );
+  let result = requests.filter(r => r.receiverId && r.receiverId.userDetailId);
+
+  if (filter === 'business') {
+    result = result.filter(r => r.receiverId.userDetailId?.isBusinessProfile === true);
+  } else if (filter === 'personal' || filter === 'people') {
+    result = result.filter(r => r.receiverId.userDetailId?.isBusinessProfile !== true);
   }
 
-  return requests;
+  if (search && search.trim()) {
+    result = result.filter(r => {
+      const isBiz = r.receiverId.userDetailId?.isBusinessProfile === true;
+      const name = isBiz ? r.receiverId.userDetailId?.businessName : r.receiverId.userDetailId?.fullName;
+      return name?.toLowerCase().includes(search.trim().toLowerCase());
+    });
+  }
+
+  return result;
 };
 
-const getReceivedRequests = async (userId, search = '') => {
+const getReceivedRequests = async (userId, search = '', filter = '') => {
   const requests = await UserRequests.find({ receiverId: userId, status: 'pending' })
     .populate({
       path: 'senderId',
-      populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth' },
+      populate: { 
+        path: 'userDetailId', 
+        select: 'fullName profileImage gender dateOfBirth isBusinessProfile businessName businessLogo businessCategory',
+        populate: { path: 'businessCategory', model: 'BusinessCategory', select: 'name' }
+      },
     })
     .select('senderId _id')
     .lean();
 
-  if (search && search.trim()) {
-    return requests.filter(r => 
-      r.senderId.userDetailId?.fullName?.toLowerCase().includes(search.trim().toLowerCase())
-    );
+  let result = requests.filter(r => r.senderId && r.senderId.userDetailId);
+
+  if (filter === 'business') {
+    result = result.filter(r => r.senderId.userDetailId?.isBusinessProfile === true);
+  } else if (filter === 'personal' || filter === 'people') {
+    result = result.filter(r => r.senderId.userDetailId?.isBusinessProfile !== true);
   }
 
-  return requests;
+  if (search && search.trim()) {
+    result = result.filter(r => {
+      const isBiz = r.senderId.userDetailId?.isBusinessProfile === true;
+      const name = isBiz ? r.senderId.userDetailId?.businessName : r.senderId.userDetailId?.fullName;
+      return name?.toLowerCase().includes(search.trim().toLowerCase());
+    });
+  }
+
+  return result;
 };
 
-const getActiveConnections = async (userId, search = '') => {
+const getActiveConnections = async (userId, search = '', filter = '') => {
   const connections = await UserConnections.find({
     $or: [
       { connection1Id: userId },
@@ -236,8 +295,11 @@ const getActiveConnections = async (userId, search = '') => {
   let result = await User.find({ _id: { $in: connectedUserIds } })
     .populate({
       path: 'userDetailId',
-      select: 'fullName city profileImage gender dateOfBirth',
-      populate: { path: 'city', model: 'City', select: 'name' }
+      select: 'fullName city profileImage gender dateOfBirth isBusinessProfile businessName businessLogo businessCoverImage businessTagline businessCategory',
+      populate: [
+        { path: 'city', model: 'City', select: 'name' },
+        { path: 'businessCategory', model: 'BusinessCategory', select: 'name' }
+      ]
     })
     .select('userDetailId')
     .lean();
@@ -260,28 +322,43 @@ const getActiveConnections = async (userId, search = '') => {
   }
 
   // Map results to include city names
-  let formattedResult = result.map((user) => {
-    let cityName = null;
-    const city = user.userDetailId?.city;
-    
-    if (city) {
-      if (typeof city === 'object' && city.name) {
-        // City is populated
-        cityName = city.name;
-      } else {
-        // City is an ObjectId, get from map
-        cityName = cityMap.get(city.toString()) || null;
+  let formattedResult = result
+    .filter(user => user.userDetailId)
+    .map((user) => {
+      let cityName = null;
+      const city = user.userDetailId?.city;
+      
+      if (city) {
+        if (typeof city === 'object' && city.name) {
+          // City is populated
+          cityName = city.name;
+        } else {
+          // City is an ObjectId, get from map
+          cityName = cityMap.get(city.toString()) || null;
+        }
       }
-    }
 
-    return {
-      _id: user._id,
-      userDetailId: {
-        ...user.userDetailId,
-        city: cityName,
-      }
-    };
-  });
+      const isBiz = user.userDetailId.isBusinessProfile === true;
+      return {
+        _id: user._id,
+        userDetailId: {
+          ...user.userDetailId,
+          fullName: isBiz ? user.userDetailId.businessName : user.userDetailId.fullName,
+          profileImage: isBiz ? user.userDetailId.businessLogo : user.userDetailId.profileImage,
+          gender: isBiz ? null : (user.userDetailId.gender || null),
+          dateOfBirth: isBiz ? null : (user.userDetailId.dateOfBirth || null),
+          city: cityName,
+          isBusinessProfile: isBiz,
+          businessTagline: user.userDetailId.businessTagline || null,
+        }
+      };
+    });
+
+  if (filter === 'business') {
+    formattedResult = formattedResult.filter(user => user.userDetailId?.isBusinessProfile === true);
+  } else if (filter === 'personal' || filter === 'people') {
+    formattedResult = formattedResult.filter(user => user.userDetailId?.isBusinessProfile !== true);
+  }
 
   if (search && search.trim()) {
     formattedResult = formattedResult.filter(user => 
@@ -312,24 +389,28 @@ const acceptRequest = async (requestId, receiverId) => {
     User.findById(request.senderId).populate('userDetailId'),
   ]);
 
-  if (accepter?.userDetailId?.fullName) {
-    sendConnectionAcceptedNotification(request.senderId, accepter.userDetailId.fullName, receiverId, accepter.userDetailId.profileImage)
+  const accepterName = accepter?.userDetailId?.isBusinessProfile ? accepter.userDetailId.businessName : accepter?.userDetailId?.fullName;
+  const accepterImage = accepter?.userDetailId?.isBusinessProfile ? accepter.userDetailId.businessLogo : accepter?.userDetailId?.profileImage;
+  const senderName = originalSender?.userDetailId?.isBusinessProfile ? originalSender.userDetailId.businessName : originalSender?.userDetailId?.fullName;
+
+  if (accepterName) {
+    sendConnectionAcceptedNotification(request.senderId, accepterName, receiverId, accepterImage)
       .catch(console.error);
   }
 
-  if (originalSender?.userDetailId?.email && originalSender?.userDetailId?.fullName && accepter?.userDetailId?.fullName) {
+  if (originalSender?.userDetailId?.email && senderName && accepterName) {
     sendConnectionAcceptedEmail(
       originalSender.userDetailId.email,
-      originalSender.userDetailId.fullName,
-      accepter.userDetailId.fullName
+      senderName,
+      accepterName
     ).catch(console.error);
   }
   
-  if (originalSender?.phoneNumber && originalSender?.userDetailId?.fullName && accepter?.userDetailId?.fullName) {
+  if (originalSender?.phoneNumber && senderName && accepterName) {
     sendConnectionAcceptedSms(
       originalSender.phoneNumber,
-      originalSender.userDetailId.fullName,
-      accepter.userDetailId.fullName
+      senderName,
+      accepterName
     ).catch(console.error);
   }
 
@@ -352,14 +433,17 @@ const rejectRequest = async (requestId, receiverId) => {
   return { success: true };
 };
 
-const getUsersWhoLikedMe = async (userId, search = '') => {
+const getUsersWhoLikedMe = async (userId, search = '', filter = '') => {
   const likes = await UserLikes.find({ likedUserId: userId })
     .populate({
       path: 'userId',
       populate: { 
         path: 'userDetailId', 
-        select: 'fullName city profileImage gender dateOfBirth',
-        populate: { path: 'city', model: 'City', select: 'name' }
+        select: 'fullName city profileImage gender dateOfBirth isBusinessProfile businessName businessLogo businessCoverImage businessTagline businessCategory',
+        populate: [
+          { path: 'city', model: 'City', select: 'name' },
+          { path: 'businessCategory', model: 'BusinessCategory', select: 'name' }
+        ]
       },
       select: 'userDetailId',
     })
@@ -382,29 +466,45 @@ const getUsersWhoLikedMe = async (userId, search = '') => {
     cityMap = new Map(cities.map(c => [c._id.toString(), c.name]));
   }
 
-  let result = likes.map(l => {
-    let cityName = null;
-    const city = l.userId?.userDetailId?.city;
-    
-    if (city) {
-      if (typeof city === 'object' && city.name) {
-        // City is populated
-        cityName = city.name;
-      } else {
-        // City is an ObjectId, get from map
-        cityName = cityMap.get(city.toString()) || null;
+  let result = likes
+    .filter(l => l.userId && l.userId.userDetailId)
+    .map(l => {
+      let cityName = null;
+      const city = l.userId?.userDetailId?.city;
+      
+      if (city) {
+        if (typeof city === 'object' && city.name) {
+          // City is populated
+          cityName = city.name;
+        } else {
+          // City is an ObjectId, get from map
+          cityName = cityMap.get(city.toString()) || null;
+        }
       }
-    }
 
-    return {
-      _id: l.userId._id,
-      fullName: l.userId.userDetailId?.fullName,
-      city: cityName,
-      profileImage: l.userId.userDetailId?.profileImage,
-      gender: l.userId.userDetailId?.gender || null,
-      dateOfBirth: l.userId.userDetailId?.dateOfBirth || null,
-    };
-  });
+      const isBiz = l.userId.userDetailId?.isBusinessProfile === true;
+      const catName = isBiz ? (l.userId.userDetailId?.businessCategory?.name || l.userId.userDetailId?.businessCategory || null) : null;
+      return {
+        _id: l.userId._id,
+        fullName: isBiz ? l.userId.userDetailId?.businessName : l.userId.userDetailId?.fullName,
+        city: cityName,
+        profileImage: isBiz ? l.userId.userDetailId?.businessLogo : l.userId.userDetailId?.profileImage,
+        gender: isBiz ? null : (l.userId.userDetailId?.gender || null),
+        dateOfBirth: isBiz ? null : (l.userId.userDetailId?.dateOfBirth || null),
+        isBusinessProfile: isBiz,
+        businessTagline: l.userId.userDetailId?.businessTagline || null,
+        businessName: isBiz ? l.userId.userDetailId?.businessName : null,
+        businessLogo: isBiz ? l.userId.userDetailId?.businessLogo : null,
+        businessCategory: catName,
+        businessCategoryName: catName,
+      };
+    });
+
+  if (filter === 'business') {
+    result = result.filter(user => user.isBusinessProfile === true);
+  } else if (filter === 'personal' || filter === 'people') {
+    result = result.filter(user => user.isBusinessProfile !== true);
+  }
 
   if (search && search.trim()) {
     result = result.filter(user => 

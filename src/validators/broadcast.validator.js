@@ -39,9 +39,21 @@ const targetedEmailBroadcastSchema = Joi.object({
   })
 });
 
+const testScheduledMailerSchema = Joi.object({
+  type: Joi.string().valid('INCOMPLETE_PROFILE', 'CITY_INDUSTRY_SNAPSHOT', 'OFFER_OF_THE_DAY').required().messages({
+    'any.required': 'Mailer type is required',
+    'any.only': 'Invalid mailer type'
+  }),
+  email: Joi.string().email().required().messages({
+    'any.required': 'Email is required',
+    'string.email': 'Invalid email address'
+  })
+});
+
 module.exports = { 
   broadcastNotificationSchema,
   generalSmsBroadcastSchema,
-  targetedEmailBroadcastSchema
+  targetedEmailBroadcastSchema,
+  testScheduledMailerSchema
 };
 

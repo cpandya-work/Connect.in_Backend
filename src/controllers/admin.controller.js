@@ -74,7 +74,8 @@ const { createCardSchema, updateCardSchema } = require('../validators/card.valid
 const { 
   broadcastNotificationSchema,
   generalSmsBroadcastSchema,
-  targetedEmailBroadcastSchema
+  targetedEmailBroadcastSchema,
+  testScheduledMailerSchema
 } = require('../validators/broadcast.validator');
 const { sendBroadcastNotification } = require('../services/notification.service');
 // const { sendBulkSms } = require('../services/sms.service');
@@ -108,7 +109,7 @@ const updatePopupSettingCtrl = asyncHandler(async (req, res) => {
  * Query params: page, limit, search
  */
 const getUsersListCtrl = asyncHandler(async (req, res) => {
-  const { page, limit, search, city, industry, interest, religion } = req.query;
+  const { page, limit, search, city, industry, interest, religion, isBusiness } = req.query;
 
   const result = await getUsersList({
     page,
@@ -118,6 +119,7 @@ const getUsersListCtrl = asyncHandler(async (req, res) => {
     industry,
     interest,
     religion,
+    isBusiness,
   });
 
   success(res, result, 'Users retrieved successfully');
@@ -1030,7 +1032,7 @@ const getPendingPostsCtrl = asyncHandler(async (req, res) => {
   const posts = await Post.find({ isApproved: false })
     .populate({
       path: 'userId',
-      populate: { path: 'userDetailId', select: 'fullName profileImage' },
+      populate: { path: 'userDetailId', select: 'fullName profileImage isBusinessProfile businessName businessLogo' },
       select: 'userDetailId'
     })
     .populate('authorCity')
@@ -1060,8 +1062,8 @@ const approvePostCtrl = asyncHandler(async (req, res) => {
   // Find connections to notify
   const userId = post.userId;
   const poster = await User.findById(userId).populate('userDetailId');
-  const posterName = poster?.userDetailId?.fullName || 'A user';
-  const posterImage = poster?.userDetailId?.profileImage || '';
+  const posterName = poster?.userDetailId?.isBusinessProfile ? poster.userDetailId.businessName : (poster?.userDetailId?.fullName || 'A user');
+  const posterImage = poster?.userDetailId?.isBusinessProfile ? poster.userDetailId.businessLogo : (poster?.userDetailId?.profileImage || '');
 
   const connections = await UserConnections.find({
     $or: [
@@ -1154,7 +1156,8 @@ const approvePostCtrl = asyncHandler(async (req, res) => {
 
           // Send email if user has email
           if (user.userDetailId?.email) {
-            sendNewPostEmail(user.userDetailId.email, user.userDetailId.fullName, posterName).catch(console.error);
+            const recipientName = user.userDetailId.isBusinessProfile ? user.userDetailId.businessName : user.userDetailId.fullName;
+            sendNewPostEmail(user.userDetailId.email, recipientName, posterName).catch(console.error);
           }
         }
       });
@@ -1200,7 +1203,7 @@ const getAllPostsCtrl = asyncHandler(async (req, res) => {
     Post.find(query)
       .populate({
         path: 'userId',
-        populate: { path: 'userDetailId', select: 'fullName profileImage' },
+        populate: { path: 'userDetailId', select: 'fullName profileImage isBusinessProfile businessName businessLogo' },
         select: 'userDetailId',
       })
       .populate('authorCity')
@@ -1515,7 +1518,160 @@ const getScheduledMailersLogsCtrl = asyncHandler(async (req, res) => {
   }, 'Scheduled mailer logs retrieved successfully');
 });
 
+const BusinessCategory = require('../models/BusinessCategory.model');
+
+// GET /api/admin/business-categories
+const getBusinessCategoriesListCtrl = asyncHandler(async (req, res) => {
+  const { search } = req.query;
+  let query = {};
+  if (search && search.trim()) {
+    query.name = new RegExp(search.trim(), 'i');
+  }
+  const categories = await BusinessCategory.find(query).sort({ name: 1 });
+  success(res, { categories }, 'Business categories retrieved successfully');
+});
+
+// POST /api/admin/business-categories
+const createBusinessCategoryCtrl = asyncHandler(async (req, res) => {
+  const { name, description } = req.body;
+  if (!name || !name.trim()) {
+    return res.status(400).json({ success: false, message: 'Category name is required' });
+  }
+
+  const existing = await BusinessCategory.findOne({ name: name.trim() });
+  if (existing) {
+    return res.status(400).json({ success: false, message: 'Business category already exists' });
+  }
+
+  const category = await BusinessCategory.create({
+    name: name.trim(),
+    description: description ? description.trim() : '',
+    isActive: true
+  });
+
+  success(res, { category }, 'Business category created successfully');
+});
+
+// PUT /api/admin/business-categories/:id/toggle-status
+const toggleBusinessCategoryCtrl = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const category = await BusinessCategory.findById(id);
+  if (!category) {
+    return res.status(404).json({ success: false, message: 'Business category not found' });
+  }
+
+  category.isActive = !category.isActive;
+  await category.save();
+
+  success(res, { category }, 'Business category status toggled successfully');
+});
+
+// DELETE /api/admin/business-categories/:id
+const deleteBusinessCategoryCtrl = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const category = await BusinessCategory.findByIdAndDelete(id);
+  if (!category) {
+    return res.status(404).json({ success: false, message: 'Business category not found' });
+  }
+
+  success(res, null, 'Business category deleted successfully');
+});
+
+// POST /api/admin/scheduled-mailers/test
+const sendTestScheduledMailerCtrl = asyncHandler(async (req, res) => {
+  const { error } = testScheduledMailerSchema.validate(req.body);
+  if (error) {
+    return res.status(400).json({ 
+      success: false, 
+      message: error.details[0].message 
+    });
+  }
+
+  const { type, email } = req.body;
+
+  if (!process.env.SMTP_HOST) {
+    return res.status(400).json({
+      success: false,
+      message: 'SMTP is not configured on the server. Please set SMTP_HOST environment variable.'
+    });
+  }
+
+  const {
+    renderIncompleteProfileEmailHtml,
+    renderCityIndustrySnapshotEmailHtml,
+    renderOfferOfTheDayEmailHtml
+  } = require('../services/email.service');
+
+  let subject = '';
+  let html = '';
+
+  if (type === 'INCOMPLETE_PROFILE') {
+    subject = 'Action Required: Complete your Connect India profile! 🚀 (TEST)';
+    html = renderIncompleteProfileEmailHtml('Test User');
+  } else if (type === 'CITY_INDUSTRY_SNAPSHOT') {
+    subject = 'Weekly Network Snapshot: New Matches in your City & Industry 🌐 (TEST)';
+    const dummyMatches = [
+      { fullName: 'Jane Doe', position: 'Senior Software Engineer', company: 'Tech Solutions' },
+      { fullName: 'John Smith', position: 'Product Lead', company: 'Innovate Hub' },
+      { fullName: 'Priya Sharma', position: 'Data Scientist', company: 'AI Analytics' }
+    ];
+    html = renderCityIndustrySnapshotEmailHtml('Test User', dummyMatches);
+  } else if (type === 'OFFER_OF_THE_DAY') {
+    let offer = await Card.findOne({ isActive: true }).lean();
+    if (!offer) {
+      offer = {
+        name: 'Premium Member Benefits (Sample Offer)',
+        description: 'Enjoy exclusive discounts on coworking spaces, software tools, and professional courses tailored for you.',
+        features: [
+          'Up to 30% discount on partner coworking spaces',
+          'Free premium features access for 3 months',
+          'Priority access to networking events'
+        ],
+        url: 'https://connect.in/offers',
+        logo_image: ''
+      };
+    }
+    subject = `Offer of the Day: ${offer.name} 🎁 (TEST)`;
+    html = renderOfferOfTheDayEmailHtml('Test User', offer);
+  } else {
+    return res.status(400).json({ success: false, message: 'Invalid mailer type' });
+  }
+
+  try {
+    const FROM = `"Connect India" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`;
+    const nodemailer = require('nodemailer');
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: parseInt(process.env.SMTP_PORT || '587', 10),
+      secure: process.env.SMTP_SECURE === 'true',
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+    });
+
+    await transporter.sendMail({
+      from: FROM,
+      to: email,
+      subject,
+      html
+    });
+
+    success(res, null, 'Test email sent successfully to ' + email);
+  } catch (err) {
+    console.error(`[Email Test] Failed to send "${subject}" to ${email}:`, err);
+    return res.status(500).json({
+      success: false,
+      message: `Failed to send email: ${err.message || 'SMTP Connection Error'}`
+    });
+  }
+});
+
 module.exports = {
+  getBusinessCategoriesListCtrl,
+  createBusinessCategoryCtrl,
+  toggleBusinessCategoryCtrl,
+  deleteBusinessCategoryCtrl,
   getPositionsListCtrl,
   getPositionByIdCtrl,
   createPositionCtrl,
@@ -1591,4 +1747,5 @@ module.exports = {
   updatePopupSettingCtrl,
   getScheduledMailersStatsCtrl,
   getScheduledMailersLogsCtrl,
+  sendTestScheduledMailerCtrl,
 };

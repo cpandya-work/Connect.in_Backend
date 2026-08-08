@@ -10,6 +10,7 @@ const SportModel = require("../models/Sport.model");
 const PositionModel = require("../models/Position.model");
 const SettingModel = require("../models/Setting.model");
 const CardClickModel = require("../models/CardClick.model");
+const BusinessCategoryModel = require("../models/BusinessCategory.model");
 const asyncHandler = require("../utils/asyncHandler");
 const { success } = require("../utils/response");
 
@@ -303,6 +304,11 @@ const listPositionsCtrl = asyncHandler(async (req, res) => {
   success(res, { positions }, 'positions list fetched');
 });
 
+const listBusinessCategoriesCtrl = asyncHandler(async (req, res) => {
+  const categories = await BusinessCategoryModel.find({ isActive: true }).sort({ name: 1 });
+  success(res, { categories }, 'business categories list fetched');
+});
+
 module.exports = {
   listCityCtrl,
   listSkillCtrl,
@@ -316,4 +322,5 @@ module.exports = {
   listPositionsCtrl,
   getPopupOfferCtrl,
   clickCardCtrl,
+  listBusinessCategoriesCtrl,
 };

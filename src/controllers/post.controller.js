@@ -140,7 +140,7 @@ const createPost = asyncHandler(async (req, res) => {
 
   const populatedPost = await Post.findById(post._id).populate({
     path: 'userId',
-    populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth' },
+    populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth isBusinessProfile businessName businessLogo' },
     select: 'userDetailId'
   }).populate('connectionGroupId', 'name');
 
@@ -254,12 +254,12 @@ const getPosts = asyncHandler(async (req, res) => {
   })
     .populate({
       path: 'userId',
-      populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth' },
+      populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth isBusinessProfile businessName businessLogo' },
       select: 'userDetailId'
     })
     .populate({
       path: 'reactions.userId',
-      populate: { path: 'userDetailId', select: 'fullName' },
+      populate: { path: 'userDetailId', select: 'fullName isBusinessProfile businessName' },
       select: 'userDetailId'
     })
     .populate('connectionGroupId', 'name')
@@ -350,7 +350,7 @@ const reactToPost = asyncHandler(async (req, res) => {
   // Populate reactions before returning
   const populatedPost = await Post.findById(postId).populate({
     path: 'reactions.userId',
-    populate: { path: 'userDetailId', select: 'fullName' },
+    populate: { path: 'userDetailId', select: 'fullName isBusinessProfile businessName' },
     select: 'userDetailId'
   });
 

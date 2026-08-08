@@ -11,14 +11,19 @@ const sendMessage = async (senderId, receiverId, message) => {
 
   // Send notification
   const sender = await User.findById(senderId).populate('userDetailId');
-  if (sender?.userDetailId?.fullName) {
-    await sendMessageNotification(
-      receiverId, 
-      sender.userDetailId.fullName, 
-      message, 
-      senderId,
-      sender.userDetailId.profileImage
-    );
+  const userDetail = sender?.userDetailId;
+  if (userDetail) {
+    const senderName = userDetail.isBusinessProfile ? userDetail.businessName : userDetail.fullName;
+    const senderImage = userDetail.isBusinessProfile ? userDetail.businessLogo : userDetail.profileImage;
+    if (senderName) {
+      await sendMessageNotification(
+        receiverId, 
+        senderName, 
+        message, 
+        senderId,
+        senderImage
+      );
+    }
   }
 
   return chat;
@@ -124,8 +129,20 @@ const getChatList = async (loggedInUserId, search = '') => {
         lastMessage: 1,
         lastMessageTime: 1,
         unseenCount: 1,
-        fullName: '$userDetail.fullName',
-        profileImage: '$userDetail.profileImage',
+        fullName: {
+          $cond: {
+            if: { $eq: ['$userDetail.isBusinessProfile', true] },
+            then: '$userDetail.businessName',
+            else: '$userDetail.fullName'
+          }
+        },
+        profileImage: {
+          $cond: {
+            if: { $eq: ['$userDetail.isBusinessProfile', true] },
+            then: '$userDetail.businessLogo',
+            else: '$userDetail.profileImage'
+          }
+        },
         gender: '$userDetail.gender',
         dateOfBirth: '$userDetail.dateOfBirth',
       },
@@ -151,12 +168,14 @@ const getChatList = async (loggedInUserId, search = '') => {
     connections.forEach(conn => {
       const connUserId = conn._id.toString();
       if (!existingChatUserIds.has(connUserId)) {
+        const detail = conn.userDetailId || conn;
+        const isBiz = detail.isBusinessProfile === true;
         result.push({
           _id: conn._id,
-          fullName: conn.userDetailId?.fullName,
-          profileImage: conn.userDetailId?.profileImage,
-          gender: conn.userDetailId?.gender || null,
-          dateOfBirth: conn.userDetailId?.dateOfBirth || null,
+          fullName: isBiz ? detail.businessName : detail.fullName,
+          profileImage: isBiz ? detail.businessLogo : detail.profileImage,
+          gender: detail.gender || null,
+          dateOfBirth: detail.dateOfBirth || null,
           lastMessage: '',
           lastMessageTime: null,
           unseenCount: 0

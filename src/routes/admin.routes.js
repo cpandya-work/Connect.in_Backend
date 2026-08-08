@@ -1,5 +1,9 @@
 const express = require('express');
 const { 
+  getBusinessCategoriesListCtrl,
+  createBusinessCategoryCtrl,
+  toggleBusinessCategoryCtrl,
+  deleteBusinessCategoryCtrl,
   getTrafficSourcesStatsCtrl,
   getUsersListCtrl,
   getSkillsListCtrl,
@@ -75,6 +79,7 @@ const {
   deletePositionCtrl,
   getScheduledMailersStatsCtrl,
   getScheduledMailersLogsCtrl,
+  sendTestScheduledMailerCtrl,
 } = require('../controllers/admin.controller');
 const { isAdmin } = require('../middlewares/admin.middleware');
 const uploadCardLogo = require('../middlewares/cardUpload.middleware');
@@ -306,5 +311,12 @@ router.delete('/posts/:postId', adminDeletePostCtrl);
 // Scheduled Mailers routes
 router.get('/scheduled-mailers/stats', getScheduledMailersStatsCtrl);
 router.get('/scheduled-mailers/logs', getScheduledMailersLogsCtrl);
+router.post('/scheduled-mailers/test', sendTestScheduledMailerCtrl);
+
+// Business Category Management routes
+router.get('/business-categories', getBusinessCategoriesListCtrl);
+router.post('/business-categories', createBusinessCategoryCtrl);
+router.put('/business-categories/:id/toggle-status', toggleBusinessCategoryCtrl);
+router.delete('/business-categories/:id', deleteBusinessCategoryCtrl);
 
 module.exports = router;

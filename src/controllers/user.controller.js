@@ -5,6 +5,7 @@ const City = require('../models/City.model');
 const Company = require('../models/Company.model');
 const Industry = require('../models/Industry.model');
 const Position = require('../models/Position.model');
+const BusinessCategory = require('../models/BusinessCategory.model');
 const { profileSchema, updateProfileSchema } = require('../validators/user.validator');
 const { success } = require('../utils/response');
 const { getPublicProfile, updateProfile, deleteAccount } = require('../services/user.service');
@@ -64,6 +65,15 @@ const getProfile = asyncHandler(async (req, res) => {
       positionName = positionObj.name;
     }
   }
+
+  // Get businessCategory name if businessCategory is a valid ObjectId
+  let businessCategoryName = user.userDetailId.businessCategory;
+  if (user.userDetailId.businessCategory && mongoose.Types.ObjectId.isValid(user.userDetailId.businessCategory)) {
+    const businessCat = await BusinessCategory.findById(user.userDetailId.businessCategory);
+    if (businessCat) {
+      businessCategoryName = businessCat.name;
+    }
+  }
   
   const userDetailObj = user.userDetailId.toObject();
   
@@ -78,16 +88,29 @@ const getProfile = asyncHandler(async (req, res) => {
     ...userDetailObj,
     city: cityName, // Replace city ID with city name
     company: companyName, // Replace company ID with company name
-    industry: industryName, // Replace industry ID with industry name
+    industry: industryName, // Replace industry ID with company name
     position: positionName, // Replace position ID with position name
+    businessCategory: businessCategoryName, // Replace businessCategory ID with name
+    businessCategoryId: userDetailObj.businessCategory, // Preserve original ID
   };
   
   success(res, { profile });
 });
 
 const createProfile = asyncHandler(async (req, res) => {
-  const { error } = profileSchema.validate(req.body);
-  if (error) return res.status(400).json({ success: false, message: error.details[0].message });
+  const isBusiness = req.body.isBusinessProfile === 'true' || req.body.isBusinessProfile === true;
+  
+  if (!isBusiness) {
+    const { error } = profileSchema.validate(req.body);
+    if (error) return res.status(400).json({ success: false, message: error.details[0].message });
+  } else {
+    if (!req.body.businessName) return res.status(400).json({ success: false, message: 'Business Name is required' });
+    if (!req.body.businessCategory) return res.status(400).json({ success: false, message: 'Business Category is required' });
+    if (!req.body.city) return res.status(400).json({ success: false, message: 'City is required' });
+    if (!req.body.pincode) return res.status(400).json({ success: false, message: 'Pincode is required' });
+    if (!req.body.email) return res.status(400).json({ success: false, message: 'Email is required' });
+    if (!req.body.contactPerson) return res.status(400).json({ success: false, message: 'Contact Person is required' });
+  }
 
   const profileImage = req.files?.profileImage?.[0]?.path || null;
   const coverImage = req.files?.coverImage?.[0]?.path || null;
@@ -139,25 +162,40 @@ const createProfile = asyncHandler(async (req, res) => {
   let detail;
   if (user.userDetailId) {
     // Update existing profile and mark as complete
+    const updateData = isBusiness ? {
+      ...req.body,
+      isBusinessProfile: true,
+      businessLogo: profileImage || user.userDetailId.businessLogo || user.userDetailId.profileImage,
+      businessCoverImage: coverImage || user.userDetailId.businessCoverImage || user.userDetailId.coverImage,
+      lastCompletedStep: 3,
+      isProfileComplete: true,
+    } : {
+      ...req.body,
+      profileImage: profileImage || user.userDetailId.profileImage,
+      coverImage: coverImage || user.userDetailId.coverImage,
+      habits: Array.isArray(req.body.habits) ? req.body.habits : (req.body.habits?.split(',').map(h => h.trim()).filter(Boolean) || []),
+      interests: Array.isArray(req.body.interests) ? req.body.interests : (req.body.interests?.split(',').map(i => i.trim()).filter(Boolean) || []),
+      skills: Array.isArray(req.body.skills) ? req.body.skills : (req.body.skills?.split(',').map(s => s.trim()).filter(Boolean) || []),
+      sports: Array.isArray(req.body.sports) ? req.body.sports : (req.body.sports?.split(',').map(s => s.trim()).filter(Boolean) || []),
+      preferredLanguage: Array.isArray(req.body.preferredLanguage) ? req.body.preferredLanguage : (req.body.preferredLanguage?.split(',').map(l => l.trim()).filter(Boolean) || []),
+      lastCompletedStep: 9,
+      isProfileComplete: true,
+    };
     detail = await UserDetail.findByIdAndUpdate(
       user.userDetailId._id,
-      {
-        ...req.body,
-        profileImage: profileImage || user.userDetailId.profileImage,
-        coverImage: coverImage || user.userDetailId.coverImage,
-        habits: Array.isArray(req.body.habits) ? req.body.habits : (req.body.habits?.split(',').map(h => h.trim()).filter(Boolean) || []),
-        interests: Array.isArray(req.body.interests) ? req.body.interests : (req.body.interests?.split(',').map(i => i.trim()).filter(Boolean) || []),
-        skills: Array.isArray(req.body.skills) ? req.body.skills : (req.body.skills?.split(',').map(s => s.trim()).filter(Boolean) || []),
-        sports: Array.isArray(req.body.sports) ? req.body.sports : (req.body.sports?.split(',').map(s => s.trim()).filter(Boolean) || []),
-        preferredLanguage: Array.isArray(req.body.preferredLanguage) ? req.body.preferredLanguage : (req.body.preferredLanguage?.split(',').map(l => l.trim()).filter(Boolean) || []),
-        lastCompletedStep: 9,
-        isProfileComplete: true,
-      },
+      updateData,
       { new: true }
     );
   } else {
     // Create new profile
-    detail = await UserDetail.create({
+    const createData = isBusiness ? {
+      ...req.body,
+      isBusinessProfile: true,
+      businessLogo: profileImage,
+      businessCoverImage: coverImage,
+      lastCompletedStep: 3,
+      isProfileComplete: true,
+    } : {
       ...req.body,
       profileImage,
       coverImage,
@@ -168,7 +206,8 @@ const createProfile = asyncHandler(async (req, res) => {
       preferredLanguage: Array.isArray(req.body.preferredLanguage) ? req.body.preferredLanguage : (req.body.preferredLanguage?.split(',').map(l => l.trim()).filter(Boolean) || []),
       lastCompletedStep: 9,
       isProfileComplete: true,
-    });
+    };
+    detail = await UserDetail.create(createData);
     await User.findByIdAndUpdate(user._id, { userDetailId: detail._id });
   }
   
@@ -179,16 +218,17 @@ const createProfile = asyncHandler(async (req, res) => {
     email: detail.email,
     ...detail.toObject(),
   };
-   console.log("Details email",detail)
+  console.log("Details email",detail)
   success(res, { profile }, 'Profile completed');
 
   // Fire welcome email + SMS outside the request lifecycle
   setImmediate(() => {
-    if (detail.email && detail.fullName) {
-      sendRegistrationEmail(detail.email, detail.fullName).catch(() => {});
+    const displayName = isBusiness ? detail.businessName : detail.fullName;
+    if (detail.email && displayName) {
+      sendRegistrationEmail(detail.email, displayName).catch(() => {});
     }
-    if (updatedUser.phoneNumber && detail.fullName) {
-      sendRegistrationSms(updatedUser.phoneNumber, detail.fullName);
+    if (updatedUser.phoneNumber && displayName) {
+      sendRegistrationSms(updatedUser.phoneNumber, displayName);
     }
   });
 });
@@ -285,98 +325,137 @@ const saveProfileStep = asyncHandler(async (req, res) => {
   const profileImage = req.files?.profileImage?.[0]?.path || null;
   const coverImage = req.files?.coverImage?.[0]?.path || null;
   
-  if (!stepNumber || isNaN(stepNumber) || stepNumber < 1 || stepNumber > 9) {
-    return res.status(400).json({ success: false, message: 'Invalid step number' });
+  const user = await User.findById(req.user._id).populate('userDetailId');
+  const isBusiness = req.body.isBusinessProfile === 'true' || req.body.isBusinessProfile === true || (user.userDetailId && user.userDetailId.isBusinessProfile === true);
+
+  if (isBusiness) {
+    if (!stepNumber || isNaN(stepNumber) || stepNumber < 1 || stepNumber > 3) {
+      return res.status(400).json({ success: false, message: 'Invalid business step number' });
+    }
+  } else {
+    if (!stepNumber || isNaN(stepNumber) || stepNumber < 1 || stepNumber > 9) {
+      return res.status(400).json({ success: false, message: 'Invalid step number' });
+    }
   }
 
-  const user = await User.findById(req.user._id).populate('userDetailId');
-  
   // Prepare step data (only include fields for this step)
   const stepData = {};
   
-  // Step 1: Basic info
-  if (stepNumber === 1) {
-    if (req.body.fullName) stepData.fullName = req.body.fullName;
-    if (req.body.city) stepData.city = req.body.city;
-    if (req.body.pincode) stepData.pincode = req.body.pincode;
-    if (req.body.religion) stepData.religion = req.body.religion;
-    if (req.body.status) stepData.status = req.body.status;
-  }
-  
-  // Step 2: Personal details
-  if (stepNumber === 2) {
-    if (req.body.email) stepData.email = req.body.email;
-    if (req.body.gender) stepData.gender = req.body.gender;
-    if (req.body.dateOfBirth) {
-      // Convert dateOfBirth to Date object if it's a string
-      stepData.dateOfBirth = req.body.dateOfBirth instanceof Date 
-        ? req.body.dateOfBirth 
-        : new Date(req.body.dateOfBirth);
+  if (isBusiness) {
+    stepData.isBusinessProfile = true;
+    
+    // Step 1: Business Name, Business Logo, Cover Image, Business Tagline, Business Category
+    if (stepNumber === 1) {
+      if (req.body.businessName) stepData.businessName = req.body.businessName;
+      if (req.body.businessTagline !== undefined) stepData.businessTagline = req.body.businessTagline;
+      if (req.body.businessCategory) stepData.businessCategory = req.body.businessCategory;
+      if (profileImage) stepData.businessLogo = profileImage;
+      if (coverImage) stepData.businessCoverImage = coverImage;
     }
-  }
-  
-  // Step 3: Language
-  if (stepNumber === 3) {
-    if (req.body.preferredLanguage) {
-      stepData.preferredLanguage = Array.isArray(req.body.preferredLanguage)
-        ? req.body.preferredLanguage
-        : (req.body.preferredLanguage.split(',').map(l => l.trim()).filter(Boolean) || []);
+    
+    // Step 2: Contact Person, WhatsApp Number, Email Address, Website URL, City, Pincode
+    if (stepNumber === 2) {
+      if (req.body.contactPerson) stepData.contactPerson = req.body.contactPerson;
+      if (req.body.whatsappNumber) stepData.whatsappNumber = req.body.whatsappNumber;
+      if (req.body.email) stepData.email = req.body.email;
+      if (req.body.website !== undefined) stepData.website = req.body.website;
+      if (req.body.city) stepData.city = req.body.city;
+      if (req.body.pincode) stepData.pincode = req.body.pincode;
     }
-  }
-  
-  // Step 4: Habits
-  if (stepNumber === 4) {
-    if (req.body.habits) {
-      stepData.habits = Array.isArray(req.body.habits) 
-        ? req.body.habits 
-        : (req.body.habits.split(',').map(h => h.trim()).filter(Boolean) || []);
+    
+    // Step 3: Facebook, Instagram, LinkedIn, Youtube, Twitter
+    if (stepNumber === 3) {
+      if (req.body.facebook !== undefined) stepData.facebook = req.body.facebook;
+      if (req.body.instagram !== undefined) stepData.instagram = req.body.instagram;
+      if (req.body.linkedIn !== undefined) stepData.linkedIn = req.body.linkedIn;
+      if (req.body.youtube !== undefined) stepData.youtube = req.body.youtube;
+      if (req.body.twitter !== undefined) stepData.twitter = req.body.twitter;
     }
-  }
-  
-  // Step 5: Interests
-  if (stepNumber === 5) {
-    if (req.body.interests) {
-      stepData.interests = Array.isArray(req.body.interests) 
-        ? req.body.interests 
-        : (req.body.interests.split(',').map(i => i.trim()).filter(Boolean) || []);
+  } else {
+    // Step 1: Basic info
+    if (stepNumber === 1) {
+      if (req.body.fullName) stepData.fullName = req.body.fullName;
+      if (req.body.city) stepData.city = req.body.city;
+      if (req.body.pincode) stepData.pincode = req.body.pincode;
+      if (req.body.religion) stepData.religion = req.body.religion;
+      if (req.body.status) stepData.status = req.body.status;
     }
-  }
-  
-  // Step 6: Skills
-  if (stepNumber === 6) {
-    if (req.body.skills) {
-      stepData.skills = Array.isArray(req.body.skills) 
-        ? req.body.skills 
-        : (req.body.skills.split(',').map(s => s.trim()).filter(Boolean) || []);
+    
+    // Step 2: Personal details
+    if (stepNumber === 2) {
+      if (req.body.email) stepData.email = req.body.email;
+      if (req.body.gender) stepData.gender = req.body.gender;
+      if (req.body.dateOfBirth) {
+        stepData.dateOfBirth = req.body.dateOfBirth instanceof Date 
+          ? req.body.dateOfBirth 
+          : new Date(req.body.dateOfBirth);
+      }
     }
-  }
-  
-  // Step 7: Sports
-  if (stepNumber === 7) {
-    if (req.body.sports) {
-      stepData.sports = Array.isArray(req.body.sports) 
-        ? req.body.sports 
-        : (req.body.sports.split(',').map(s => s.trim()).filter(Boolean) || []);
+    
+    // Step 3: Language
+    if (stepNumber === 3) {
+      if (req.body.preferredLanguage) {
+        stepData.preferredLanguage = Array.isArray(req.body.preferredLanguage)
+          ? req.body.preferredLanguage
+          : (req.body.preferredLanguage.split(',').map(l => l.trim()).filter(Boolean) || []);
+      }
     }
-  }
-  
-  // Step 8: Industry and Company
-  if (stepNumber === 8) {
-    if (req.body.industry) stepData.industry = req.body.industry;
-    if (req.body.company) stepData.company = req.body.company;
-    if (req.body.position !== undefined) stepData.position = req.body.position;
-  }
-  
-  // Step 9: Profile Image
-  if (stepNumber === 9 && profileImage) {
-    stepData.profileImage = profileImage;
+    
+    // Step 4: Habits
+    if (stepNumber === 4) {
+      if (req.body.habits) {
+        stepData.habits = Array.isArray(req.body.habits) 
+          ? req.body.habits 
+          : (req.body.habits.split(',').map(h => h.trim()).filter(Boolean) || []);
+      }
+    }
+    
+    // Step 5: Interests
+    if (stepNumber === 5) {
+      if (req.body.interests) {
+        stepData.interests = Array.isArray(req.body.interests) 
+          ? req.body.interests 
+          : (req.body.interests.split(',').map(i => i.trim()).filter(Boolean) || []);
+      }
+    }
+    
+    // Step 6: Skills
+    if (stepNumber === 6) {
+      if (req.body.skills) {
+        stepData.skills = Array.isArray(req.body.skills) 
+          ? req.body.skills 
+          : (req.body.skills.split(',').map(s => s.trim()).filter(Boolean) || []);
+      }
+    }
+    
+    // Step 7: Sports
+    if (stepNumber === 7) {
+      if (req.body.sports) {
+        stepData.sports = Array.isArray(req.body.sports) 
+          ? req.body.sports 
+          : (req.body.sports.split(',').map(s => s.trim()).filter(Boolean) || []);
+      }
+    }
+    
+    // Step 8: Industry and Company
+    if (stepNumber === 8) {
+      if (req.body.industry) stepData.industry = req.body.industry;
+      if (req.body.company) stepData.company = req.body.company;
+      if (req.body.position !== undefined) stepData.position = req.body.position;
+    }
+    
+    // Step 9: Profile Image
+    if (stepNumber === 9 && profileImage) {
+      stepData.profileImage = profileImage;
+    }
   }
   
   // Update lastCompletedStep
   stepData.lastCompletedStep = stepNumber;
   
-  // If step 9 is completed, mark profile as complete
-  if (stepNumber === 9) {
+  // If final step is completed, mark profile as complete
+  const finalStep = isBusiness ? 3 : 9;
+  if (stepNumber === finalStep) {
     stepData.isProfileComplete = true;
   }
   
@@ -388,8 +467,7 @@ const saveProfileStep = asyncHandler(async (req, res) => {
       lastCompletedStep: stepNumber,
     };
     
-    // If step 9, also set isProfileComplete
-    if (stepNumber === 9) {
+    if (stepNumber === finalStep) {
       updateObj.isProfileComplete = true;
     }
     
@@ -403,23 +481,11 @@ const saveProfileStep = asyncHandler(async (req, res) => {
     userDetail = await UserDetail.create({
       ...stepData,
       lastCompletedStep: stepNumber,
-      isProfileComplete: stepNumber === 9 ? true : false,
+      isProfileComplete: stepNumber === finalStep ? true : false,
     });
     await User.findByIdAndUpdate(req.user._id, { userDetailId: userDetail._id });
   }
   
-  // Fire welcome email + SMS outside the request lifecycle
-  if (stepNumber === 9 && userDetail.fullName) {
-    setImmediate(() => {
-      if (userDetail.email) {
-        sendRegistrationEmail(userDetail.email, userDetail.fullName).catch(() => {});
-      }
-      if (req.user.phoneNumber) {
-        sendRegistrationSms(req.user.phoneNumber, userDetail.fullName);
-      }
-    });
-  }
-
   success(res, {
     profile: userDetail,
     lastCompletedStep: stepNumber
@@ -490,6 +556,15 @@ const getProfileProgress = asyncHandler(async (req, res) => {
       positionName = positionObj.name;
     }
   }
+
+  // Get businessCategory name if businessCategory is a valid ObjectId
+  let businessCategoryName = userDetail.businessCategory;
+  if (userDetail.businessCategory && mongoose.Types.ObjectId.isValid(userDetail.businessCategory)) {
+    const businessCat = await BusinessCategory.findById(userDetail.businessCategory);
+    if (businessCat) {
+      businessCategoryName = businessCat.name;
+    }
+  }
   
   // Convert to plain object with all fields, including undefined ones
   const profileData = userDetail.toObject({ 
@@ -505,6 +580,9 @@ const getProfileProgress = asyncHandler(async (req, res) => {
   profileData.company = companyName;
   profileData.industry = industryName;
   profileData.position = positionName;
+  profileData.businessCategory = businessCategoryName;
+  profileData.businessCategoryId = userDetail.businessCategory;
+  profileData.phoneNumber = user.phoneNumber;
   
   success(res, {
     lastCompletedStep: profileData.lastCompletedStep || 0,

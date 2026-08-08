@@ -25,7 +25,7 @@ const { sendBroadcastOfferEmail } = require('./email.service');
  * @param {string} options.search - Search query (searches in name, email, phone, city)
  * @returns {Promise<Object>} Paginated user list with metadata
  */
-const getUsersList = async ({ page = 1, limit = 10, search = '', city = '', industry = '', interest = '', religion = '' } = {}) => {
+const getUsersList = async ({ page = 1, limit = 10, search = '', city = '', industry = '', interest = '', religion = '', isBusiness = null } = {}) => {
   // Convert page and limit to numbers
   const pageNum = parseInt(page, 10) || 1;
   const limitNum = parseInt(limit, 10) || 10;
@@ -35,11 +35,20 @@ const getUsersList = async ({ page = 1, limit = 10, search = '', city = '', indu
   const mongoose = require('mongoose');
   let searchQuery = {};
   
-  const hasFilters = (city && city.trim()) || (industry && industry.trim()) || (interest && interest.trim()) || (religion && religion.trim());
+  const isBusinessFlag = isBusiness !== null ? (isBusiness === 'true' || isBusiness === true) : null;
+  const hasFilters = (city && city.trim()) || (industry && industry.trim()) || (interest && interest.trim()) || (religion && religion.trim()) || (isBusinessFlag !== null);
 
   if (hasFilters) {
     let detailQuery = {};
     
+    if (isBusinessFlag !== null) {
+      if (isBusinessFlag === true) {
+        detailQuery.isBusinessProfile = true;
+      } else {
+        detailQuery.isBusinessProfile = { $ne: true };
+      }
+    }
+
     if (city && city.trim()) {
       if (mongoose.Types.ObjectId.isValid(city.trim())) {
         detailQuery.city = city.trim();
@@ -77,6 +86,7 @@ const getUsersList = async ({ page = 1, limit = 10, search = '', city = '', indu
       detailQuery.$and.push({
         $or: [
           { fullName: searchRegex },
+          { businessName: searchRegex },
           { email: searchRegex },
           ...(matchingCitiesForSearch.length > 0 ? [{ city: { $in: matchingCitiesForSearch.map(c => c._id) } }] : []),
         ]
@@ -110,6 +120,7 @@ const getUsersList = async ({ page = 1, limit = 10, search = '', city = '', indu
     const userDetailsWithSearch = await UserDetail.find({
       $or: [
         { fullName: searchRegex },
+        { businessName: searchRegex },
         { email: searchRegex },
         ...(matchingCityIds.length > 0 ? [{ city: { $in: matchingCityIds } }] : []),
       ],
@@ -166,9 +177,10 @@ const getUsersList = async ({ page = 1, limit = 10, search = '', city = '', indu
         cityStr = cityMap[cityVal.toString()] || cityVal.toString();
       }
 
+      const isBiz = user.userDetailId.isBusinessProfile === true;
       userObj.userDetails = {
         _id: user.userDetailId._id,
-        fullName: user.userDetailId.fullName,
+        fullName: isBiz ? user.userDetailId.businessName : user.userDetailId.fullName,
         email: user.userDetailId.email,
         city: cityStr,
         religion: user.userDetailId.religion,
@@ -181,8 +193,22 @@ const getUsersList = async ({ page = 1, limit = 10, search = '', city = '', indu
         skills: user.userDetailId.skills,
         industry: user.userDetailId.industry,
         company: user.userDetailId.company,
-        profileImage: user.userDetailId.profileImage,
+        profileImage: isBiz ? user.userDetailId.businessLogo : user.userDetailId.profileImage,
         originalPassword: user.userDetailId.originalPassword, // Include original password for admin
+        isBusinessProfile: isBiz,
+        businessName: user.userDetailId.businessName,
+        businessLogo: user.userDetailId.businessLogo,
+        businessCoverImage: user.userDetailId.businessCoverImage,
+        businessTagline: user.userDetailId.businessTagline,
+        businessCategory: user.userDetailId.businessCategory,
+        website: user.userDetailId.website,
+        contactPerson: user.userDetailId.contactPerson,
+        whatsappNumber: user.userDetailId.whatsappNumber,
+        facebook: user.userDetailId.facebook,
+        instagram: user.userDetailId.instagram,
+        linkedIn: user.userDetailId.linkedIn,
+        youtube: user.userDetailId.youtube,
+        twitter: user.userDetailId.twitter,
       };
     }
 
@@ -1396,7 +1422,8 @@ const getDashboardStats = async () => {
     totalOffers,
     totalSharedItems,
     totalChatMessages,
-    incompleteDetails
+    incompleteDetails,
+    totalBusinesses
   ] = await Promise.all([
     User.countDocuments({}),
     UserRequests.countDocuments({}),
@@ -1411,7 +1438,8 @@ const getDashboardStats = async () => {
         { profileImage: null },
         { isProfileComplete: false }
       ]
-    }).select('_id')
+    }).select('_id'),
+    UserDetail.countDocuments({ isBusinessProfile: true })
   ]);
 
   const incompleteIds = incompleteDetails.map(d => d._id);
@@ -1426,7 +1454,8 @@ const getDashboardStats = async () => {
     totalOffers,
     totalSharedItems,
     totalChatMessages,
-    totalCompleteProfiles
+    totalCompleteProfiles,
+    totalBusinesses
   };
 };
 
@@ -1454,6 +1483,7 @@ const getStatsTrend = async (statId) => {
 
   // Pre-fetch incomplete user detail IDs if we are calculating complete profiles trend
   let incompleteIds = [];
+  let businessDetailIds = [];
   if (statId === 'complete-profiles') {
     const incompleteDetails = await UserDetail.find({
       $or: [
@@ -1464,6 +1494,9 @@ const getStatsTrend = async (statId) => {
       ]
     }).select('_id').lean();
     incompleteIds = incompleteDetails.map(d => d._id);
+  } else if (statId === 'businesses') {
+    const businessDetails = await UserDetail.find({ isBusinessProfile: true }).select('_id').lean();
+    businessDetailIds = businessDetails.map(d => d._id);
   }
 
   // Helper to count documents in date range for specified statId
@@ -1474,6 +1507,11 @@ const getStatsTrend = async (statId) => {
       case 'complete-profiles':
         return await User.countDocuments({
           userDetailId: { $exists: true, $ne: null, $nin: incompleteIds },
+          createdAt: { $gte: start, $lte: end }
+        });
+      case 'businesses':
+        return await User.countDocuments({
+          userDetailId: { $in: businessDetailIds },
           createdAt: { $gte: start, $lte: end }
         });
       case 'connections':

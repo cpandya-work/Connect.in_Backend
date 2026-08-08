@@ -26,7 +26,7 @@ const getGroupsCtrl = asyncHandler(async (req, res) => {
   const groups = await ConnectionGroup.find({ userId })
     .populate({
       path: 'connections',
-      populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth' },
+      populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth isBusinessProfile businessName businessLogo' },
       select: 'userDetailId'
     })
     .sort({ createdAt: -1 })
@@ -46,7 +46,7 @@ const getGroupByIdCtrl = asyncHandler(async (req, res) => {
   const group = await ConnectionGroup.findOne({ _id: groupId, userId })
     .populate({
       path: 'connections',
-      populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth' },
+      populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth isBusinessProfile businessName businessLogo' },
       select: 'userDetailId'
     })
     .lean();
@@ -88,7 +88,7 @@ const updateGroupCtrl = asyncHandler(async (req, res) => {
   const populatedGroup = await ConnectionGroup.findById(group._id)
     .populate({
       path: 'connections',
-      populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth' },
+      populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth isBusinessProfile businessName businessLogo' },
       select: 'userDetailId'
     })
     .lean();
