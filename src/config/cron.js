@@ -11,6 +11,7 @@ const initCronJobs = () => {
   console.log('[Cron] Initializing scheduled mailer cron jobs...');
 
   // 1. Weekly Scheduler (runs every Sunday at 9:00 PM)
+  /*
   cron.schedule('0 21 * * 0', async () => {
     try {
       console.log('[Cron] Starting weekly cron tasks (Incomplete Profiles & Snapshots)...');
@@ -21,8 +22,10 @@ const initCronJobs = () => {
       console.error('[Cron] Error running weekly cron tasks:', err);
     }
   });
+  */
 
   // 2. Daily Scheduler (runs every day at 9:00 PM)
+  /*
   cron.schedule('0 21 * * *', async () => {
     try {
       console.log('[Cron] Starting daily cron tasks (Offer of the Day)...');
@@ -32,8 +35,10 @@ const initCronJobs = () => {
       console.error('[Cron] Error running daily cron tasks:', err);
     }
   });
+  */
 
   // 3. Hourly Processor (runs at the top of every hour: 0 * * * *)
+  /*
   cron.schedule('0 * * * *', async () => {
     try {
       console.log('[Cron] Starting hourly mail queue processor...');
@@ -43,8 +48,9 @@ const initCronJobs = () => {
       console.error('[Cron] Error running hourly mail queue processor:', err);
     }
   });
+  */
 
-  console.log('[Cron] All scheduled mailer cron jobs initialized.');
+  console.log('[Cron] Scheduled mailer cron jobs are currently disabled.');
 };
 
 module.exports = {
