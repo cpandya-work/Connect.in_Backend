@@ -29,7 +29,7 @@ const profileSchema = Joi.object({
   position: Joi.string().allow('').optional(),
   coverImage: Joi.string().allow('', null).optional(),
   fastConnect: Joi.boolean().optional(),
-});
+}).unknown(true);
 
 const updateProfileSchema = Joi.object({
   fullName: Joi.string().min(2),
@@ -78,6 +78,6 @@ const updateProfileSchema = Joi.object({
   youtube: Joi.string().allow('').optional(),
   twitter: Joi.string().allow('').optional(),
   businessDescription: Joi.string().allow('').optional(),
-}).min(1); // at least one field
+}).min(1).unknown(true);
 
 module.exports = { profileSchema, updateProfileSchema };

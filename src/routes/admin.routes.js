@@ -4,6 +4,7 @@ const {
   createBusinessCategoryCtrl,
   toggleBusinessCategoryCtrl,
   deleteBusinessCategoryCtrl,
+  updateBusinessCategoryCtrl,
   getTrafficSourcesStatsCtrl,
   getUsersListCtrl,
   getSkillsListCtrl,
@@ -316,6 +317,7 @@ router.post('/scheduled-mailers/test', sendTestScheduledMailerCtrl);
 // Business Category Management routes
 router.get('/business-categories', getBusinessCategoriesListCtrl);
 router.post('/business-categories', createBusinessCategoryCtrl);
+router.put('/business-categories/:id', updateBusinessCategoryCtrl);
 router.put('/business-categories/:id/toggle-status', toggleBusinessCategoryCtrl);
 router.delete('/business-categories/:id', deleteBusinessCategoryCtrl);
 

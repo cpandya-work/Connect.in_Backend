@@ -1577,6 +1577,35 @@ const deleteBusinessCategoryCtrl = asyncHandler(async (req, res) => {
   success(res, null, 'Business category deleted successfully');
 });
 
+// PUT /api/admin/business-categories/:id
+const updateBusinessCategoryCtrl = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { name, description } = req.body;
+
+  if (!name || !name.trim()) {
+    return res.status(400).json({ success: false, message: 'Category name is required' });
+  }
+
+  const category = await BusinessCategory.findById(id);
+  if (!category) {
+    return res.status(404).json({ success: false, message: 'Business category not found' });
+  }
+
+  // Check if name is changed and already exists
+  if (name.trim().toLowerCase() !== category.name.toLowerCase()) {
+    const existing = await BusinessCategory.findOne({ name: name.trim() });
+    if (existing) {
+      return res.status(400).json({ success: false, message: 'Business category name already exists' });
+    }
+  }
+
+  category.name = name.trim();
+  category.description = description ? description.trim() : '';
+  await category.save();
+
+  success(res, { category }, 'Business category updated successfully');
+});
+
 // POST /api/admin/scheduled-mailers/test
 const sendTestScheduledMailerCtrl = asyncHandler(async (req, res) => {
   const { error } = testScheduledMailerSchema.validate(req.body);
@@ -1672,6 +1701,7 @@ module.exports = {
   createBusinessCategoryCtrl,
   toggleBusinessCategoryCtrl,
   deleteBusinessCategoryCtrl,
+  updateBusinessCategoryCtrl,
   getPositionsListCtrl,
   getPositionByIdCtrl,
   createPositionCtrl,

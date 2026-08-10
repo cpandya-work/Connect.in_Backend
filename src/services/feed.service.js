@@ -23,20 +23,16 @@ const getFeed = async (userId, userGender, cursor = null, limit = 20, filters = 
 
   const excludedIds = new Set();
 
-  // Build sets for flag decoration (liked & sent-request profiles stay in feed)
+  // Build sets for flag decoration (liked, sent/received requests & connections stay in feed)
   const likedSet = new Set(liked.map(l => l.likedUserId.toString()));
   const sentReqSet = new Set(sentReq.map(r => r.receiverId.toString()));
-
-  // NOTE: liked and sentReq are intentionally NOT added to excludedIds so those
-  // profiles continue to appear in the feed with isLiked / isConnected flags.
-
-  // Add received requests (the other person sent ME a request — hide from feed)
-  receivedReq.forEach(r => excludedIds.add(r.senderId.toString()));
-
-  // Add active connections (fully connected — hide from feed)
+  const receivedReqSet = new Set(receivedReq.map(r => r.senderId.toString()));
+  const connectedSet = new Set();
   connections.forEach(c => {
-    if (c.connection1Id.toString() !== userId.toString()) excludedIds.add(c.connection1Id.toString());
-    if (c.connection2Id.toString() !== userId.toString()) excludedIds.add(c.connection2Id.toString());
+    const connId = c.connection1Id.toString() === userId.toString()
+      ? c.connection2Id.toString()
+      : c.connection1Id.toString();
+    connectedSet.add(connId);
   });
 
   // Add users I skipped
@@ -236,11 +232,14 @@ const getFeed = async (userId, userGender, cursor = null, limit = 20, filters = 
   }
 
   // Decorate each profile with isLiked / isConnected flags
-  result = result.map(p => ({
-    ...p,
-    isLiked: likedSet.has((p.id || p._id).toString()),
-    isConnected: sentReqSet.has((p.id || p._id).toString()),
-  }));
+  result = result.map(p => {
+    const profileIdStr = (p.id || p._id).toString();
+    return {
+      ...p,
+      isLiked: likedSet.has(profileIdStr),
+      isConnected: sentReqSet.has(profileIdStr) || receivedReqSet.has(profileIdStr) || connectedSet.has(profileIdStr),
+    };
+  });
 
   const hasMore = result.length > limit;
   const profiles = hasMore ? result.slice(0, limit) : result;
@@ -267,20 +266,16 @@ const getFeedWeb = async (userId, userGender, page = 1, limit = 20, filters = {}
 
   const excludedIds = new Set();
 
-  // Build sets for flag decoration (liked & sent-request profiles stay in feed)
+  // Build sets for flag decoration (liked, sent/received requests & connections stay in feed)
   const likedSet = new Set(liked.map(l => l.likedUserId.toString()));
   const sentReqSet = new Set(sentReq.map(r => r.receiverId.toString()));
-
-  // NOTE: liked and sentReq are intentionally NOT added to excludedIds so those
-  // profiles continue to appear in the feed with isLiked / isConnected flags.
-
-  // Add received requests (the other person sent ME a request — hide from feed)
-  receivedReq.forEach(r => excludedIds.add(r.senderId.toString()));
-
-  // Add active connections (fully connected — hide from feed)
+  const receivedReqSet = new Set(receivedReq.map(r => r.senderId.toString()));
+  const connectedSet = new Set();
   connections.forEach(c => {
-    if (c.connection1Id.toString() !== userId.toString()) excludedIds.add(c.connection1Id.toString());
-    if (c.connection2Id.toString() !== userId.toString()) excludedIds.add(c.connection2Id.toString());
+    const connId = c.connection1Id.toString() === userId.toString()
+      ? c.connection2Id.toString()
+      : c.connection1Id.toString();
+    connectedSet.add(connId);
   });
 
   // Add users I skipped
@@ -476,11 +471,14 @@ const getFeedWeb = async (userId, userGender, page = 1, limit = 20, filters = {}
   }
 
   // Decorate each profile with isLiked / isConnected flags
-  result = result.map(p => ({
-    ...p,
-    isLiked: likedSet.has((p.id || p._id).toString()),
-    isConnected: sentReqSet.has((p.id || p._id).toString()),
-  }));
+  result = result.map(p => {
+    const profileIdStr = (p.id || p._id).toString();
+    return {
+      ...p,
+      isLiked: likedSet.has(profileIdStr),
+      isConnected: sentReqSet.has(profileIdStr) || receivedReqSet.has(profileIdStr) || connectedSet.has(profileIdStr),
+    };
+  });
 
   // Calculate pagination
   const totalCount = result.length;
@@ -517,18 +515,26 @@ const getBusinessFeed = async (userId, page = 1, limit = 20, filters = {}, searc
   ]);
 
   const excludedIds = new Set();
+
+  // Build sets for flag decoration (liked, sent/received requests & connections stay in feed)
   const likedSet = new Set(liked.map(l => l.likedUserId.toString()));
   const sentReqSet = new Set(sentReq.map(r => r.receiverId.toString()));
-
-  receivedReq.forEach(r => excludedIds.add(r.senderId.toString()));
-  
+  const receivedReqSet = new Set(receivedReq.map(r => r.senderId.toString()));
+  const connectedSet = new Set();
   connections.forEach(c => {
-    if (c.connection1Id.toString() !== userId.toString()) excludedIds.add(c.connection1Id.toString());
-    if (c.connection2Id.toString() !== userId.toString()) excludedIds.add(c.connection2Id.toString());
+    const connId = c.connection1Id.toString() === userId.toString()
+      ? c.connection2Id.toString()
+      : c.connection1Id.toString();
+    connectedSet.add(connId);
   });
 
+  // Add users I skipped
   skippedByMe.forEach(s => excludedIds.add(s.skippedUserId.toString()));
+
+  // Add users who skipped me (bidirectional exclusion)
   skippedMe.forEach(s => excludedIds.add(s.userId.toString()));
+
+  // Add self
   excludedIds.add(userId.toString());
 
   const matchStage = {
@@ -622,11 +628,14 @@ const getBusinessFeed = async (userId, page = 1, limit = 20, filters = {}, searc
   const profiles = hasMore ? result.slice(0, limit) : result;
 
   // Decorate each profile with isLiked / isConnected flags
-  const decoratedProfiles = profiles.map(p => ({
-    ...p,
-    isLiked: likedSet.has((p.id || p._id).toString()),
-    isConnected: sentReqSet.has((p.id || p._id).toString()),
-  }));
+  const decoratedProfiles = profiles.map(p => {
+    const profileIdStr = (p.id || p._id).toString();
+    return {
+      ...p,
+      isLiked: likedSet.has(profileIdStr),
+      isConnected: sentReqSet.has(profileIdStr) || receivedReqSet.has(profileIdStr) || connectedSet.has(profileIdStr),
+    };
+  });
 
   return {
     profiles: decoratedProfiles,

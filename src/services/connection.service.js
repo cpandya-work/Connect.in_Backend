@@ -150,7 +150,7 @@ const sendConnectionRequest = async (senderId, receiverId) => {
     throw new Error('Receiver not found');
   }
 
-  if (receiver.userDetailId?.fastConnect) {
+  if (receiver.userDetailId?.fastConnect || receiver.userDetailId?.isBusinessProfile === true) {
     // Create the connection instantly
     const connection = await UserConnections.create({
       connection1Id: senderId,
