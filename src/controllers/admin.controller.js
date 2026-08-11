@@ -1634,11 +1634,19 @@ const sendTestScheduledMailerCtrl = asyncHandler(async (req, res) => {
   let subject = '';
   let html = '';
 
+  const mailerSetting = await Setting.findOne({ key: 'scheduled_mailers_settings' });
+  const defaultSubjects = {
+    INCOMPLETE_PROFILE: 'Action Required: Complete your Connect India profile! 🚀',
+    CITY_INDUSTRY_SNAPSHOT: 'Weekly Network Snapshot: New Matches in your City & Industry 🌐',
+    OFFER_OF_THE_DAY: 'Offer of the Day: {offerName} 🎁'
+  };
+  const configuredSubject = (mailerSetting && mailerSetting.value && mailerSetting.value[type]?.subject) || defaultSubjects[type];
+
   if (type === 'INCOMPLETE_PROFILE') {
-    subject = 'Action Required: Complete your Connect India profile! 🚀 (TEST)';
+    subject = `${configuredSubject} (TEST)`;
     html = renderIncompleteProfileEmailHtml('Test User');
   } else if (type === 'CITY_INDUSTRY_SNAPSHOT') {
-    subject = 'Weekly Network Snapshot: New Matches in your City & Industry 🌐 (TEST)';
+    subject = `${configuredSubject} (TEST)`;
     const dummyMatches = [
       { fullName: 'Jane Doe', position: 'Senior Software Engineer', company: 'Tech Solutions' },
       { fullName: 'John Smith', position: 'Product Lead', company: 'Innovate Hub' },
@@ -1660,7 +1668,8 @@ const sendTestScheduledMailerCtrl = asyncHandler(async (req, res) => {
         logo_image: ''
       };
     }
-    subject = `Offer of the Day: ${offer.name} 🎁 (TEST)`;
+    const resolvedSubject = configuredSubject.replace(/{offerName}/g, offer.name).replace(/{name}/g, offer.name);
+    subject = `${resolvedSubject} (TEST)`;
     html = renderOfferOfTheDayEmailHtml('Test User', offer);
   } else {
     return res.status(400).json({ success: false, message: 'Invalid mailer type' });
@@ -1694,6 +1703,47 @@ const sendTestScheduledMailerCtrl = asyncHandler(async (req, res) => {
       message: `Failed to send email: ${err.message || 'SMTP Connection Error'}`
     });
   }
+});
+
+const getScheduledMailersSettingsCtrl = asyncHandler(async (req, res) => {
+  let setting = await Setting.findOne({ key: 'scheduled_mailers_settings' });
+  
+  const defaultSettings = {
+    INCOMPLETE_PROFILE: {
+      isEnabled: true,
+      subject: 'Action Required: Complete your Connect India profile! 🚀'
+    },
+    CITY_INDUSTRY_SNAPSHOT: {
+      isEnabled: true,
+      subject: 'Weekly Network Snapshot: New Matches in your City & Industry 🌐'
+    },
+    OFFER_OF_THE_DAY: {
+      isEnabled: true,
+      subject: 'Offer of the Day: {offerName} 🎁'
+    }
+  };
+
+  const settings = setting && setting.value ? {
+    ...defaultSettings,
+    ...setting.value
+  } : defaultSettings;
+
+  success(res, { settings }, 'Scheduled mailer settings retrieved successfully');
+});
+
+const updateScheduledMailersSettingsCtrl = asyncHandler(async (req, res) => {
+  const { settings } = req.body;
+  if (!settings || typeof settings !== 'object') {
+    return res.status(400).json({ success: false, message: 'Settings object is required' });
+  }
+
+  const updatedSetting = await Setting.findOneAndUpdate(
+    { key: 'scheduled_mailers_settings' },
+    { value: settings },
+    { upsert: true, new: true }
+  );
+
+  success(res, { settings: updatedSetting.value }, 'Scheduled mailer settings updated successfully');
 });
 
 module.exports = {
@@ -1778,4 +1828,6 @@ module.exports = {
   getScheduledMailersStatsCtrl,
   getScheduledMailersLogsCtrl,
   sendTestScheduledMailerCtrl,
+  getScheduledMailersSettingsCtrl,
+  updateScheduledMailersSettingsCtrl,
 };

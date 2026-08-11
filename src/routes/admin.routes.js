@@ -81,6 +81,8 @@ const {
   getScheduledMailersStatsCtrl,
   getScheduledMailersLogsCtrl,
   sendTestScheduledMailerCtrl,
+  getScheduledMailersSettingsCtrl,
+  updateScheduledMailersSettingsCtrl,
 } = require('../controllers/admin.controller');
 const { isAdmin } = require('../middlewares/admin.middleware');
 const uploadCardLogo = require('../middlewares/cardUpload.middleware');
@@ -313,6 +315,8 @@ router.delete('/posts/:postId', adminDeletePostCtrl);
 router.get('/scheduled-mailers/stats', getScheduledMailersStatsCtrl);
 router.get('/scheduled-mailers/logs', getScheduledMailersLogsCtrl);
 router.post('/scheduled-mailers/test', sendTestScheduledMailerCtrl);
+router.get('/scheduled-mailers/settings', getScheduledMailersSettingsCtrl);
+router.put('/scheduled-mailers/settings', updateScheduledMailersSettingsCtrl);
 
 // Business Category Management routes
 router.get('/business-categories', getBusinessCategoriesListCtrl);

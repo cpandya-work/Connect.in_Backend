@@ -234,10 +234,14 @@ const getFeed = async (userId, userGender, cursor = null, limit = 20, filters = 
   // Decorate each profile with isLiked / isConnected flags
   result = result.map(p => {
     const profileIdStr = (p.id || p._id).toString();
+    const alreadyConnect = connectedSet.has(profileIdStr);
+    const sendRequest = sentReqSet.has(profileIdStr);
     return {
       ...p,
       isLiked: likedSet.has(profileIdStr),
-      isConnected: sentReqSet.has(profileIdStr) || receivedReqSet.has(profileIdStr) || connectedSet.has(profileIdStr),
+      isConnected: sendRequest || receivedReqSet.has(profileIdStr) || alreadyConnect,
+      alreadyConnect,
+      sendRequest,
     };
   });
 
@@ -473,10 +477,14 @@ const getFeedWeb = async (userId, userGender, page = 1, limit = 20, filters = {}
   // Decorate each profile with isLiked / isConnected flags
   result = result.map(p => {
     const profileIdStr = (p.id || p._id).toString();
+    const alreadyConnect = connectedSet.has(profileIdStr);
+    const sendRequest = sentReqSet.has(profileIdStr);
     return {
       ...p,
       isLiked: likedSet.has(profileIdStr),
-      isConnected: sentReqSet.has(profileIdStr) || receivedReqSet.has(profileIdStr) || connectedSet.has(profileIdStr),
+      isConnected: sendRequest || receivedReqSet.has(profileIdStr) || alreadyConnect,
+      alreadyConnect,
+      sendRequest,
     };
   });
 
@@ -630,10 +638,14 @@ const getBusinessFeed = async (userId, page = 1, limit = 20, filters = {}, searc
   // Decorate each profile with isLiked / isConnected flags
   const decoratedProfiles = profiles.map(p => {
     const profileIdStr = (p.id || p._id).toString();
+    const alreadyConnect = connectedSet.has(profileIdStr);
+    const sendRequest = sentReqSet.has(profileIdStr);
     return {
       ...p,
       isLiked: likedSet.has(profileIdStr),
-      isConnected: sentReqSet.has(profileIdStr) || receivedReqSet.has(profileIdStr) || connectedSet.has(profileIdStr),
+      isConnected: sendRequest || receivedReqSet.has(profileIdStr) || alreadyConnect,
+      alreadyConnect,
+      sendRequest,
     };
   });
 

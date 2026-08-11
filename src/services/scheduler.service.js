@@ -2,6 +2,7 @@ const User = require('../models/User.model');
 const UserDetail = require('../models/UserDetail.model');
 const Card = require('../models/Card.model');
 const MailQueue = require('../models/MailQueue.model');
+const Setting = require('../models/Setting.model');
 const {
   sendEmail,
   renderIncompleteProfileEmailHtml,
@@ -17,6 +18,36 @@ const getFutureDate = (daysToAdd, hour = 9) => {
   return d;
 };
 
+const getMailerSetting = async (type) => {
+  try {
+    const setting = await Setting.findOne({ key: 'scheduled_mailers_settings' });
+    const defaultSettings = {
+      INCOMPLETE_PROFILE: {
+        isEnabled: true,
+        subject: 'Action Required: Complete your Connect India profile! 🚀'
+      },
+      CITY_INDUSTRY_SNAPSHOT: {
+        isEnabled: true,
+        subject: 'Weekly Network Snapshot: New Matches in your City & Industry 🌐'
+      },
+      OFFER_OF_THE_DAY: {
+        isEnabled: true,
+        subject: 'Offer of the Day: {offerName} 🎁'
+      }
+    };
+    if (!setting || !setting.value || !setting.value[type]) {
+      return defaultSettings[type];
+    }
+    return {
+      ...defaultSettings[type],
+      ...setting.value[type]
+    };
+  } catch (err) {
+    console.error(`Error fetching setting for ${type}:`, err);
+    return { isEnabled: true }; // default fallback
+  }
+};
+
 /**
  * Scheduler Service
  */
@@ -29,6 +60,13 @@ const getFutureDate = (daysToAdd, hour = 9) => {
 const scheduleIncompleteProfiles = async () => {
   try {
     console.log('[Scheduler] Generating Incomplete Profile mailers...');
+
+    const setting = await getMailerSetting('INCOMPLETE_PROFILE');
+    if (!setting.isEnabled) {
+      console.log('[Scheduler] Incomplete Profile mailers are disabled in settings. Skipping.');
+      return { scheduled: 0 };
+    }
+    const customSubject = setting.subject || 'Action Required: Complete your Connect India profile! 🚀';
     
     // Find all incomplete user details with valid emails
     const incompleteDetails = await UserDetail.find({
@@ -57,7 +95,7 @@ const scheduleIncompleteProfiles = async () => {
       const bulkOps = chunk.map(user => ({
         recipient: user.email,
         recipientName: user.fullName || 'User',
-        subject: 'Action Required: Complete your Connect India profile! 🚀',
+        subject: customSubject,
         html: renderIncompleteProfileEmailHtml(user.fullName || 'User'),
         type: 'INCOMPLETE_PROFILE',
         scheduledFor,
@@ -86,6 +124,13 @@ const scheduleIncompleteProfiles = async () => {
 const scheduleCityIndustrySnapshots = async () => {
   try {
     console.log('[Scheduler] Generating City & Industry Snapshot mailers...');
+
+    const setting = await getMailerSetting('CITY_INDUSTRY_SNAPSHOT');
+    if (!setting.isEnabled) {
+      console.log('[Scheduler] City & Industry Snapshot mailers are disabled in settings. Skipping.');
+      return { scheduled: 0 };
+    }
+    const customSubject = setting.subject || 'Weekly Network Snapshot: New Matches in your City & Industry 🌐';
 
     // Fetch active users with completed city/industry fields & valid email
     const targetUsers = await UserDetail.find({
@@ -126,7 +171,7 @@ const scheduleCityIndustrySnapshots = async () => {
           bulkOps.push({
             recipient: user.email,
             recipientName: user.fullName || 'User',
-            subject: 'Weekly Network Snapshot: New Matches in your City & Industry 🌐',
+            subject: customSubject,
             html: renderCityIndustrySnapshotEmailHtml(user.fullName || 'User', matches),
             type: 'CITY_INDUSTRY_SNAPSHOT',
             scheduledFor,
@@ -157,6 +202,12 @@ const scheduleCityIndustrySnapshots = async () => {
 const scheduleOfferOfTheDay = async () => {
   try {
     console.log('[Scheduler] Generating Offer of the Day mailers...');
+
+    const setting = await getMailerSetting('OFFER_OF_THE_DAY');
+    if (!setting.isEnabled) {
+      console.log('[Scheduler] Offer of the Day mailers are disabled in settings. Skipping.');
+      return { scheduled: 0 };
+    }
 
     // Get an active offer card
     const activeCards = await Card.find({ isActive: true }).lean();
@@ -193,10 +244,13 @@ const scheduleOfferOfTheDay = async () => {
       const scheduledFor = new Date();
       scheduledFor.setHours(scheduledFor.getHours() + hour);
 
+      const customSubjectTemplate = setting.subject || 'Offer of the Day: {offerName} 🎁';
+      const customSubject = customSubjectTemplate.replace(/{offerName}/g, offer.name).replace(/{name}/g, offer.name);
+
       const bulkOps = chunk.map(user => ({
         recipient: user.email,
         recipientName: user.fullName || 'User',
-        subject: `Offer of the Day: ${offer.name} 🎁`,
+        subject: customSubject,
         html: renderOfferOfTheDayEmailHtml(user.fullName || 'User', offer),
         type: 'OFFER_OF_THE_DAY',
         scheduledFor,
