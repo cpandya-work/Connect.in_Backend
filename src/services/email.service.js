@@ -308,28 +308,39 @@ const sendBulkHtmlEmail = async (recipients, subject, htmlContent) => {
 
 // ─── 6. Scheduled Mailers Templates ──────────────────────────────────────────
 
-const renderIncompleteProfileEmailHtml = (fullName) => baseTemplate(`
-  <h2 style="margin:0 0 8px;color:#081332;font-size:22px;font-weight:700;">Complete your profile, ${fullName}! 🚀</h2>
-  <p style="margin:0 0 20px;color:#495057;font-size:15px;line-height:1.7;">
-    We noticed that your profile is incomplete. Completing your profile helps you gain 3x more professional visibility, connect with people in your industry, and get discovered by top companies.
-  </p>
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;margin-bottom:24px;">
-    <tr>
-      <td style="padding:20px 24px;">
-        <p style="margin:0 0 12px;color:#081332;font-weight:600;font-size:14px;">Here is what's missing on your profile:</p>
-        <ul style="margin:0;padding-left:18px;color:#6b7280;font-size:14px;line-height:2;">
-          <li>Add a professional Profile Image</li>
-          <li>Select your City & Industry</li>
-          <li>Add your current Position & Company</li>
-          <li>Specify your Hobbies, Interests, & Skills</li>
-        </ul>
-      </td>
-    </tr>
-  </table>
-  ${ctaButton(APP_URL, 'Complete Profile Now →')}
-`);
+const renderIncompleteProfileEmailHtml = (fullName, customBodyTemplate) => {
+  if (customBodyTemplate) {
+    const resolvedBody = customBodyTemplate
+      .replace(/{name}/g, fullName)
+      .replace(/{fullName}/g, fullName);
+    return baseTemplate(`
+      ${resolvedBody}
+      ${ctaButton(APP_URL, 'Complete Profile Now →')}
+    `);
+  }
+  return baseTemplate(`
+    <h2 style="margin:0 0 8px;color:#081332;font-size:22px;font-weight:700;">Complete your profile, ${fullName}! 🚀</h2>
+    <p style="margin:0 0 20px;color:#495057;font-size:15px;line-height:1.7;">
+      We noticed that your profile is incomplete. Completing your profile helps you gain 3x more professional visibility, connect with people in your industry, and get discovered by top companies.
+    </p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;margin-bottom:24px;">
+      <tr>
+        <td style="padding:20px 24px;">
+          <p style="margin:0 0 12px;color:#081332;font-weight:600;font-size:14px;">Here is what's missing on your profile:</p>
+          <ul style="margin:0;padding-left:18px;color:#6b7280;font-size:14px;line-height:2;">
+            <li>Add a professional Profile Image</li>
+            <li>Select your City & Industry</li>
+            <li>Add your current Position & Company</li>
+            <li>Specify your Hobbies, Interests, & Skills</li>
+          </ul>
+        </td>
+      </tr>
+    </table>
+    ${ctaButton(APP_URL, 'Complete Profile Now →')}
+  `);
+};
 
-const renderCityIndustrySnapshotEmailHtml = (fullName, matches) => {
+const renderCityIndustrySnapshotEmailHtml = (fullName, matches, customBodyTemplate) => {
   let matchesHtml = '';
   if (matches && matches.length > 0) {
     matchesHtml = `
@@ -354,6 +365,17 @@ const renderCityIndustrySnapshotEmailHtml = (fullName, matches) => {
     `;
   }
 
+  if (customBodyTemplate) {
+    const resolvedBody = customBodyTemplate
+      .replace(/{name}/g, fullName)
+      .replace(/{fullName}/g, fullName)
+      .replace(/{matches}/g, matchesHtml);
+    return baseTemplate(`
+      ${resolvedBody}
+      ${ctaButton(APP_URL, 'Explore Network →')}
+    `);
+  }
+
   return baseTemplate(`
     <h2 style="margin:0 0 8px;color:#081332;font-size:22px;font-weight:700;">Weekly Network Snapshot 🌐</h2>
     <p style="margin:0 0 20px;color:#495057;font-size:15px;line-height:1.7;">
@@ -365,10 +387,40 @@ const renderCityIndustrySnapshotEmailHtml = (fullName, matches) => {
   `);
 };
 
-const renderOfferOfTheDayEmailHtml = (fullName, offer) => {
+const renderOfferOfTheDayEmailHtml = (fullName, offer, customBodyTemplate) => {
   const featuresList = offer.features && offer.features.length > 0
     ? offer.features.map(f => `<li>${f}</li>`).join('')
     : '';
+
+  const offerFeatures = featuresList ? `
+    <p style="margin:0 0 8px;color:#081332;font-weight:600;font-size:13px;text-transform:uppercase;letter-spacing:0.5px;">Key Benefits:</p>
+    <ul style="margin:0 0 16px;padding-left:18px;color:#6b7280;font-size:13px;line-height:1.8;">
+      ${featuresList}
+    </ul>
+  ` : '';
+
+  const offerLogo = offer.logo_image ? `
+    <tr>
+      <td align="center" style="padding: 24px 24px 0;">
+        <img src="${offer.logo_image}" alt="${offer.name}" style="max-height: 80px; width: auto; border-radius: 8px;" />
+      </td>
+    </tr>
+  ` : '';
+
+  if (customBodyTemplate) {
+    const resolvedBody = customBodyTemplate
+      .replace(/{name}/g, fullName)
+      .replace(/{fullName}/g, fullName)
+      .replace(/{offerName}/g, offer.name)
+      .replace(/{offerDescription}/g, offer.description || '')
+      .replace(/{offerLogo}/g, offerLogo)
+      .replace(/{offerFeatures}/g, offerFeatures);
+
+    return baseTemplate(`
+      ${resolvedBody}
+      ${ctaButton(offer.url || `${APP_URL}/offer`, 'Get This Offer →')}
+    `);
+  }
 
   return baseTemplate(`
     <h2 style="margin:0 0 8px;color:#081332;font-size:22px;font-weight:700;">Offer of the Day! 🎁</h2>
@@ -378,13 +430,7 @@ const renderOfferOfTheDayEmailHtml = (fullName, offer) => {
     </p>
 
     <table width="100%" cellpadding="0" cellspacing="0" style="background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;margin-bottom:24px;overflow:hidden;">
-      ${offer.logo_image ? `
-      <tr>
-        <td align="center" style="padding: 24px 24px 0;">
-          <img src="${offer.logo_image}" alt="${offer.name}" style="max-height: 80px; width: auto; border-radius: 8px;" />
-        </td>
-      </tr>
-      ` : ''}
+      ${offerLogo}
       <tr>
         <td style="padding:20px 24px;">
           <h3 style="margin:0 0 8px;color:#081332;font-size:18px;font-weight:700;">${offer.name}</h3>

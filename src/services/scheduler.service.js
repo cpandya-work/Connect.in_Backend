@@ -24,15 +24,54 @@ const getMailerSetting = async (type) => {
     const defaultSettings = {
       INCOMPLETE_PROFILE: {
         isEnabled: true,
-        subject: 'Action Required: Complete your Connect India profile! 🚀'
+        subject: 'Action Required: Complete your Connect India profile! 🚀',
+        body: `<h2 style="margin:0 0 8px;color:#081332;font-size:22px;font-weight:700;">Complete your profile, {name}! 🚀</h2>
+<p style="margin:0 0 20px;color:#495057;font-size:15px;line-height:1.7;">
+  We noticed that your profile is incomplete. Completing your profile helps you gain 3x more professional visibility, connect with people in your industry, and get discovered by top companies.
+</p>
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;margin-bottom:24px;">
+  <tr>
+    <td style="padding:20px 24px;">
+      <p style="margin:0 0 12px;color:#081332;font-weight:600;font-size:14px;">Here is what's missing on your profile:</p>
+      <ul style="margin:0;padding-left:18px;color:#6b7280;font-size:14px;line-height:2;">
+        <li>Add a professional Profile Image</li>
+        <li>Select your City & Industry</li>
+        <li>Add your current Position & Company</li>
+        <li>Specify your Hobbies, Interests, & Skills</li>
+      </ul>
+    </td>
+  </tr>
+</table>`
       },
       CITY_INDUSTRY_SNAPSHOT: {
         isEnabled: true,
-        subject: 'Weekly Network Snapshot: New Matches in your City & Industry 🌐'
+        subject: 'Weekly Network Snapshot: New Matches in your City & Industry 🌐',
+        body: `<h2 style="margin:0 0 8px;color:#081332;font-size:22px;font-weight:700;">Weekly Network Snapshot 🌐</h2>
+<p style="margin:0 0 20px;color:#495057;font-size:15px;line-height:1.7;">
+  Hi <strong>{name}</strong>,<br/>
+  Here is a snapshot of recently registered users in your city and industry. Connect with them to expand your local professional network!
+</p>
+{matches}`
       },
       OFFER_OF_THE_DAY: {
         isEnabled: true,
-        subject: 'Offer of the Day: {offerName} 🎁'
+        subject: 'Offer of the Day: {offerName} 🎁',
+        body: `<h2 style="margin:0 0 8px;color:#081332;font-size:22px;font-weight:700;">Offer of the Day! 🎁</h2>
+<p style="margin:0 0 20px;color:#495057;font-size:15px;line-height:1.7;">
+  Hi <strong>{name}</strong>,<br/>
+  Here is today's exclusive offer handpicked for you on Connect India. Check it out and unlock great benefits today!
+</p>
+
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;margin-bottom:24px;overflow:hidden;">
+  {offerLogo}
+  <tr>
+    <td style="padding:20px 24px;">
+      <h3 style="margin:0 0 8px;color:#081332;font-size:18px;font-weight:700;">{offerName}</h3>
+      <p style="margin:0 0 16px;color:#495057;font-size:14px;line-height:1.6;">{offerDescription}</p>
+      {offerFeatures}
+    </td>
+  </tr>
+</table>`
       }
     };
     if (!setting || !setting.value || !setting.value[type]) {
@@ -67,6 +106,7 @@ const scheduleIncompleteProfiles = async () => {
       return { scheduled: 0 };
     }
     const customSubject = setting.subject || 'Action Required: Complete your Connect India profile! 🚀';
+    const customBody = setting.body;
     
     // Find all incomplete user details with valid emails
     const incompleteDetails = await UserDetail.find({
@@ -96,7 +136,7 @@ const scheduleIncompleteProfiles = async () => {
         recipient: user.email,
         recipientName: user.fullName || 'User',
         subject: customSubject,
-        html: renderIncompleteProfileEmailHtml(user.fullName || 'User'),
+        html: renderIncompleteProfileEmailHtml(user.fullName || 'User', customBody),
         type: 'INCOMPLETE_PROFILE',
         scheduledFor,
         status: 'pending'
@@ -131,6 +171,7 @@ const scheduleCityIndustrySnapshots = async () => {
       return { scheduled: 0 };
     }
     const customSubject = setting.subject || 'Weekly Network Snapshot: New Matches in your City & Industry 🌐';
+    const customBody = setting.body;
 
     // Fetch active users with completed city/industry fields & valid email
     const targetUsers = await UserDetail.find({
@@ -172,7 +213,7 @@ const scheduleCityIndustrySnapshots = async () => {
             recipient: user.email,
             recipientName: user.fullName || 'User',
             subject: customSubject,
-            html: renderCityIndustrySnapshotEmailHtml(user.fullName || 'User', matches),
+            html: renderCityIndustrySnapshotEmailHtml(user.fullName || 'User', matches, customBody),
             type: 'CITY_INDUSTRY_SNAPSHOT',
             scheduledFor,
             status: 'pending'
@@ -246,12 +287,13 @@ const scheduleOfferOfTheDay = async () => {
 
       const customSubjectTemplate = setting.subject || 'Offer of the Day: {offerName} 🎁';
       const customSubject = customSubjectTemplate.replace(/{offerName}/g, offer.name).replace(/{name}/g, offer.name);
+      const customBody = setting.body;
 
       const bulkOps = chunk.map(user => ({
         recipient: user.email,
         recipientName: user.fullName || 'User',
         subject: customSubject,
-        html: renderOfferOfTheDayEmailHtml(user.fullName || 'User', offer),
+        html: renderOfferOfTheDayEmailHtml(user.fullName || 'User', offer, customBody),
         type: 'OFFER_OF_THE_DAY',
         scheduledFor,
         status: 'pending'
