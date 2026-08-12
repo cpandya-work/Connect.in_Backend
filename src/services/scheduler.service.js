@@ -64,6 +64,7 @@ const getMailerSetting = async (type) => {
 
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;margin-bottom:24px;overflow:hidden;">
   {offerLogo}
+  {offerImage}
   <tr>
     <td style="padding:20px 24px;">
       <h3 style="margin:0 0 8px;color:#081332;font-size:18px;font-weight:700;">{offerName}</h3>

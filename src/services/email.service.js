@@ -407,6 +407,22 @@ const renderOfferOfTheDayEmailHtml = (fullName, offer, customBodyTemplate) => {
     </tr>
   ` : '';
 
+  const offerImage = offer.offer_image ? `
+    <tr>
+      <td align="center" style="padding: 0 24px 20px;">
+        <img src="${offer.offer_image}" alt="${offer.name}" style="max-width: 100%; height: auto; border-radius: 8px; max-height: 250px; object-fit: contain;" />
+      </td>
+    </tr>
+  ` : '';
+
+  const offerImageHtml = offer.offer_image ? `
+    <div style="text-align:center; margin: 16px 0;">
+      <img src="${offer.offer_image}" alt="${offer.name}" style="max-width: 100%; height: auto; border-radius: 8px; max-height: 300px; display: inline-block;" />
+    </div>
+  ` : '';
+
+  const offerImageUrl = offer.offer_image || '';
+
   if (customBodyTemplate) {
     const resolvedBody = customBodyTemplate
       .replace(/{name}/g, fullName)
@@ -414,7 +430,11 @@ const renderOfferOfTheDayEmailHtml = (fullName, offer, customBodyTemplate) => {
       .replace(/{offerName}/g, offer.name)
       .replace(/{offerDescription}/g, offer.description || '')
       .replace(/{offerLogo}/g, offerLogo)
-      .replace(/{offerFeatures}/g, offerFeatures);
+      .replace(/{offerFeatures}/g, offerFeatures)
+      .replace(/{offerImage}/g, offerImage)
+      .replace(/{offerImageHtml}/g, offerImageHtml)
+      .replace(/{offerImageUrl}/g, offerImageUrl)
+      .replace(/{offer_image_url}/g, offerImageUrl);
 
     return baseTemplate(`
       ${resolvedBody}
@@ -431,6 +451,7 @@ const renderOfferOfTheDayEmailHtml = (fullName, offer, customBodyTemplate) => {
 
     <table width="100%" cellpadding="0" cellspacing="0" style="background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;margin-bottom:24px;overflow:hidden;">
       ${offerLogo}
+      ${offerImage}
       <tr>
         <td style="padding:20px 24px;">
           <h3 style="margin:0 0 8px;color:#081332;font-size:18px;font-weight:700;">${offer.name}</h3>
