@@ -549,13 +549,14 @@ const deleteIndustryCtrl = asyncHandler(async (req, res) => {
  * Query params: page, limit, search, isActive
  */
 const getCardsListCtrl = asyncHandler(async (req, res) => {
-  const { page, limit, search, isActive } = req.query;
+  const { page, limit, search, isActive, category } = req.query;
 
   const result = await getCardsList({
     page,
     limit,
     search,
     isActive,
+    category,
   });
 
   success(res, result, 'Cards retrieved successfully');
@@ -700,6 +701,7 @@ const deleteCardCtrl = asyncHandler(async (req, res) => {
  */
 const getCardClicksCtrl = asyncHandler(async (req, res) => {
   const { id } = req.params;
+  const { days } = req.query;
   if (!mongoose.Types.ObjectId.isValid(id)) {
     return res.status(400).json({ success: false, message: 'Invalid Card ID' });
   }
@@ -709,8 +711,18 @@ const getCardClicksCtrl = asyncHandler(async (req, res) => {
     return res.status(404).json({ success: false, message: 'Card not found' });
   }
 
+  const matchQuery = { cardId: new mongoose.Types.ObjectId(id) };
+  if (days && days !== 'all') {
+    const numDays = parseInt(days, 10);
+    if (!isNaN(numDays)) {
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - numDays);
+      matchQuery.createdAt = { $gte: cutoffDate };
+    }
+  }
+
   const clicks = await CardClick.aggregate([
-    { $match: { cardId: new mongoose.Types.ObjectId(id) } },
+    { $match: matchQuery },
     { $group: {
         _id: "$userId",
         clickCount: { $sum: 1 },
@@ -749,7 +761,7 @@ const getCardClicksCtrl = asyncHandler(async (req, res) => {
  */
 const broadcastCardMailerCtrl = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { subject, htmlContent } = req.body;
+  const { subject, htmlContent, days } = req.body;
 
   if (!subject || !htmlContent) {
     return res.status(400).json({ success: false, message: 'Subject and content are required' });
@@ -764,9 +776,19 @@ const broadcastCardMailerCtrl = asyncHandler(async (req, res) => {
     return res.status(404).json({ success: false, message: 'Card not found' });
   }
 
+  const matchQuery = { cardId: new mongoose.Types.ObjectId(id) };
+  if (days && days !== 'all') {
+    const numDays = parseInt(days, 10);
+    if (!isNaN(numDays)) {
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - numDays);
+      matchQuery.createdAt = { $gte: cutoffDate };
+    }
+  }
+
   // Find all unique users who clicked this card
   const clicks = await CardClick.aggregate([
-    { $match: { cardId: new mongoose.Types.ObjectId(id) } },
+    { $match: matchQuery },
     { $group: {
         _id: "$userId"
     }},
@@ -1655,7 +1677,10 @@ const sendTestScheduledMailerCtrl = asyncHandler(async (req, res) => {
     ];
     html = renderCityIndustrySnapshotEmailHtml('Test User', dummyMatches, configuredBody);
   } else if (type === 'OFFER_OF_THE_DAY') {
-    let offer = await Card.findOne({ isActive: true }).lean();
+    let offer = await Card.findOne({ isActive: true, showInMailer: true }).lean();
+    if (!offer) {
+      offer = await Card.findOne({ isActive: true }).lean();
+    }
     if (!offer) {
       offer = {
         name: 'Premium Member Benefits (Sample Offer)',
@@ -1786,17 +1811,45 @@ const updateScheduledMailersSettingsCtrl = asyncHandler(async (req, res) => {
   success(res, { settings: updatedSetting.value }, 'Scheduled mailer settings updated successfully');
 });
 
+const OfferCategory = require('../models/OfferCategory.model');
+
+// GET /api/admin/offer-categories
+const getOfferCategoriesListCtrl = asyncHandler(async (req, res) => {
+  const { search } = req.query;
+  let query = {};
+  if (search && search.trim()) {
+    query.name = new RegExp(search.trim(), 'i');
+  }
+  const categories = await OfferCategory.find(query).sort({ name: 1 });
+  success(res, { categories }, 'Offer categories retrieved successfully');
+});
+
+// POST /api/admin/offer-categories
+const createOfferCategoryCtrl = asyncHandler(async (req, res) => {
+  const { name } = req.body;
+  if (!name || !name.trim()) {
+    return res.status(400).json({ success: false, message: 'Category name is required' });
+  }
+
+  const existing = await OfferCategory.findOne({ name: name.trim() });
+  if (existing) {
+    return res.status(400).json({ success: false, message: 'Offer category already exists' });
+  }
+
+  const category = await OfferCategory.create({
+    name: name.trim(),
+    isActive: true
+  });
+
+  success(res, { category }, 'Offer category created successfully');
+});
+
 module.exports = {
   getBusinessCategoriesListCtrl,
   createBusinessCategoryCtrl,
   toggleBusinessCategoryCtrl,
   deleteBusinessCategoryCtrl,
   updateBusinessCategoryCtrl,
-  getPositionsListCtrl,
-  getPositionByIdCtrl,
-  createPositionCtrl,
-  updatePositionCtrl,
-  deletePositionCtrl,
   getTrafficSourcesStatsCtrl,
   getUsersListCtrl,
   getSkillsListCtrl,
@@ -1804,6 +1857,11 @@ module.exports = {
   createSkillCtrl,
   updateSkillCtrl,
   deleteSkillCtrl,
+  getPositionsListCtrl,
+  getPositionByIdCtrl,
+  createPositionCtrl,
+  updatePositionCtrl,
+  deletePositionCtrl,
   getInterestsListCtrl,
   getInterestByIdCtrl,
   createInterestCtrl,
@@ -1870,4 +1928,6 @@ module.exports = {
   sendTestScheduledMailerCtrl,
   getScheduledMailersSettingsCtrl,
   updateScheduledMailersSettingsCtrl,
+  getOfferCategoriesListCtrl,
+  createOfferCategoryCtrl,
 };

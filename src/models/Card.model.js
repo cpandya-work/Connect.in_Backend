@@ -60,6 +60,19 @@ const cardSchema = new mongoose.Schema({
     type: Boolean, 
     default: true 
   },
+  showInPopup: {
+    type: Boolean,
+    default: true
+  },
+  showInMailer: {
+    type: Boolean,
+    default: true
+  },
+  category: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'OfferCategory',
+    default: null
+  },
 }, { timestamps: true });
 
 // Index for faster searches

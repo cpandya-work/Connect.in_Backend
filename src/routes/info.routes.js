@@ -6,6 +6,8 @@ const {
   submitInquiryCtrl,
   getInquiriesListCtrl,
   exportInquiriesToCSVCtrl,
+  deleteInquiryCtrl,
+  deleteAllInquiriesCtrl,
 } = require('../controllers/info.controller');
 const { optionalAuth } = require('../middlewares/auth.middleware');
 const { isAdmin } = require('../middlewares/admin.middleware');
@@ -22,5 +24,7 @@ router.post('/inquiry', optionalAuth, submitInquiryCtrl);
 // Admin routes for inquiries - require admin authentication
 router.get('/inquiries', isAdmin, getInquiriesListCtrl);
 router.get('/inquiries/export', isAdmin, exportInquiriesToCSVCtrl);
+router.delete('/inquiries/:id', isAdmin, deleteInquiryCtrl);
+router.delete('/inquiries', isAdmin, deleteAllInquiriesCtrl);
 
 module.exports = router;

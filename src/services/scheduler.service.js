@@ -251,10 +251,10 @@ const scheduleOfferOfTheDay = async () => {
       return { scheduled: 0 };
     }
 
-    // Get an active offer card
-    const activeCards = await Card.find({ isActive: true }).lean();
+    // Get active offer cards enabled for mailers
+    const activeCards = await Card.find({ isActive: true, showInMailer: true }).lean();
     if (activeCards.length === 0) {
-      console.log('[Scheduler] No active cards/offers found. Skipping Offer of the Day.');
+      console.log('[Scheduler] No active cards/offers enabled for mailers found. Skipping Offer of the Day.');
       return { scheduled: 0 };
     }
     // Select one active card randomly as the offer of the day

@@ -135,11 +135,23 @@ const exportInquiriesToCSV = async ({ search = '', status = '' } = {}) => {
   };
 };
 
+const deleteInquiry = async (id) => {
+  const result = await Inquiry.findByIdAndDelete(id);
+  return result;
+};
+
+const deleteAllInquiries = async () => {
+  const result = await Inquiry.deleteMany({});
+  return result;
+};
+
 module.exports = { 
   getPrivacyPolicy, 
   getTermsAndConditions, 
   getContactInfo, 
   submitInquiry,
   getInquiriesList,
-  exportInquiriesToCSV
+  exportInquiriesToCSV,
+  deleteInquiry,
+  deleteAllInquiries
 };

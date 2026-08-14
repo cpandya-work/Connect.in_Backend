@@ -14,6 +14,7 @@ const UserLikes = require('../models/UserLikes.model');
 const Post = require('../models/Post.model');
 const Position = require('../models/Position.model');
 const UserChat = require('../models/UserChat.model');
+const CardClick = require('../models/CardClick.model');
 const { deleteFromCloudinary } = require('../utils/cloudinary');
 const { sendBroadcastOfferEmail } = require('./email.service');
 
@@ -1029,7 +1030,7 @@ const getIndustryById = async (industryId) => {
 /**
  * Get all cards with pagination and search
  */
-const getCardsList = async ({ page = 1, limit = 10, search = '', isActive = null } = {}) => {
+const getCardsList = async ({ page = 1, limit = 10, search = '', isActive = null, category = '' } = {}) => {
   const pageNum = parseInt(page, 10) || 1;
   const limitNum = parseInt(limit, 10) || 10;
   const skip = (pageNum - 1) * limitNum;
@@ -1050,11 +1051,17 @@ const getCardsList = async ({ page = 1, limit = 10, search = '', isActive = null
     query.isActive = isActive === 'true' || isActive === true;
   }
 
+  // Filter by category if provided
+  if (category && category.trim()) {
+    query.category = category.trim();
+  }
+
   // Get total count
   const total = await Card.countDocuments(query);
 
   // Get cards with pagination
   const cards = await Card.find(query)
+    .populate('category')
     .sort({ createdAt: -1 }) // Sort by newest first
     .skip(skip)
     .limit(limitNum)
@@ -1095,7 +1102,10 @@ const createCard = async (cardData) => {
     targetAgeMax: cardData.targetAgeMax !== undefined && cardData.targetAgeMax !== null ? parseInt(cardData.targetAgeMax, 10) : null,
     targetCities: cardData.targetCities || [],
     targetPositions: cardData.targetPositions || [],
-    isActive: cardData.isActive !== undefined ? cardData.isActive : true,
+    isActive: cardData.isActive !== undefined ? (cardData.isActive === 'true' || cardData.isActive === true) : true,
+    showInPopup: cardData.showInPopup !== undefined ? (cardData.showInPopup === 'true' || cardData.showInPopup === true) : true,
+    showInMailer: cardData.showInMailer !== undefined ? (cardData.showInMailer === 'true' || cardData.showInMailer === true) : true,
+    category: cardData.category && cardData.category !== '' && cardData.category !== 'null' ? cardData.category : null,
   });
 
   return card;
@@ -1165,6 +1175,20 @@ const updateCard = async (cardId, updateData, files = null) => {
   }
   if (updateData.targetAgeMax !== undefined) {
     updateData.targetAgeMax = updateData.targetAgeMax !== null && updateData.targetAgeMax !== '' ? parseInt(updateData.targetAgeMax, 10) : null;
+  }
+
+  // Parse booleans explicitly from form-data / JSON
+  if (updateData.isActive !== undefined) {
+    updateData.isActive = updateData.isActive === 'true' || updateData.isActive === true;
+  }
+  if (updateData.showInPopup !== undefined) {
+    updateData.showInPopup = updateData.showInPopup === 'true' || updateData.showInPopup === true;
+  }
+  if (updateData.showInMailer !== undefined) {
+    updateData.showInMailer = updateData.showInMailer === 'true' || updateData.showInMailer === true;
+  }
+  if (updateData.category !== undefined) {
+    updateData.category = updateData.category && updateData.category !== '' && updateData.category !== 'null' ? updateData.category : null;
   }
 
   Object.assign(card, updateData);
@@ -1423,13 +1447,14 @@ const getDashboardStats = async () => {
     totalSharedItems,
     totalChatMessages,
     incompleteDetails,
-    totalBusinesses
+    totalBusinesses,
+    totalOfferClicks
   ] = await Promise.all([
     User.countDocuments({}),
     UserRequests.countDocuments({}),
     UserLikes.countDocuments({}),
     Card.countDocuments({}),
-    Post.countDocuments({}),
+    Post.countDocuments({ isApproved: true }),
     UserChat.countDocuments({}),
     UserDetail.find({
       $or: [
@@ -1439,7 +1464,8 @@ const getDashboardStats = async () => {
         { isProfileComplete: false }
       ]
     }).select('_id'),
-    UserDetail.countDocuments({ isBusinessProfile: true })
+    UserDetail.countDocuments({ isBusinessProfile: true }),
+    CardClick.countDocuments({})
   ]);
 
   const incompleteIds = incompleteDetails.map(d => d._id);
@@ -1455,7 +1481,8 @@ const getDashboardStats = async () => {
     totalSharedItems,
     totalChatMessages,
     totalCompleteProfiles,
-    totalBusinesses
+    totalBusinesses,
+    totalOfferClicks
   };
 };
 
@@ -1521,9 +1548,11 @@ const getStatsTrend = async (statId) => {
       case 'offers':
         return await Card.countDocuments({ createdAt: { $gte: start, $lte: end } });
       case 'shared':
-        return await Post.countDocuments({ createdAt: { $gte: start, $lte: end } });
+        return await Post.countDocuments({ isApproved: true, createdAt: { $gte: start, $lte: end } });
       case 'messages':
         return await UserChat.countDocuments({ createdAt: { $gte: start, $lte: end } });
+      case 'offer-clicks':
+        return await CardClick.countDocuments({ createdAt: { $gte: start, $lte: end } });
       default:
         throw new Error('Invalid statistic ID');
     }

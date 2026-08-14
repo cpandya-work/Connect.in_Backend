@@ -83,6 +83,8 @@ const {
   sendTestScheduledMailerCtrl,
   getScheduledMailersSettingsCtrl,
   updateScheduledMailersSettingsCtrl,
+  getOfferCategoriesListCtrl,
+  createOfferCategoryCtrl,
 } = require('../controllers/admin.controller');
 const { isAdmin } = require('../middlewares/admin.middleware');
 const uploadCardLogo = require('../middlewares/cardUpload.middleware');
@@ -324,5 +326,9 @@ router.post('/business-categories', createBusinessCategoryCtrl);
 router.put('/business-categories/:id', updateBusinessCategoryCtrl);
 router.put('/business-categories/:id/toggle-status', toggleBusinessCategoryCtrl);
 router.delete('/business-categories/:id', deleteBusinessCategoryCtrl);
+
+// Offer Category Management routes
+router.get('/offer-categories', getOfferCategoriesListCtrl);
+router.post('/offer-categories', createOfferCategoryCtrl);
 
 module.exports = router;

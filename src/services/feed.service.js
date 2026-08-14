@@ -9,8 +9,8 @@ const mongoose = require('mongoose');
 const getFeed = async (userId, userGender, cursor = null, limit = 20, filters = {}, search = '', userLocation = null, userCity = null) => {
   const cursorObj = cursor ? new mongoose.Types.ObjectId(cursor) : null;
 
-  // Build excluded user IDs
-  const [liked, sentReq, receivedReq, connections, skippedByMe, skippedMe] = await Promise.all([
+  // Build excluded user IDs and get logged-in user details
+  const [liked, sentReq, receivedReq, connections, skippedByMe, skippedMe, loggedInUserDoc] = await Promise.all([
     UserLikes.find({ userId }).select('likedUserId'),
     UserRequests.find({ senderId: userId, status: 'pending' }).select('receiverId'),
     UserRequests.find({ receiverId: userId, status: 'pending' }).select('senderId'),
@@ -19,7 +19,10 @@ const getFeed = async (userId, userGender, cursor = null, limit = 20, filters = 
     }),
     UserSkips.find({ userId }).select('skippedUserId'),
     UserSkips.find({ skippedUserId: userId }).select('userId'),
+    User.findById(userId).populate('userDetailId').select('userDetailId')
   ]);
+
+  const loggedInPincode = loggedInUserDoc?.userDetailId?.pincode ? loggedInUserDoc.userDetailId.pincode.toString().trim() : null;
 
   const excludedIds = new Set();
 
@@ -199,6 +202,7 @@ const getFeed = async (userId, userGender, cursor = null, limit = 20, filters = 
         status: '$details.status',
         industry: '$industryName',
         distance: userLocation ? '$distance' : undefined,
+        pincode: '$details.pincode',
       },
     },
   ]);
@@ -245,6 +249,29 @@ const getFeed = async (userId, userGender, cursor = null, limit = 20, filters = 
     };
   });
 
+  // Group by pincode matching if logged-in user has a pincode
+  if (loggedInPincode) {
+    const matchingProfiles = result.filter(p => p.pincode && p.pincode.toString().trim() === loggedInPincode);
+    const nonMatchingProfiles = result.filter(p => !p.pincode || p.pincode.toString().trim() !== loggedInPincode);
+
+    for (let i = matchingProfiles.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [matchingProfiles[i], matchingProfiles[j]] = [matchingProfiles[j], matchingProfiles[i]];
+    }
+    for (let i = nonMatchingProfiles.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [nonMatchingProfiles[i], nonMatchingProfiles[j]] = [nonMatchingProfiles[j], nonMatchingProfiles[i]];
+    }
+
+    result = matchingProfiles.concat(nonMatchingProfiles);
+  } else {
+    // Shuffle the results to display users randomly
+    for (let i = result.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [result[i], result[j]] = [result[j], result[i]];
+    }
+  }
+
   const hasMore = result.length > limit;
   const profiles = hasMore ? result.slice(0, limit) : result;
   const nextCursor = hasMore ? profiles[profiles.length - 1].id : null;
@@ -256,8 +283,8 @@ const getFeedWeb = async (userId, userGender, page = 1, limit = 20, filters = {}
   console.log(userLocation,'userLocation service');
   console.log(userCity,'userCity');
   
-  // Build excluded user IDs
-  const [liked, sentReq, receivedReq, connections, skippedByMe, skippedMe] = await Promise.all([
+  // Build excluded user IDs and get logged-in user details
+  const [liked, sentReq, receivedReq, connections, skippedByMe, skippedMe, loggedInUserDoc] = await Promise.all([
     UserLikes.find({ userId }).select('likedUserId'),
     UserRequests.find({ senderId: userId, status: 'pending' }).select('receiverId'),
     UserRequests.find({ receiverId: userId, status: 'pending' }).select('senderId'),
@@ -266,7 +293,10 @@ const getFeedWeb = async (userId, userGender, page = 1, limit = 20, filters = {}
     }),
     UserSkips.find({ userId }).select('skippedUserId'),
     UserSkips.find({ skippedUserId: userId }).select('userId'),
+    User.findById(userId).populate('userDetailId').select('userDetailId')
   ]);
+
+  const loggedInPincode = loggedInUserDoc?.userDetailId?.pincode ? loggedInUserDoc.userDetailId.pincode.toString().trim() : null;
 
   const excludedIds = new Set();
 
@@ -439,6 +469,7 @@ const getFeedWeb = async (userId, userGender, page = 1, limit = 20, filters = {}
         status: '$details.status',
         industry: '$industryName',
         distance: userLocation ? '$distance' : undefined,
+        pincode: '$details.pincode',
       },
     },
   ]);
@@ -488,6 +519,29 @@ const getFeedWeb = async (userId, userGender, page = 1, limit = 20, filters = {}
     };
   });
 
+  // Group by pincode matching if logged-in user has a pincode
+  if (loggedInPincode) {
+    const matchingProfiles = result.filter(p => p.pincode && p.pincode.toString().trim() === loggedInPincode);
+    const nonMatchingProfiles = result.filter(p => !p.pincode || p.pincode.toString().trim() !== loggedInPincode);
+
+    for (let i = matchingProfiles.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [matchingProfiles[i], matchingProfiles[j]] = [matchingProfiles[j], matchingProfiles[i]];
+    }
+    for (let i = nonMatchingProfiles.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [nonMatchingProfiles[i], nonMatchingProfiles[j]] = [nonMatchingProfiles[j], nonMatchingProfiles[i]];
+    }
+
+    result = matchingProfiles.concat(nonMatchingProfiles);
+  } else {
+    // Shuffle the results to display users randomly
+    for (let i = result.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [result[i], result[j]] = [result[j], result[i]];
+    }
+  }
+
   // Calculate pagination
   const totalCount = result.length;
   const skip = (page - 1) * limit;
@@ -510,8 +564,8 @@ const getFeedWeb = async (userId, userGender, page = 1, limit = 20, filters = {}
 };
 
 const getBusinessFeed = async (userId, page = 1, limit = 20, filters = {}, search = '', userCity = null) => {
-  // Build excluded user IDs
-  const [liked, sentReq, receivedReq, connections, skippedByMe, skippedMe] = await Promise.all([
+  // Build excluded user IDs and get logged-in user details
+  const [liked, sentReq, receivedReq, connections, skippedByMe, skippedMe, loggedInUserDoc] = await Promise.all([
     UserLikes.find({ userId }).select('likedUserId'),
     UserRequests.find({ senderId: userId, status: 'pending' }).select('receiverId'),
     UserRequests.find({ receiverId: userId, status: 'pending' }).select('senderId'),
@@ -520,7 +574,10 @@ const getBusinessFeed = async (userId, page = 1, limit = 20, filters = {}, searc
     }),
     UserSkips.find({ userId }).select('skippedUserId'),
     UserSkips.find({ skippedUserId: userId }).select('userId'),
+    User.findById(userId).populate('userDetailId').select('userDetailId')
   ]);
+
+  const loggedInPincode = loggedInUserDoc?.userDetailId?.pincode ? loggedInUserDoc.userDetailId.pincode.toString().trim() : null;
 
   const excludedIds = new Set();
 
@@ -567,8 +624,6 @@ const getBusinessFeed = async (userId, page = 1, limit = 20, filters = {}, searc
     matchStage['details.businessName'] = { $regex: search.trim(), $options: 'i' };
   }
 
-  const skip = (page - 1) * limit;
-
   let pipeline = [
     {
       $lookup: {
@@ -604,8 +659,6 @@ const getBusinessFeed = async (userId, page = 1, limit = 20, filters = {}, searc
       },
     },
     { $sort: { _id: -1 } },
-    { $skip: skip },
-    { $limit: limit + 1 }, // Check if there is next page
     {
       $project: {
         id: '$_id',
@@ -626,17 +679,15 @@ const getBusinessFeed = async (userId, page = 1, limit = 20, filters = {}, searc
         linkedIn: '$details.linkedIn',
         youtube: '$details.youtube',
         twitter: '$details.twitter',
+        pincode: '$details.pincode',
       },
     },
   ];
 
   let result = await User.aggregate(pipeline);
 
-  const hasMore = result.length > limit;
-  const profiles = hasMore ? result.slice(0, limit) : result;
-
   // Decorate each profile with isLiked / isConnected flags
-  const decoratedProfiles = profiles.map(p => {
+  const decoratedProfiles = result.map(p => {
     const profileIdStr = (p.id || p._id).toString();
     const alreadyConnect = connectedSet.has(profileIdStr);
     const sendRequest = sentReqSet.has(profileIdStr);
@@ -649,8 +700,36 @@ const getBusinessFeed = async (userId, page = 1, limit = 20, filters = {}, searc
     };
   });
 
+  let finalProfiles = decoratedProfiles;
+  // Group by pincode matching if logged-in user has a pincode
+  if (loggedInPincode) {
+    const matchingProfiles = decoratedProfiles.filter(p => p.pincode && p.pincode.toString().trim() === loggedInPincode);
+    const nonMatchingProfiles = decoratedProfiles.filter(p => !p.pincode || p.pincode.toString().trim() !== loggedInPincode);
+
+    for (let i = matchingProfiles.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [matchingProfiles[i], matchingProfiles[j]] = [matchingProfiles[j], matchingProfiles[i]];
+    }
+    for (let i = nonMatchingProfiles.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [nonMatchingProfiles[i], nonMatchingProfiles[j]] = [nonMatchingProfiles[j], nonMatchingProfiles[i]];
+    }
+
+    finalProfiles = matchingProfiles.concat(nonMatchingProfiles);
+  } else {
+    // Shuffle the results to display businesses randomly
+    for (let i = decoratedProfiles.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [decoratedProfiles[i], decoratedProfiles[j]] = [decoratedProfiles[j], decoratedProfiles[i]];
+    }
+  }
+
+  const skip = (page - 1) * limit;
+  const hasMore = finalProfiles.length > skip + limit;
+  const profiles = finalProfiles.slice(skip, skip + limit);
+
   return {
-    profiles: decoratedProfiles,
+    profiles,
     hasMore,
     nextPage: hasMore ? page + 1 : null,
   };

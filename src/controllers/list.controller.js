@@ -179,8 +179,8 @@ const getPopupOfferCtrl = asyncHandler(async (req, res) => {
     }
   }
 
-  // 4. Find all active offers (cards)
-  const cards = await CardModel.find({ isActive: true });
+  // 4. Find all active offers (cards) with showInPopup enabled
+  const cards = await CardModel.find({ isActive: true, showInPopup: { $ne: false } });
   if (cards.length === 0) {
     return success(res, { showPopup: false, offer: null }, 'No active offers available');
   }

@@ -40,7 +40,10 @@ const createCardSchema = Joi.object({
   offer_image: Joi.string().uri().trim().optional().allow(null, ''),
   clicks: Joi.number().integer().min(0).optional().default(0),
   views: Joi.number().integer().min(0).optional().default(0),
-  isActive: Joi.boolean().optional().default(true)
+  isActive: Joi.boolean().optional().default(true),
+  showInPopup: Joi.boolean().optional().default(true),
+  showInMailer: Joi.boolean().optional().default(true),
+  category: Joi.string().trim().hex().length(24).optional().allow(null, '')
 });
 
 const updateCardSchema = Joi.object({
@@ -81,7 +84,10 @@ const updateCardSchema = Joi.object({
   offer_image: Joi.string().uri().trim().optional().allow(null, ''),
   clicks: Joi.number().integer().min(0).optional(),
   views: Joi.number().integer().min(0).optional(),
-  isActive: Joi.boolean().optional()
+  isActive: Joi.boolean().optional(),
+  showInPopup: Joi.boolean().optional(),
+  showInMailer: Joi.boolean().optional(),
+  category: Joi.string().trim().hex().length(24).optional().allow(null, '')
 }).min(1); // At least one field must be provided
 
 module.exports = { createCardSchema, updateCardSchema };

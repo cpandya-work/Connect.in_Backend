@@ -1,6 +1,6 @@
 const asyncHandler = require('../utils/asyncHandler');
 const { success } = require('../utils/response');
-const { getPrivacyPolicy, getTermsAndConditions, getContactInfo, submitInquiry, getInquiriesList, exportInquiriesToCSV } = require('../services/info.service');
+const { getPrivacyPolicy, getTermsAndConditions, getContactInfo, submitInquiry, getInquiriesList, exportInquiriesToCSV, deleteInquiry, deleteAllInquiries } = require('../services/info.service');
 const { inquirySchema } = require('../validators/inquiry.validator');
 
 const getPrivacyPolicyCtrl = asyncHandler(async (req, res) => {
@@ -61,6 +61,29 @@ const exportInquiriesToCSVCtrl = asyncHandler(async (req, res) => {
   res.send(result.excelBuffer);
 });
 
+/**
+ * Delete an inquiry (Admin only)
+ */
+const deleteInquiryCtrl = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const result = await deleteInquiry(id);
+  if (!result) {
+    return res.status(404).json({
+      success: false,
+      message: 'Inquiry not found'
+    });
+  }
+  success(res, null, 'Inquiry deleted successfully');
+});
+
+/**
+ * Delete all inquiries (Admin only)
+ */
+const deleteAllInquiriesCtrl = asyncHandler(async (req, res) => {
+  await deleteAllInquiries();
+  success(res, null, 'All inquiries deleted successfully');
+});
+
 module.exports = {
   getPrivacyPolicyCtrl,
   getTermsAndConditionsCtrl,
@@ -68,4 +91,6 @@ module.exports = {
   submitInquiryCtrl,
   getInquiriesListCtrl,
   exportInquiriesToCSVCtrl,
+  deleteInquiryCtrl,
+  deleteAllInquiriesCtrl,
 };
