@@ -12,6 +12,8 @@ const {
   rejectRequestCtrl,
   removeConnectionCtrl,
   skipUserCtrl,
+  getSkippedUsersCtrl,
+  unskipUserCtrl,
 } = require('../controllers/connection.controller');
 const {
   createGroupCtrl,
@@ -49,5 +51,7 @@ router.delete('/requests/:requestId/reject', rejectRequestCtrl);
 router.delete('/connection/:connectionUserId', removeConnectionCtrl);
 
 router.post('/skip/:skippedUserId', skipUserCtrl);
+router.get('/skips', getSkippedUsersCtrl);
+router.delete('/skip/:skippedUserId', unskipUserCtrl);
 
 module.exports = router;

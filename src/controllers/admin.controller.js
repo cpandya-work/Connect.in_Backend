@@ -831,6 +831,82 @@ const broadcastCardMailerCtrl = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Send an SMS broadcast to all users who clicked on a card (DLT Template)
+ */
+const broadcastCardSmsCtrl = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { days } = req.body;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ success: false, message: 'Invalid Card ID' });
+  }
+
+  const card = await Card.findById(id);
+  if (!card) {
+    return res.status(404).json({ success: false, message: 'Card not found' });
+  }
+
+  const matchQuery = { cardId: new mongoose.Types.ObjectId(id) };
+  if (days && days !== 'all') {
+    const numDays = parseInt(days, 10);
+    if (!isNaN(numDays)) {
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - numDays);
+      matchQuery.createdAt = { $gte: cutoffDate };
+    }
+  }
+
+  // Find all unique users who clicked this card
+  const clicks = await CardClick.aggregate([
+    { $match: matchQuery },
+    { $group: {
+        _id: "$userId"
+    }},
+    { $lookup: {
+        from: "users",
+        localField: "_id",
+        foreignField: "_id",
+        as: "user"
+    }},
+    { $unwind: "$user" },
+    { $lookup: {
+        from: "userdetails",
+        localField: "user.userDetailId",
+        foreignField: "_id",
+        as: "userDetail"
+    }},
+    { $unwind: { path: "$userDetail", preserveNullAndEmptyArrays: true } },
+    { $project: {
+        phoneNumber: "$user.phoneNumber",
+        fullName: "$userDetail.fullName"
+    }}
+  ]);
+
+  // Filter out any entries without phone numbers
+  const recipients = clicks
+    .map(c => ({
+      phoneNumber: c.phoneNumber,
+      fullName: c.fullName || 'User'
+    }))
+    .filter(r => !!r.phoneNumber);
+
+  if (recipients.length === 0) {
+    return res.status(400).json({ success: false, message: 'No users with phone numbers found who clicked this offer' });
+  }
+
+  const { sendCardOfferBulkSms } = require('../services/sms.service');
+
+  // Trigger broadcast in background
+  setImmediate(() => {
+    sendCardOfferBulkSms(recipients, card.name, card._id).catch(err => {
+      console.error('Error in sendCardOfferBulkSms:', err);
+    });
+  });
+
+  success(res, { sent: recipients.length }, `SMS broadcast initiated to ${recipients.length} users`);
+});
+
+/**
  * Get all auth banners (admin)
  */
 const getAuthBannersCtrl = asyncHandler(async (req, res) => {
@@ -1894,6 +1970,7 @@ module.exports = {
   deleteCardCtrl,
   getCardClicksCtrl,
   broadcastCardMailerCtrl,
+  broadcastCardSmsCtrl,
   sendBroadcastNotificationCtrl,
   getAuthBannersCtrl,
   createAuthBannerCtrl,

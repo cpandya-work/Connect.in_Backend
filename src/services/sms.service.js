@@ -143,6 +143,35 @@ const sendBulkSms = async (users, message, templateId, entityId) => {
   return { sent: sentCount, errors: errorCount };
 };
 
+const sendCardOfferBulkSms = async (users, cardName, cardId) => {
+  console.log(`[SMS] Initiating bulk SMS for card "${cardName}" (ID: ${cardId}) to ${users.length} users`);
+  let sentCount = 0;
+  let errorCount = 0;
+
+  for (const user of users) {
+    try {
+      const cleanPhone = formatPhoneForMytoday(user.phoneNumber);
+      if (!cleanPhone) continue;
+
+      // Construct exactly the registered message template
+      const text = `Dear ${user.fullName}\r\nYour eligibility for ${cardName} is confirmed based on your profile. To proceed with the application click here connect.in/offers/${cardId}\r\n\r\n- Connect India`;
+      const encText = encodeURIComponent(text);
+
+      const url = `https://test1bulksms.mytoday.com/BulkSms/SingleMsgApi?feedid=393258&username=9884196886&password=SuX@2egALigzEKZ&To=${cleanPhone}&Text=${encText}&templateid=1207172777334847051&entityid=1201160765852941646&senderid=CONCTN`;
+
+      console.log(`[SMS] Sending Card Offer SMS to ${cleanPhone} for card ${cardName}`);
+      await axios.get(url);
+      sentCount++;
+    } catch (err) {
+      console.error(`[SMS] Failed to send offer SMS to ${user.phoneNumber}:`, err.message);
+      errorCount++;
+    }
+  }
+
+  console.log(`[SMS] Card Offer Bulk SMS completed. Sent: ${sentCount}, Errors: ${errorCount}`);
+  return { sent: sentCount, errors: errorCount };
+};
+
 module.exports = {
   sendRegistrationSms,
   sendConnectionRequestSms,
@@ -150,4 +179,5 @@ module.exports = {
   sendProfileLikedSms,
   sendIncompleteProfileBulkSms,
   sendBulkSms,
+  sendCardOfferBulkSms,
 };
