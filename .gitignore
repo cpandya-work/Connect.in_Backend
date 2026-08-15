@@ -5,11 +5,9 @@ yarn-error.log
 yarn-debug.log*
 
 # Environment
-.env
-.env.local
 
 # OS / Editor
 .DS_Store
 Thumbs.db
-.vscode/
 .idea/
+config.bat

@@ -14,6 +14,8 @@ const {
   rejectRequest,
   removeConnection,
   skipUser,
+  getSkippedUsers,
+  unskipUser,
 } = require('../services/connection.service');
 
 const likeUserCtrl = asyncHandler(async (req, res) => {
@@ -165,6 +167,21 @@ const skipUserCtrl = asyncHandler(async (req, res) => {
   success(res, null, 'Profile skipped');
 });
 
+const getSkippedUsersCtrl = asyncHandler(async (req, res) => {
+  const skips = await getSkippedUsers(req.user._id);
+  success(res, { skips });
+});
+
+const unskipUserCtrl = asyncHandler(async (req, res) => {
+  const { skippedUserId } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(skippedUserId)) {
+    return res.status(400).json({ success: false, message: 'Invalid user ID' });
+  }
+
+  await unskipUser(req.user._id, skippedUserId);
+  success(res, null, 'Profile unskipped successfully');
+});
+
 module.exports = {
   likeUserCtrl,
   dislikeUserCtrl,
@@ -178,4 +195,6 @@ module.exports = {
   rejectRequestCtrl,
   removeConnectionCtrl,
   skipUserCtrl,
+  getSkippedUsersCtrl,
+  unskipUserCtrl,
 };

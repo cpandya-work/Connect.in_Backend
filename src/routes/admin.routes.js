@@ -49,6 +49,7 @@ const {
   deleteCardCtrl,
   getCardClicksCtrl,
   broadcastCardMailerCtrl,
+  broadcastCardSmsCtrl,
   getPopupSettingCtrl,
   updatePopupSettingCtrl,
   sendBroadcastNotificationCtrl,
@@ -263,6 +264,9 @@ router.get('/cards/:id/clicks', getCardClicksCtrl);
 
 // POST /api/admin/cards/:id/broadcast
 router.post('/cards/:id/broadcast', broadcastCardMailerCtrl);
+
+// POST /api/admin/cards/:id/broadcast-sms
+router.post('/cards/:id/broadcast-sms', broadcastCardSmsCtrl);
 
 // Notification management routes
 // POST /api/admin/notifications/broadcast - Send push notification to all users

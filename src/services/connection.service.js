@@ -560,6 +560,80 @@ const skipUser = async (userId, skippedUserId) => {
   return { success: true };
 };
 
+const getSkippedUsers = async (userId) => {
+  const skips = await UserSkips.find({ userId })
+    .populate({
+      path: 'skippedUserId',
+      populate: { 
+        path: 'userDetailId', 
+        select: 'fullName city profileImage gender dateOfBirth isBusinessProfile businessName businessLogo businessCoverImage businessTagline businessCategory',
+        populate: [
+          { path: 'city', model: 'City', select: 'name' },
+          { path: 'businessCategory', model: 'BusinessCategory', select: 'name' }
+        ]
+      },
+      select: 'userDetailId',
+    })
+    .lean();
+
+  const cityIds = [];
+  skips.forEach((s) => {
+    const city = s.skippedUserId?.userDetailId?.city;
+    if (city && typeof city !== 'object') {
+      cityIds.push(city);
+    }
+  });
+
+  let cityMap = new Map();
+  if (cityIds.length > 0) {
+    const uniqueCityIds = [...new Set(cityIds)];
+    const cities = await City.find({ _id: { $in: uniqueCityIds } }).select('name _id').lean();
+    cityMap = new Map(cities.map(c => [c._id.toString(), c.name]));
+  }
+
+  return skips
+    .filter(s => s.skippedUserId && s.skippedUserId.userDetailId)
+    .map((s) => {
+      let cityName = null;
+      const city = s.skippedUserId?.userDetailId?.city;
+      
+      if (city) {
+        if (typeof city === 'object' && city.name) {
+          cityName = city.name;
+        } else {
+          cityName = cityMap.get(city.toString()) || null;
+        }
+      }
+
+      const isBiz = s.skippedUserId.userDetailId?.isBusinessProfile === true;
+      const catName = isBiz ? (s.skippedUserId.userDetailId?.businessCategory?.name || s.skippedUserId.userDetailId?.businessCategory || null) : null;
+      return {
+        _id: s.skippedUserId._id,
+        fullName: isBiz ? s.skippedUserId.userDetailId?.businessName : s.skippedUserId.userDetailId?.fullName,
+        city: cityName,
+        profileImage: isBiz ? s.skippedUserId.userDetailId?.businessLogo : s.skippedUserId.userDetailId?.profileImage,
+        gender: isBiz ? null : (s.skippedUserId.userDetailId?.gender || null),
+        dateOfBirth: isBiz ? null : (s.skippedUserId.userDetailId?.dateOfBirth || null),
+        isBusinessProfile: isBiz,
+        businessTagline: s.skippedUserId.userDetailId?.businessTagline || null,
+        businessName: isBiz ? s.skippedUserId.userDetailId?.businessName : null,
+        businessLogo: isBiz ? s.skippedUserId.userDetailId?.businessLogo : null,
+        businessCategory: catName,
+        businessCategoryName: catName,
+      };
+    });
+};
+
+const unskipUser = async (userId, skippedUserId) => {
+  await UserSkips.deleteMany({
+    $or: [
+      { userId, skippedUserId },
+      { userId: skippedUserId, skippedUserId: userId }
+    ]
+  });
+  return { success: true };
+};
+
 module.exports = {
   likeUser,
   dislikeUser,
@@ -573,4 +647,6 @@ module.exports = {
   rejectRequest,
   removeConnection,
   skipUser,
+  getSkippedUsers,
+  unskipUser,
 };
