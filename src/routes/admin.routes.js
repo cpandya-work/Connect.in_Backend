@@ -59,6 +59,7 @@ const {
   toggleAuthBannerCtrl,
   broadcastOfferEmailCtrl,
   getIncompleteProfileCountCtrl,
+  downloadIncompleteProfilesCSVCtrl,
   sendIncompleteProfileSmsCtrl,
   getGeneralUserCountCtrl,
   sendGeneralSmsBroadcastCtrl,
@@ -277,6 +278,9 @@ router.post('/notifications/broadcast-offer', broadcastOfferEmailCtrl);
 
 // GET /api/admin/notifications/broadcast-incomplete-profile-count - Get count of users with incomplete profiles
 router.get('/notifications/broadcast-incomplete-profile-count', getIncompleteProfileCountCtrl);
+
+// GET /api/admin/notifications/incomplete-profiles/csv - Download incomplete profiles in CSV format
+router.get('/notifications/incomplete-profiles/csv', downloadIncompleteProfilesCSVCtrl);
 
 // POST /api/admin/notifications/broadcast-incomplete-profile-sms - Send SMS to users with incomplete profiles
 router.post('/notifications/broadcast-incomplete-profile-sms', sendIncompleteProfileSmsCtrl);

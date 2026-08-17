@@ -998,6 +998,33 @@ const getIncompleteProfileCountCtrl = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Download CSV of users with incomplete profiles
+ * Query: days (7, 15, 30, 45, all)
+ */
+const downloadIncompleteProfilesCSVCtrl = asyncHandler(async (req, res) => {
+  const { days = 'all' } = req.query;
+  const users = await getIncompleteProfileUsers(days);
+
+  const csvRows = ['mobile,name'];
+  for (const user of users) {
+    const mobile = user.phoneNumber || '';
+    const name = user.fullName || 'User';
+    
+    // Escape double quotes and wrap in double quotes
+    const escapedMobile = `"${mobile.replace(/"/g, '""')}"`;
+    const escapedName = `"${name.replace(/"/g, '""')}"`;
+    
+    csvRows.push(`${escapedMobile},${escapedName}`);
+  }
+  const csvContent = csvRows.join('\n');
+
+  const filename = `incomplete_profiles_${days}_${new Date().toISOString().split('T')[0]}.csv`;
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.status(200).send(csvContent);
+});
+
+/**
  * Send SMS to users with incomplete profiles
  * Body: { days, message }
  */
@@ -1978,6 +2005,7 @@ module.exports = {
   toggleAuthBannerCtrl,
   broadcastOfferEmailCtrl,
   getIncompleteProfileCountCtrl,
+  downloadIncompleteProfilesCSVCtrl,
   sendIncompleteProfileSmsCtrl,
   getGeneralUserCountCtrl,
   sendGeneralSmsBroadcastCtrl,
