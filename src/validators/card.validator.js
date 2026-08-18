@@ -10,8 +10,8 @@ const createCardSchema = Joi.object({
   description: Joi.string().trim().max(1000).optional().allow('').messages({
     'string.max': 'Description must not exceed 1000 characters'
   }),
-  logo_image: Joi.string().uri().trim().optional().allow('').messages({
-    'string.uri': 'Logo image must be a valid URL'
+  logo_image: Joi.string().trim().optional().allow('').messages({
+    'string.base': 'Logo image must be a valid string'
   }),
   // Note: logo_image will be set automatically from file upload, validation happens in controller
   url: Joi.string().uri().trim().required().messages({
@@ -37,7 +37,7 @@ const createCardSchema = Joi.object({
   targetAgeMax: Joi.number().integer().min(0).max(120).optional().allow(null, ''),
   targetCities: Joi.array().items(Joi.string().trim()).optional().default([]),
   targetPositions: Joi.array().items(Joi.string().trim()).optional().default([]),
-  offer_image: Joi.string().uri().trim().optional().allow(null, ''),
+  offer_image: Joi.string().trim().optional().allow(null, ''),
   clicks: Joi.number().integer().min(0).optional().default(0),
   views: Joi.number().integer().min(0).optional().default(0),
   isActive: Joi.boolean().optional().default(true),
@@ -55,8 +55,8 @@ const updateCardSchema = Joi.object({
   description: Joi.string().trim().max(1000).optional().allow('').messages({
     'string.max': 'Description must not exceed 1000 characters'
   }),
-  logo_image: Joi.string().uri().trim().optional().allow('').messages({
-    'string.uri': 'Logo image must be a valid URL'
+  logo_image: Joi.string().trim().optional().allow('').messages({
+    'string.base': 'Logo image must be a valid string'
   }),
   // Note: logo_image will be set automatically from file upload, validation happens in controller
   url: Joi.string().uri().trim().optional().messages({
@@ -81,7 +81,7 @@ const updateCardSchema = Joi.object({
   targetAgeMax: Joi.number().integer().min(0).max(120).optional().allow(null, ''),
   targetCities: Joi.array().items(Joi.string().trim()).optional(),
   targetPositions: Joi.array().items(Joi.string().trim()).optional(),
-  offer_image: Joi.string().uri().trim().optional().allow(null, ''),
+  offer_image: Joi.string().trim().optional().allow(null, ''),
   clicks: Joi.number().integer().min(0).optional(),
   views: Joi.number().integer().min(0).optional(),
   isActive: Joi.boolean().optional(),
