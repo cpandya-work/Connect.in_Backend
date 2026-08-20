@@ -8,7 +8,12 @@ const postSchema = new mongoose.Schema({
   },
   content: {
     type: String,
-    required: true,
+    required: false,
+  },
+  sharedPostId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Post',
+    default: null,
   },
   attachments: [{
     url: {
@@ -17,7 +22,7 @@ const postSchema = new mongoose.Schema({
     },
     type: {
       type: String,
-      enum: ['image', 'doc', 'pdf'],
+      enum: ['image', 'doc', 'pdf', 'video'],
       required: true,
     },
     name: {
@@ -60,8 +65,12 @@ const postSchema = new mongoose.Schema({
   },
   isApproved: {
     type: Boolean,
-    default: false
-  }
+    default: false,
+  },
+  reshareCount: {
+    type: Number,
+    default: 0,
+  },
 }, { timestamps: true });
 
 module.exports = mongoose.model('Post', postSchema);

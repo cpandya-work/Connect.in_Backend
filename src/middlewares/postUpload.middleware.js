@@ -17,14 +17,14 @@ const storage = multer.diskStorage({
 
 const multerUpload = multer({
   storage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
   fileFilter: (req, file, cb) => {
-    const allowedExts = ['.jpg', '.jpeg', '.png', '.pdf', '.doc', '.docx'];
+    const allowedExts = ['.jpg', '.jpeg', '.png', '.pdf', '.doc', '.docx', '.mp4'];
     const ext = path.extname(file.originalname).toLowerCase();
     if (allowedExts.includes(ext)) {
       cb(null, true);
     } else {
-      cb(new Error('Only .jpg, .jpeg, .png, .pdf, .doc, .docx allowed'));
+      cb(new Error('Only .jpg, .jpeg, .png, .pdf, .doc, .docx, .mp4 allowed'));
     }
   },
 });

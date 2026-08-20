@@ -6,6 +6,7 @@ const {
   deleteBusinessCategoryCtrl,
   updateBusinessCategoryCtrl,
   getTrafficSourcesStatsCtrl,
+  getTrafficSourceTrendCtrl,
   getUsersListCtrl,
   getSkillsListCtrl,
   getSkillByIdCtrl,
@@ -101,6 +102,7 @@ router.use(isAdmin);
 router.get('/dashboard-stats', getDashboardStatsCtrl);
 router.get('/dashboard-stats/trend', getStatsTrendCtrl);
 router.get('/traffic-sources', getTrafficSourcesStatsCtrl);
+router.get('/traffic-sources/trend', getTrafficSourceTrendCtrl);
 
 // User management routes
 // GET /api/admin/users?page=1&limit=10&search=john

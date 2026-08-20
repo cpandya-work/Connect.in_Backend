@@ -7,6 +7,7 @@ const {
   updatePosition,
   deletePosition,
   getTrafficSourcesStats,
+  getTrafficSourceTrend,
   getUsersList,
   getSkillsList,
   createSkill,
@@ -1142,6 +1143,12 @@ const getTrafficSourcesStatsCtrl = asyncHandler(async (req, res) => {
   success(res, stats, 'Traffic source stats retrieved successfully');
 });
 
+const getTrafficSourceTrendCtrl = asyncHandler(async (req, res) => {
+  const { source } = req.query;
+  const trend = await getTrafficSourceTrend(source);
+  success(res, { trend }, 'Traffic source trend retrieved successfully');
+});
+
 const getStatsTrendCtrl = asyncHandler(async (req, res) => {
   const { statId } = req.query;
   if (!statId) {
@@ -1162,6 +1169,14 @@ const getPendingPostsCtrl = asyncHandler(async (req, res) => {
     })
     .populate('authorCity')
     .populate('connectionGroupId', 'name')
+    .populate({
+      path: 'sharedPostId',
+      populate: {
+        path: 'userId',
+        populate: { path: 'userDetailId', select: 'fullName profileImage isBusinessProfile businessName businessLogo' },
+        select: 'userDetailId'
+      }
+    })
     .sort({ createdAt: -1 })
     .lean();
 
@@ -1333,6 +1348,14 @@ const getAllPostsCtrl = asyncHandler(async (req, res) => {
       })
       .populate('authorCity')
       .populate('connectionGroupId', 'name')
+      .populate({
+        path: 'sharedPostId',
+        populate: {
+          path: 'userId',
+          populate: { path: 'userDetailId', select: 'fullName profileImage isBusinessProfile businessName businessLogo' },
+          select: 'userDetailId'
+        }
+      })
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
@@ -1954,6 +1977,7 @@ module.exports = {
   deleteBusinessCategoryCtrl,
   updateBusinessCategoryCtrl,
   getTrafficSourcesStatsCtrl,
+  getTrafficSourceTrendCtrl,
   getUsersListCtrl,
   getSkillsListCtrl,
   getSkillByIdCtrl,

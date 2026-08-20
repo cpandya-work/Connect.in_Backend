@@ -1448,7 +1448,8 @@ const getDashboardStats = async () => {
     totalChatMessages,
     incompleteDetails,
     totalBusinesses,
-    totalOfferClicks
+    totalOfferClicks,
+    totalReshares
   ] = await Promise.all([
     User.countDocuments({}),
     UserRequests.countDocuments({}),
@@ -1465,7 +1466,8 @@ const getDashboardStats = async () => {
       ]
     }).select('_id'),
     UserDetail.countDocuments({ isBusinessProfile: true }),
-    CardClick.countDocuments({})
+    CardClick.countDocuments({}),
+    Post.countDocuments({ sharedPostId: { $ne: null } })
   ]);
 
   const incompleteIds = incompleteDetails.map(d => d._id);
@@ -1482,7 +1484,8 @@ const getDashboardStats = async () => {
     totalChatMessages,
     totalCompleteProfiles,
     totalBusinesses,
-    totalOfferClicks
+    totalOfferClicks,
+    totalReshares
   };
 };
 
@@ -1506,6 +1509,24 @@ const getStatsTrend = async (statId) => {
 
     const label = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     trends.push({ start, end, label });
+  }
+
+  if (statId === 'likes-shares') {
+    const results = await Promise.all(
+      trends.map(async (t) => {
+        const [likesCount, sharesCount] = await Promise.all([
+          UserLikes.countDocuments({ createdAt: { $gte: t.start, $lte: t.end } }),
+          Post.countDocuments({ sharedPostId: { $ne: null }, createdAt: { $gte: t.start, $lte: t.end } })
+        ]);
+        return {
+          date: t.label,
+          likesCount,
+          sharesCount,
+          count: likesCount + sharesCount
+        };
+      })
+    );
+    return results;
   }
 
   // Pre-fetch incomplete user detail IDs if we are calculating complete profiles trend
@@ -1565,6 +1586,69 @@ const getStatsTrend = async (statId) => {
       return {
         date: t.label,
         count
+      };
+    })
+  );
+
+  return results;
+};
+
+/**
+ * Get daily registration and complete profile counts for the last 7 days for a specific traffic source
+ * @param {string} source - Traffic source parameter
+ * @returns {Promise<Array>} Array of trend points
+ */
+const getTrafficSourceTrend = async (source) => {
+  const trends = [];
+  
+  // Generate date ranges for the last 7 days (including today)
+  for (let i = 6; i >= 0; i--) {
+    const start = new Date();
+    start.setDate(start.getDate() - i);
+    start.setHours(0, 0, 0, 0);
+
+    const end = new Date();
+    end.setDate(end.getDate() - i);
+    end.setHours(23, 59, 59, 999);
+
+    const label = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    trends.push({ start, end, label });
+  }
+
+  // Find incomplete user details
+  const incompleteDetails = await UserDetail.find({
+    $or: [
+      { profileImage: { $exists: false } },
+      { profileImage: '' },
+      { profileImage: null },
+      { isProfileComplete: false }
+    ]
+  }).select('_id').lean();
+  const incompleteIds = incompleteDetails.map(d => d._id);
+
+  // Normalize source name to query correctly (handle default 'direct')
+  const sourceQuery = (!source || source === 'direct')
+    ? { $or: [{ trafficSource: 'direct' }, { trafficSource: { $exists: false } }, { trafficSource: null }, { trafficSource: '' }] } 
+    : { trafficSource: source };
+
+  const results = await Promise.all(
+    trends.map(async (t) => {
+      const [totalCount, completeCount] = await Promise.all([
+        User.countDocuments({
+          ...sourceQuery,
+          createdAt: { $gte: t.start, $lte: t.end }
+        }),
+        User.countDocuments({
+          ...sourceQuery,
+          userDetailId: { $exists: true, $ne: null, $nin: incompleteIds },
+          createdAt: { $gte: t.start, $lte: t.end }
+        })
+      ]);
+
+      return {
+        date: t.label,
+        totalCount,
+        completeCount
       };
     })
   );
@@ -1900,6 +1984,7 @@ module.exports = {
   deleteSport,
   getSportById,
   getTrafficSourcesStats,
+  getTrafficSourceTrend,
   getUsersList,
   getSkillsList,
   createSkill,

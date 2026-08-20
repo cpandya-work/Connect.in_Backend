@@ -89,6 +89,7 @@ const createPost = asyncHandler(async (req, res) => {
       let type = 'image';
       if (file.mimetype.includes('pdf')) type = 'pdf';
       else if (file.mimetype.includes('doc') || file.mimetype.includes('msword') || file.mimetype.includes('officedocument')) type = 'doc';
+      else if (file.mimetype.includes('video') || file.mimetype.includes('mp4')) type = 'video';
 
       attachments.push({
         url: file.path,
@@ -263,6 +264,14 @@ const getPosts = asyncHandler(async (req, res) => {
       select: 'userDetailId'
     })
     .populate('connectionGroupId', 'name')
+    .populate({
+      path: 'sharedPostId',
+      populate: {
+        path: 'userId',
+        populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth isBusinessProfile businessName businessLogo' },
+        select: 'userDetailId'
+      }
+    })
     .sort({ createdAt: -1 })
     .lean();
 
@@ -436,9 +445,61 @@ const getLinkPreview = asyncHandler(async (req, res) => {
   }
 });
 
+const resharePost = asyncHandler(async (req, res) => {
+  const { postId } = req.params;
+  const { content } = req.body;
+  const userId = req.user._id;
+
+  const originalPost = await Post.findById(postId);
+  if (!originalPost) {
+    return res.status(404).json({ success: false, message: 'Original post not found' });
+  }
+
+  // Fetch poster details for targetSegments authorCity
+  const poster = await User.findById(userId).populate('userDetailId');
+  const authorCity = poster?.userDetailId?.city || null;
+
+  // Create the reshared post
+  const rootPostId = originalPost.sharedPostId || originalPost._id;
+  const reshare = await Post.create({
+    userId,
+    content: content || '',
+    sharedPostId: rootPostId, // Reference the root post if original is already a reshare
+    targetSegments: {
+      connections: true,
+      city: false,
+      industries: [],
+      ageGroups: []
+    },
+    authorCity,
+    isApproved: false // requires admin approval
+  });
+
+  await Post.findByIdAndUpdate(rootPostId, { $inc: { reshareCount: 1 } });
+
+  const populatedPost = await Post.findById(reshare._id)
+    .populate({
+      path: 'userId',
+      populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth isBusinessProfile businessName businessLogo' },
+      select: 'userDetailId'
+    })
+    .populate({
+      path: 'sharedPostId',
+      populate: {
+        path: 'userId',
+        populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth isBusinessProfile businessName businessLogo' },
+        select: 'userDetailId'
+      }
+    })
+    .populate('connectionGroupId', 'name');
+
+  success(res, populatedPost, 'Post reshared successfully and pending admin approval');
+});
+
 module.exports = {
   createPost,
   getPosts,
   reactToPost,
-  getLinkPreview
+  getLinkPreview,
+  resharePost
 };
