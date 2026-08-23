@@ -50,6 +50,8 @@ const {
   deleteCardCtrl,
   getCardClicksCtrl,
   broadcastCardMailerCtrl,
+  broadcastAllCardsMailerCtrl,
+  broadcastAllCardsMailerCountCtrl,
   broadcastCardSmsCtrl,
   getPopupSettingCtrl,
   updatePopupSettingCtrl,
@@ -240,9 +242,14 @@ router.put('/industries/:id', updateIndustryCtrl);
 // DELETE /api/admin/industries/:id
 router.delete('/industries/:id', deleteIndustryCtrl);
 
-// Card management routes
 // GET /api/admin/cards?page=1&limit=10&search=premium&isActive=true
 router.get('/cards', getCardsListCtrl);
+
+// GET /api/admin/cards/broadcast-all/count
+router.get('/cards/broadcast-all/count', broadcastAllCardsMailerCountCtrl);
+
+// POST /api/admin/cards/broadcast-all
+router.post('/cards/broadcast-all', broadcastAllCardsMailerCtrl);
 
 // GET /api/admin/cards/:id
 router.get('/cards/:id', getCardByIdCtrl);

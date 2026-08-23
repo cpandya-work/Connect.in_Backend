@@ -832,6 +832,109 @@ const broadcastCardMailerCtrl = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Get count of unique users who clicked on any card in the last N days
+ */
+const broadcastAllCardsMailerCountCtrl = asyncHandler(async (req, res) => {
+  const { days = 15 } = req.query;
+  const matchQuery = {};
+  const numDays = parseInt(days, 10);
+  if (!isNaN(numDays)) {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - numDays);
+    matchQuery.createdAt = { $gte: cutoffDate };
+  }
+
+  const clicks = await CardClick.aggregate([
+    { $match: matchQuery },
+    { $group: {
+        _id: "$userId"
+    }},
+    { $lookup: {
+        from: "users",
+        localField: "_id",
+        foreignField: "_id",
+        as: "user"
+    }},
+    { $unwind: "$user" },
+    { $lookup: {
+        from: "userdetails",
+        localField: "user.userDetailId",
+        foreignField: "_id",
+        as: "userDetail"
+    }},
+    { $unwind: { path: "$userDetail", preserveNullAndEmptyArrays: true } },
+    { $project: {
+        email: "$userDetail.email"
+    }}
+  ]);
+
+  const count = clicks.filter(c => !!c.email).length;
+  success(res, { count }, 'Targeted clickers count retrieved successfully');
+});
+
+/**
+ * Send bulk email to all users who clicked on any card in the last N days
+ */
+const broadcastAllCardsMailerCtrl = asyncHandler(async (req, res) => {
+  const { subject, htmlContent, days = 15 } = req.body;
+
+  if (!subject || !htmlContent) {
+    return res.status(400).json({ success: false, message: 'Subject and content are required' });
+  }
+
+  const matchQuery = {};
+  const numDays = parseInt(days, 10);
+  if (!isNaN(numDays)) {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - numDays);
+    matchQuery.createdAt = { $gte: cutoffDate };
+  }
+
+  // Find all unique users who clicked any card
+  const clicks = await CardClick.aggregate([
+    { $match: matchQuery },
+    { $group: {
+        _id: "$userId"
+    }},
+    { $lookup: {
+        from: "users",
+        localField: "_id",
+        foreignField: "_id",
+        as: "user"
+    }},
+    { $unwind: "$user" },
+    { $lookup: {
+        from: "userdetails",
+        localField: "user.userDetailId",
+        foreignField: "_id",
+        as: "userDetail"
+    }},
+    { $unwind: { path: "$userDetail", preserveNullAndEmptyArrays: true } },
+    { $project: {
+        email: "$userDetail.email",
+        fullName: "$userDetail.fullName"
+    }}
+  ]);
+
+  // Filter out any entries without emails
+  const recipients = clicks
+    .map(c => ({
+      email: c.email,
+      fullName: c.fullName
+    }))
+    .filter(r => !!r.email);
+
+  if (recipients.length === 0) {
+    return res.status(400).json({ success: false, message: 'No users with emails found who clicked any offer' });
+  }
+
+  // Send bulk emails using the helper function
+  const result = await sendBulkHtmlEmail(recipients, subject, htmlContent);
+
+  success(res, { sent: result.sent, skipped: result.skipped }, 'Broadcast mailer sent successfully');
+});
+
+/**
  * Send an SMS broadcast to all users who clicked on a card (DLT Template)
  */
 const broadcastCardSmsCtrl = asyncHandler(async (req, res) => {
@@ -2021,6 +2124,8 @@ module.exports = {
   deleteCardCtrl,
   getCardClicksCtrl,
   broadcastCardMailerCtrl,
+  broadcastAllCardsMailerCtrl,
+  broadcastAllCardsMailerCountCtrl,
   broadcastCardSmsCtrl,
   sendBroadcastNotificationCtrl,
   getAuthBannersCtrl,
