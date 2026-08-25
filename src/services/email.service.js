@@ -423,23 +423,43 @@ const renderOfferOfTheDayEmailHtml = (fullName, offer, customBodyTemplate) => {
 
   const offerLogo = offer.logo_image ? `
     <tr>
-      <td align="center" style="padding: 24px 24px 0;">
-        <img src="${logoUrl}" alt="${offer.name}" style="max-height: 80px; width: auto; border-radius: 8px;" />
+      <td 
+        align="center" 
+        style="padding: 24px 24px 0;"
+      >
+        <img 
+          src="${logoUrl}" 
+          alt="${offer.name}" 
+          style="max-height: 80px; width: auto; border-radius: 8px;" 
+        />
       </td>
     </tr>
   ` : '';
 
   const offerImage = offer.offer_image ? `
     <tr>
-      <td align="center" style="padding: 0 24px 20px;">
-        <img src="${imageUrl}" alt="${offer.name}" style="max-width: 100%; height: auto; border-radius: 8px; max-height: 250px; object-fit: contain;" />
+      <td 
+        align="center" 
+        style="padding: 0 24px 20px;"
+      >
+        <img 
+          src="${imageUrl}" 
+          alt="${offer.name}" 
+          style="max-width: 100%; height: auto; border-radius: 8px; max-height: 250px; object-fit: contain;" 
+        />
       </td>
     </tr>
   ` : '';
 
   const offerImageHtml = offer.offer_image ? `
-    <div style="text-align:center; margin: 16px 0;">
-      <img src="${imageUrl}" alt="${offer.name}" style="max-width: 100%; height: auto; border-radius: 8px; max-height: 300px; display: inline-block;" />
+    <div 
+      style="text-align:center; margin: 16px 0;"
+    >
+      <img 
+        src="${imageUrl}" 
+        alt="${offer.name}" 
+        style="max-width: 100%; height: auto; border-radius: 8px; max-height: 300px; display: inline-block;" 
+      />
     </div>
   ` : '';
 
@@ -456,10 +476,32 @@ const renderOfferOfTheDayEmailHtml = (fullName, offer, customBodyTemplate) => {
     // Gracefully handle instances where administrators put {offerImage} or {offerLogo} inside a td element (avoids nested tr/td blocks)
     resolvedBody = resolvedBody
       .replace(/<td[^>]*>\s*\{offerImage\}\s*<\/td>/gi, () => {
-        return offer.offer_image ? `<td align="center" style="padding: 0 24px 20px;"><img src="${imageUrl}" alt="${offer.name}" style="max-width: 100%; height: auto; border-radius: 8px; max-height: 250px; object-fit: contain;" /></td>` : '';
+        return offer.offer_image ? `
+          <td 
+            align="center" 
+            style="padding: 0 24px 20px;"
+          >
+            <img 
+              src="${imageUrl}" 
+              alt="${offer.name}" 
+              style="max-width: 100%; height: auto; border-radius: 8px; max-height: 250px; object-fit: contain;" 
+            />
+          </td>
+        ` : '';
       })
       .replace(/<td[^>]*>\s*\{offerLogo\}\s*<\/td>/gi, () => {
-        return offer.logo_image ? `<td align="center" style="padding: 24px 24px 0;"><img src="${logoUrl}" alt="${offer.name}" style="max-height: 80px; width: auto; border-radius: 8px;" /></td>` : '';
+        return offer.logo_image ? `
+          <td 
+            align="center" 
+            style="padding: 24px 24px 0;"
+          >
+            <img 
+              src="${logoUrl}" 
+              alt="${offer.name}" 
+              style="max-height: 80px; width: auto; border-radius: 8px;" 
+            />
+          </td>
+        ` : '';
       });
 
     resolvedBody = resolvedBody
