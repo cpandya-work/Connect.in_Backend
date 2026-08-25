@@ -17,6 +17,15 @@ const FROM = `"Connect India" <${process.env.SMTP_FROM || process.env.SMTP_USER}
 const APP_URL = process.env.APP_URL || 'https://connect.in';
 const UNSUBSCRIBE_URL = 'https://base.connect.in/unsubscribe/index-org.php';
 
+const makeAbsoluteUrl = (url) => {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url;
+  }
+  const cleanUrl = url.startsWith('/') ? url : `/${url}`;
+  return `${APP_URL}${cleanUrl}`;
+};
+
 // ─── Core sender ─────────────────────────────────────────────────────────────
 
 const sendEmail = async (to, subject, html) => {
@@ -399,10 +408,13 @@ const renderOfferOfTheDayEmailHtml = (fullName, offer, customBodyTemplate) => {
     </ul>
   ` : '';
 
+  const logoUrl = makeAbsoluteUrl(offer.logo_image);
+  const imageUrl = makeAbsoluteUrl(offer.offer_image);
+
   const offerLogo = offer.logo_image ? `
     <tr>
       <td align="center" style="padding: 24px 24px 0;">
-        <img src="${offer.logo_image}" alt="${offer.name}" style="max-height: 80px; width: auto; border-radius: 8px;" />
+        <img src="${logoUrl}" alt="${offer.name}" style="max-height: 80px; width: auto; border-radius: 8px;" />
       </td>
     </tr>
   ` : '';
@@ -410,18 +422,18 @@ const renderOfferOfTheDayEmailHtml = (fullName, offer, customBodyTemplate) => {
   const offerImage = offer.offer_image ? `
     <tr>
       <td align="center" style="padding: 0 24px 20px;">
-        <img src="${offer.offer_image}" alt="${offer.name}" style="max-width: 100%; height: auto; border-radius: 8px; max-height: 250px; object-fit: contain;" />
+        <img src="${imageUrl}" alt="${offer.name}" style="max-width: 100%; height: auto; border-radius: 8px; max-height: 250px; object-fit: contain;" />
       </td>
     </tr>
   ` : '';
 
   const offerImageHtml = offer.offer_image ? `
     <div style="text-align:center; margin: 16px 0;">
-      <img src="${offer.offer_image}" alt="${offer.name}" style="max-width: 100%; height: auto; border-radius: 8px; max-height: 300px; display: inline-block;" />
+      <img src="${imageUrl}" alt="${offer.name}" style="max-width: 100%; height: auto; border-radius: 8px; max-height: 300px; display: inline-block;" />
     </div>
   ` : '';
 
-  const offerImageUrl = offer.offer_image || '';
+  const offerImageUrl = imageUrl;
 
   if (customBodyTemplate) {
     const resolvedBody = customBodyTemplate
@@ -434,7 +446,9 @@ const renderOfferOfTheDayEmailHtml = (fullName, offer, customBodyTemplate) => {
       .replace(/{offerImage}/g, offerImage)
       .replace(/{offerImageHtml}/g, offerImageHtml)
       .replace(/{offerImageUrl}/g, offerImageUrl)
-      .replace(/{offer_image_url}/g, offerImageUrl);
+      .replace(/{offer_image_url}/g, offerImageUrl)
+      .replace(/{offerUrl}/g, offer.url || `${APP_URL}/offer`)
+      .replace(/{offer_url}/g, offer.url || `${APP_URL}/offer`);
 
     return baseTemplate(`
       ${resolvedBody}
