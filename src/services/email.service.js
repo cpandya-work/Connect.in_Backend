@@ -15,6 +15,7 @@ const createTransporter = () =>
 
 const FROM = `"Connect India" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`;
 const APP_URL = process.env.APP_URL || 'https://connect.in';
+const IMAGE_BASE_URL = process.env.BACKEND_URL || 'https://api.conect.in';
 const UNSUBSCRIBE_URL = 'https://base.connect.in/unsubscribe/index-org.php';
 
 const makeAbsoluteUrl = (url) => {
@@ -23,7 +24,7 @@ const makeAbsoluteUrl = (url) => {
     return url;
   }
   const cleanUrl = url.startsWith('/') ? url : `/${url}`;
-  return `${APP_URL}${cleanUrl}`;
+  return `${IMAGE_BASE_URL}${cleanUrl}`;
 };
 
 // ─── Core sender ─────────────────────────────────────────────────────────────
