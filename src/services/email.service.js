@@ -24,9 +24,9 @@ const makeAbsoluteUrl = (url) => {
     return url;
   }
   const cleanUrl = url.startsWith('/') ? url : `/${url}`;
-  console.log("Url",IMAGE_BASE_URL)
-  console.log("BAse url",cleanUrl)
-  console.log("Main url",`${IMAGE_BASE_URL}${cleanUrl}`)
+  console.log("Url", IMAGE_BASE_URL)
+  console.log("BAse url", cleanUrl)
+  console.log("Main url", `${IMAGE_BASE_URL}${cleanUrl}`)
   return `${IMAGE_BASE_URL}${cleanUrl}`;
 };
 
@@ -442,15 +442,10 @@ const renderOfferOfTheDayEmailHtml = (fullName, offer, customBodyTemplate) => {
   if (customBodyTemplate) {
     let resolvedBody = customBodyTemplate;
 
-    // Gracefully handle instances where administrators put {offerImage} inside an img tag's src attribute
-    resolvedBody = resolvedBody.replace(/<img[^>]*src=["']?\{offerImage\}["']?[^>]*>/gi, () => {
-      return offer.offer_image ? `<img src="${imageUrl}" alt="${offer.name}" style="max-width: 100%; height: auto; border-radius: 8px; max-height: 250px; object-fit: contain;" />` : '';
-    });
-
-    // Gracefully handle instances where administrators put {offerLogo} inside an img tag's src attribute
-    resolvedBody = resolvedBody.replace(/<img[^>]*src=["']?\{offerLogo\}["']?[^>]*>/gi, () => {
-      return offer.logo_image ? `<img src="${logoUrl}" alt="${offer.name}" style="max-height: 80px; width: auto; border-radius: 8px;" />` : '';
-    });
+    // Gracefully handle instances where administrators put {offerImage} or {offerLogo} inside an img tag's src attribute
+    resolvedBody = resolvedBody
+      .replace(/src=["']?\{offerImage\}["']?/gi, `src="${imageUrl}"`)
+      .replace(/src=["']?\{offerLogo\}["']?/gi, `src="${logoUrl}"`);
 
     resolvedBody = resolvedBody
       .replace(/{name}/g, fullName)
