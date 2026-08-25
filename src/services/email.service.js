@@ -36,7 +36,13 @@ const sendEmail = async (to, subject, html) => {
   if (!to || !process.env.SMTP_HOST) return; // silently skip if no email or SMTP not configured
   try {
     const transporter = createTransporter();
-    await transporter.sendMail({ from: FROM, to, subject, html });
+    await transporter.sendMail({
+      from: FROM,
+      to,
+      subject,
+      html,
+      textEncoding: 'base64'
+    });
   } catch (err) {
     console.error(`[Email] Failed to send "${subject}" to ${to}:`, err.message);
   }
