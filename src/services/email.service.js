@@ -24,6 +24,9 @@ const makeAbsoluteUrl = (url) => {
     return url;
   }
   const cleanUrl = url.startsWith('/') ? url : `/${url}`;
+  console.log("Url",IMAGE_BASE_URL)
+  console.log("BAse url",cleanUrl)
+  console.log("Main url",`${IMAGE_BASE_URL}${cleanUrl}`)
   return `${IMAGE_BASE_URL}${cleanUrl}`;
 };
 
