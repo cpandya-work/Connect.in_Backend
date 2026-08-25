@@ -447,6 +447,15 @@ const renderOfferOfTheDayEmailHtml = (fullName, offer, customBodyTemplate) => {
       .replace(/src=["']?\{offerImage\}["']?/gi, `src="${imageUrl}"`)
       .replace(/src=["']?\{offerLogo\}["']?/gi, `src="${logoUrl}"`);
 
+    // Gracefully handle instances where administrators put {offerImage} or {offerLogo} inside a td element (avoids nested tr/td blocks)
+    resolvedBody = resolvedBody
+      .replace(/<td[^>]*>\s*\{offerImage\}\s*<\/td>/gi, () => {
+        return offer.offer_image ? `<td align="center" style="padding: 0 24px 20px;"><img src="${imageUrl}" alt="${offer.name}" style="max-width: 100%; height: auto; border-radius: 8px; max-height: 250px; object-fit: contain;" /></td>` : '';
+      })
+      .replace(/<td[^>]*>\s*\{offerLogo\}\s*<\/td>/gi, () => {
+        return offer.logo_image ? `<td align="center" style="padding: 24px 24px 0;"><img src="${logoUrl}" alt="${offer.name}" style="max-height: 80px; width: auto; border-radius: 8px;" /></td>` : '';
+      });
+
     resolvedBody = resolvedBody
       .replace(/{name}/g, fullName)
       .replace(/{fullName}/g, fullName)
