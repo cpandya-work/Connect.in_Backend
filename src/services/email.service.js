@@ -437,7 +437,19 @@ const renderOfferOfTheDayEmailHtml = (fullName, offer, customBodyTemplate) => {
   const offerImageUrl = imageUrl;
 
   if (customBodyTemplate) {
-    const resolvedBody = customBodyTemplate
+    let resolvedBody = customBodyTemplate;
+
+    // Gracefully handle instances where administrators put {offerImage} inside an img tag's src attribute
+    resolvedBody = resolvedBody.replace(/<img[^>]*src=["']?\{offerImage\}["']?[^>]*>/gi, () => {
+      return offer.offer_image ? `<img src="${imageUrl}" alt="${offer.name}" style="max-width: 100%; height: auto; border-radius: 8px; max-height: 250px; object-fit: contain;" />` : '';
+    });
+
+    // Gracefully handle instances where administrators put {offerLogo} inside an img tag's src attribute
+    resolvedBody = resolvedBody.replace(/<img[^>]*src=["']?\{offerLogo\}["']?[^>]*>/gi, () => {
+      return offer.logo_image ? `<img src="${logoUrl}" alt="${offer.name}" style="max-height: 80px; width: auto; border-radius: 8px;" />` : '';
+    });
+
+    resolvedBody = resolvedBody
       .replace(/{name}/g, fullName)
       .replace(/{fullName}/g, fullName)
       .replace(/{offerName}/g, offer.name)
