@@ -1947,7 +1947,8 @@ const sendTestScheduledMailerCtrl = asyncHandler(async (req, res) => {
       from: FROM,
       to: email,
       subject,
-      html
+      html,
+      textEncoding: 'base64'
     });
 
     success(res, null, 'Test email sent successfully to ' + email);
