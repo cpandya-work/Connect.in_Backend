@@ -108,7 +108,7 @@ const scheduleIncompleteProfiles = async () => {
     }
     const customSubject = setting.subject || 'Action Required: Complete your Connect India profile! 🚀';
     const customBody = setting.body;
-    
+
     // Find all incomplete user details with valid emails
     const incompleteDetails = await UserDetail.find({
       $or: [
@@ -203,10 +203,10 @@ const scheduleCityIndustrySnapshots = async () => {
           industry: user.industry,
           _id: { $ne: user._id }
         })
-        .sort({ _id: -1 })
-        .limit(50)
-        .select('fullName position company')
-        .lean();
+          .sort({ _id: -1 })
+          .limit(50)
+          .select('fullName position company')
+          .lean();
 
         // Only generate email queue if matches exist to provide a meaningful network value
         if (matches && matches.length > 0) {
@@ -282,11 +282,11 @@ const scheduleOfferOfTheDay = async () => {
       const startIdx = hour * chunkSize;
       const endIdx = Math.min(startIdx + chunkSize, total);
       const chunk = targetUsers.slice(startIdx, endIdx);
-      
+
       const scheduledFor = new Date();
       scheduledFor.setHours(scheduledFor.getHours() + hour);
 
-      const customSubjectTemplate = setting.subject || '{offerName} 🎁';
+      const customSubjectTemplate = offer.customSubject || setting.subject || '{offerName} 🎁';
       const customSubject = customSubjectTemplate.replace(/{offerName}/g, offer.name).replace(/{name}/g, offer.name);
       const customBody = setting.body;
 
@@ -342,7 +342,7 @@ const processMailQueue = async () => {
     const BATCH_SIZE = 50;
     for (let i = 0; i < total; i += BATCH_SIZE) {
       const batch = pendingMails.slice(i, i + BATCH_SIZE);
-      
+
       await Promise.all(batch.map(async (mail) => {
         // Dynamic skip check for incomplete profiles:
         // If they completed their profile since it was queued, we don't send the email
@@ -361,7 +361,7 @@ const processMailQueue = async () => {
         try {
           mail.attempts += 1;
           await sendEmail(mail.recipient, mail.subject, mail.html);
-          
+
           mail.status = 'sent';
           mail.sentAt = new Date();
           mail.errorMessage = null;
@@ -372,7 +372,7 @@ const processMailQueue = async () => {
           mail.errorMessage = err.message || 'SMTP Error';
           failed++;
         }
-        
+
         await mail.save();
       }));
     }

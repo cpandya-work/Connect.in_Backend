@@ -1,14 +1,14 @@
 const mongoose = require('mongoose');
 
 const cardSchema = new mongoose.Schema({
-  name: { 
-    type: String, 
-    required: true, 
+  name: {
+    type: String,
+    required: true,
     trim: true
   },
-  description: { 
-    type: String, 
-    trim: true 
+  description: {
+    type: String,
+    trim: true
   },
   logo_image: {
     type: String,
@@ -56,9 +56,9 @@ const cardSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
-  isActive: { 
-    type: Boolean, 
-    default: true 
+  isActive: {
+    type: Boolean,
+    default: true
   },
   showInPopup: {
     type: Boolean,
@@ -74,6 +74,11 @@ const cardSchema = new mongoose.Schema({
     default: null
   },
   customHtml: {
+    type: String,
+    trim: true,
+    default: null
+  },
+  customSubject: {
     type: String,
     trim: true,
     default: null

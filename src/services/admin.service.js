@@ -35,13 +35,13 @@ const getUsersList = async ({ page = 1, limit = 10, search = '', city = '', indu
   // Build search query
   const mongoose = require('mongoose');
   let searchQuery = {};
-  
+
   const isBusinessFlag = isBusiness !== null ? (isBusiness === 'true' || isBusiness === true) : null;
   const hasFilters = (city && city.trim()) || (industry && industry.trim()) || (interest && interest.trim()) || (religion && religion.trim()) || (isBusinessFlag !== null);
 
   if (hasFilters) {
     let detailQuery = {};
-    
+
     if (isBusinessFlag !== null) {
       if (isBusinessFlag === true) {
         detailQuery.isBusinessProfile = true;
@@ -58,11 +58,11 @@ const getUsersList = async ({ page = 1, limit = 10, search = '', city = '', indu
         detailQuery.city = { $in: matchingCities.map(c => c._id) };
       }
     }
-    
+
     if (religion && religion.trim()) {
       detailQuery.religion = new RegExp(religion.trim(), 'i');
     }
-    
+
     if (industry && industry.trim()) {
       const trimmedIndustry = industry.trim();
       if (mongoose.Types.ObjectId.isValid(trimmedIndustry)) {
@@ -74,15 +74,15 @@ const getUsersList = async ({ page = 1, limit = 10, search = '', city = '', indu
         detailQuery.industry = { $in: [...matchingIds, ...matchingIdStrings] };
       }
     }
-    
+
     if (interest && interest.trim()) {
       detailQuery.interests = new RegExp(interest.trim(), 'i');
     }
-    
+
     if (search && search.trim()) {
       const searchRegex = new RegExp(search.trim(), 'i');
       const matchingCitiesForSearch = await City.find({ name: searchRegex }).select('_id').lean();
-      
+
       detailQuery.$and = detailQuery.$and || [];
       detailQuery.$and.push({
         $or: [
@@ -93,10 +93,10 @@ const getUsersList = async ({ page = 1, limit = 10, search = '', city = '', indu
         ]
       });
     }
-    
+
     const userDetailsWithSearch = await UserDetail.find(detailQuery).select('_id');
     const userDetailIds = userDetailsWithSearch.map((detail) => detail._id);
-    
+
     if (search && search.trim()) {
       const searchRegex = new RegExp(search.trim(), 'i');
       searchQuery = {
@@ -244,7 +244,7 @@ const getSkillsList = async ({ page = 1, limit = 10, search = '', isActive = nul
 
   // Build search query
   let query = {};
-  
+
   if (search && search.trim()) {
     const searchRegex = new RegExp(search.trim(), 'i');
     query.$or = [
@@ -292,7 +292,7 @@ const getSkillsList = async ({ page = 1, limit = 10, search = '', isActive = nul
 const createSkill = async (skillData) => {
   // Normalize skill name to lowercase for uniqueness
   const normalizedName = skillData.name;
-  
+
   // Check if skill already exists
   const existingSkill = await Skill.findOne({ name: normalizedName });
   if (existingSkill) {
@@ -320,7 +320,7 @@ const updateSkill = async (skillId, updateData) => {
   // If name is being updated, check for duplicates
   if (updateData.name) {
     const normalizedName = updateData.name;
-    const existingSkill = await Skill.findOne({ 
+    const existingSkill = await Skill.findOne({
       name: normalizedName,
       _id: { $ne: skillId } // Exclude current skill
     });
@@ -370,7 +370,7 @@ const getInterestsList = async ({ page = 1, limit = 10, search = '', isActive = 
 
   // Build search query
   let query = {};
-  
+
   if (search && search.trim()) {
     const searchRegex = new RegExp(search.trim(), 'i');
     query.name = searchRegex;
@@ -415,7 +415,7 @@ const getInterestsList = async ({ page = 1, limit = 10, search = '', isActive = 
 const createInterest = async (interestData) => {
   // Normalize interest name to lowercase for uniqueness
   const normalizedName = interestData.name;
-  
+
   // Check if interest already exists
   const existingInterest = await Interest.findOne({ name: normalizedName });
   if (existingInterest) {
@@ -442,7 +442,7 @@ const updateInterest = async (interestId, updateData) => {
   // If name is being updated, check for duplicates
   if (updateData.name) {
     const normalizedName = updateData.name;
-    const existingInterest = await Interest.findOne({ 
+    const existingInterest = await Interest.findOne({
       name: normalizedName,
       _id: { $ne: interestId } // Exclude current interest
     });
@@ -492,7 +492,7 @@ const getCitiesList = async ({ page = 1, limit = 10, search = '', isActive = nul
 
   // Build search query
   let query = {};
-  
+
   if (search && search.trim()) {
     const searchRegex = new RegExp(search.trim(), 'i');
     query.name = searchRegex;
@@ -537,7 +537,7 @@ const getCitiesList = async ({ page = 1, limit = 10, search = '', isActive = nul
 const createCity = async (cityData) => {
   // Normalize city name to lowercase for uniqueness
   const normalizedName = cityData.name;
-  
+
   // Check if city already exists
   const existingCity = await City.findOne({ name: normalizedName });
   if (existingCity) {
@@ -565,7 +565,7 @@ const updateCity = async (cityId, updateData) => {
   // If name is being updated, check for duplicates
   if (updateData.name) {
     const normalizedName = updateData.name;
-    const existingCity = await City.findOne({ 
+    const existingCity = await City.findOne({
       name: normalizedName,
       _id: { $ne: cityId } // Exclude current city
     });
@@ -615,7 +615,7 @@ const getHabitsList = async ({ page = 1, limit = 10, search = '', isActive = nul
 
   // Build search query
   let query = {};
-  
+
   if (search && search.trim()) {
     const searchRegex = new RegExp(search.trim(), 'i');
     query.$or = [
@@ -663,7 +663,7 @@ const getHabitsList = async ({ page = 1, limit = 10, search = '', isActive = nul
 const createHabit = async (habitData) => {
   // Normalize habit name to lowercase for uniqueness
   const normalizedName = habitData.name;
-  
+
   // Check if habit already exists
   const existingHabit = await Habit.findOne({ name: normalizedName });
   if (existingHabit) {
@@ -691,7 +691,7 @@ const updateHabit = async (habitId, updateData) => {
   // If name is being updated, check for duplicates
   if (updateData.name) {
     const normalizedName = updateData.name;
-    const existingHabit = await Habit.findOne({ 
+    const existingHabit = await Habit.findOne({
       name: normalizedName,
       _id: { $ne: habitId } // Exclude current habit
     });
@@ -741,7 +741,7 @@ const getCompaniesList = async ({ page = 1, limit = 10, search = '', isActive = 
 
   // Build search query
   let query = {};
-  
+
   if (search && search.trim()) {
     const searchRegex = new RegExp(search.trim(), 'i');
     query.$or = [
@@ -798,7 +798,7 @@ const getCompaniesList = async ({ page = 1, limit = 10, search = '', isActive = 
 const createCompany = async (companyData) => {
   // Normalize company name to lowercase for uniqueness
   const normalizedName = companyData.name;
-  
+
   // Check if company already exists
   const existingCompany = await Company.findOne({ name: normalizedName });
   if (existingCompany) {
@@ -843,7 +843,7 @@ const updateCompany = async (companyId, updateData) => {
   // If name is being updated, check for duplicates
   if (updateData.name) {
     const normalizedName = updateData.name;
-    const existingCompany = await Company.findOne({ 
+    const existingCompany = await Company.findOne({
       name: normalizedName,
       _id: { $ne: companyId } // Exclude current company
     });
@@ -911,7 +911,7 @@ const getIndustriesList = async ({ page = 1, limit = 10, search = '', isActive =
 
   // Build search query
   let query = {};
-  
+
   if (search && search.trim()) {
     const searchRegex = new RegExp(search.trim(), 'i');
     query.$or = [
@@ -959,7 +959,7 @@ const getIndustriesList = async ({ page = 1, limit = 10, search = '', isActive =
 const createIndustry = async (industryData) => {
   // Normalize industry name to lowercase for uniqueness
   const normalizedName = industryData.name;
-  
+
   // Check if industry already exists
   const existingIndustry = await Industry.findOne({ name: normalizedName });
   if (existingIndustry) {
@@ -987,7 +987,7 @@ const updateIndustry = async (industryId, updateData) => {
   // If name is being updated, check for duplicates
   if (updateData.name) {
     const normalizedName = updateData.name;
-    const existingIndustry = await Industry.findOne({ 
+    const existingIndustry = await Industry.findOne({
       name: normalizedName,
       _id: { $ne: industryId } // Exclude current industry
     });
@@ -1037,7 +1037,7 @@ const getCardsList = async ({ page = 1, limit = 10, search = '', isActive = null
 
   // Build search query
   let query = {};
-  
+
   if (search && search.trim()) {
     const searchRegex = new RegExp(search.trim(), 'i');
     query.$or = [
@@ -1107,6 +1107,7 @@ const createCard = async (cardData) => {
     showInMailer: cardData.showInMailer !== undefined ? (cardData.showInMailer === 'true' || cardData.showInMailer === true) : true,
     category: cardData.category && cardData.category !== '' && cardData.category !== 'null' ? cardData.category : null,
     customHtml: cardData.customHtml || null,
+    customSubject: cardData.customSubject || null,
   });
 
   return card;
@@ -1194,6 +1195,9 @@ const updateCard = async (cardId, updateData, files = null) => {
   if (updateData.customHtml !== undefined) {
     updateData.customHtml = updateData.customHtml ? updateData.customHtml.trim() : null;
   }
+  if (updateData.customSubject !== undefined) {
+    updateData.customSubject = updateData.customSubject ? updateData.customSubject.trim() : null;
+  }
 
   Object.assign(card, updateData);
   await card.save();
@@ -1271,7 +1275,7 @@ const getActiveAuthBanners = async (type) => {
  */
 const getIncompleteProfileUsersCount = async (days) => {
   let query = {};
-  
+
   if (days !== 'all') {
     const daysNum = parseInt(days, 10);
     const date = new Date();
@@ -1293,7 +1297,7 @@ const getIncompleteProfileUsersCount = async (days) => {
 
   // Filter users by these details and the duration
   query.userDetailId = { $in: detailIds };
-  
+
   return await User.countDocuments(query);
 };
 
@@ -1302,7 +1306,7 @@ const getIncompleteProfileUsersCount = async (days) => {
  */
 const getIncompleteProfileUsers = async (days) => {
   let query = {};
-  
+
   if (days !== 'all') {
     const daysNum = parseInt(days, 10);
     const date = new Date();
@@ -1341,14 +1345,14 @@ const getIncompleteProfileUsers = async (days) => {
  */
 const getUsersCountByRegistration = async (days) => {
   let query = {};
-  
+
   if (days !== 'all') {
     const daysNum = parseInt(days, 10);
     const date = new Date();
     date.setDate(date.getDate() - daysNum);
     query.createdAt = { $gte: date };
   }
-  
+
   return await User.countDocuments(query);
 };
 
@@ -1358,7 +1362,7 @@ const getUsersCountByRegistration = async (days) => {
  */
 const getUsersByRegistration = async (days) => {
   let query = {};
-  
+
   if (days !== 'all') {
     const daysNum = parseInt(days, 10);
     const date = new Date();
@@ -1386,7 +1390,7 @@ const getUsersByRegistration = async (days) => {
  */
 const getEmailUsersCountByRegistration = async (days) => {
   let query = {};
-  
+
   if (days !== 'all') {
     const daysNum = parseInt(days, 10);
     const date = new Date();
@@ -1401,7 +1405,7 @@ const getEmailUsersCountByRegistration = async (days) => {
 
   const detailIds = emailDetails.map(d => d._id);
   query.userDetailId = { $in: detailIds };
-  
+
   return await User.countDocuments(query);
 };
 
@@ -1411,7 +1415,7 @@ const getEmailUsersCountByRegistration = async (days) => {
  */
 const getEmailUsersByRegistration = async (days) => {
   let query = {};
-  
+
   if (days !== 'all') {
     const daysNum = parseInt(days, 10);
     const date = new Date();
@@ -1500,7 +1504,7 @@ const getDashboardStats = async () => {
  */
 const getStatsTrend = async (statId) => {
   const trends = [];
-  
+
   // Generate date ranges for the last 7 days (including today)
   for (let i = 6; i >= 0; i--) {
     const start = new Date();
@@ -1604,7 +1608,7 @@ const getStatsTrend = async (statId) => {
  */
 const getTrafficSourceTrend = async (source) => {
   const trends = [];
-  
+
   // Generate date ranges for the last 7 days (including today)
   for (let i = 6; i >= 0; i--) {
     const start = new Date();
@@ -1632,7 +1636,7 @@ const getTrafficSourceTrend = async (source) => {
 
   // Normalize source name to query correctly (handle default 'direct')
   const sourceQuery = (!source || source === 'direct')
-    ? { $or: [{ trafficSource: 'direct' }, { trafficSource: { $exists: false } }, { trafficSource: null }, { trafficSource: '' }] } 
+    ? { $or: [{ trafficSource: 'direct' }, { trafficSource: { $exists: false } }, { trafficSource: null }, { trafficSource: '' }] }
     : { trafficSource: source };
 
   const results = await Promise.all(
@@ -1751,7 +1755,7 @@ const getSportsList = async ({ page = 1, limit = 10, search = '', isActive = nul
   const skip = (pageNum - 1) * limitNum;
 
   let query = {};
-  
+
   if (search && search.trim()) {
     const searchRegex = new RegExp(search.trim(), 'i');
     query.$or = [
@@ -1793,7 +1797,7 @@ const getSportsList = async ({ page = 1, limit = 10, search = '', isActive = nul
  */
 const createSport = async (sportData) => {
   const normalizedName = sportData.name;
-  
+
   const existingSport = await Sport.findOne({ name: normalizedName });
   if (existingSport) {
     throw new Error('Sport with this name already exists');
@@ -1819,7 +1823,7 @@ const updateSport = async (sportId, updateData) => {
 
   if (updateData.name) {
     const normalizedName = updateData.name;
-    const existingSport = await Sport.findOne({ 
+    const existingSport = await Sport.findOne({
       name: normalizedName,
       _id: { $ne: sportId }
     });
@@ -1868,7 +1872,7 @@ const getPositionsList = async ({ page = 1, limit = 10, search = '', isActive = 
   const skip = (pageNum - 1) * limitNum;
 
   let query = {};
-  
+
   if (search && search.trim()) {
     const searchRegex = new RegExp(search.trim(), 'i');
     query.$or = [
@@ -1910,7 +1914,7 @@ const getPositionsList = async ({ page = 1, limit = 10, search = '', isActive = 
  */
 const createPosition = async (positionData) => {
   const normalizedName = positionData.name;
-  
+
   const existingPosition = await Position.findOne({ name: normalizedName });
   if (existingPosition) {
     throw new Error('Position with this name already exists');
@@ -1936,7 +1940,7 @@ const updatePosition = async (positionId, updateData) => {
 
   if (updateData.name) {
     const normalizedName = updateData.name;
-    const existingPosition = await Position.findOne({ 
+    const existingPosition = await Position.findOne({
       name: normalizedName,
       _id: { $ne: positionId }
     });

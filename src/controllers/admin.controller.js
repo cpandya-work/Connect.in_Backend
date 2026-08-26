@@ -72,7 +72,7 @@ const { createHabitSchema, updateHabitSchema } = require('../validators/habit.va
 const { createCompanySchema, updateCompanySchema } = require('../validators/company.validator');
 const { createIndustrySchema, updateIndustrySchema } = require('../validators/industry.validator');
 const { createCardSchema, updateCardSchema } = require('../validators/card.validator');
-const { 
+const {
   broadcastNotificationSchema,
   generalSmsBroadcastSchema,
   targetedEmailBroadcastSchema,
@@ -158,9 +158,9 @@ const getSkillByIdCtrl = asyncHandler(async (req, res) => {
 const createSkillCtrl = asyncHandler(async (req, res) => {
   const { error } = createSkillSchema.validate(req.body);
   if (error) {
-    return res.status(400).json({ 
-      success: false, 
-      message: error.details[0].message 
+    return res.status(400).json({
+      success: false,
+      message: error.details[0].message
     });
   }
 
@@ -174,11 +174,11 @@ const createSkillCtrl = asyncHandler(async (req, res) => {
 const updateSkillCtrl = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { error } = updateSkillSchema.validate(req.body);
-  
+
   if (error) {
-    return res.status(400).json({ 
-      success: false, 
-      message: error.details[0].message 
+    return res.status(400).json({
+      success: false,
+      message: error.details[0].message
     });
   }
 
@@ -225,13 +225,13 @@ const getInterestByIdCtrl = asyncHandler(async (req, res) => {
  * Create a new interest
  */
 const createInterestCtrl = asyncHandler(async (req, res) => {
-  console.log(req.body,'body');
-  
+  console.log(req.body, 'body');
+
   const { error } = createInterestSchema.validate(req.body);
   if (error) {
-    return res.status(400).json({ 
-      success: false, 
-      message: error.details[0].message 
+    return res.status(400).json({
+      success: false,
+      message: error.details[0].message
     });
   }
 
@@ -245,11 +245,11 @@ const createInterestCtrl = asyncHandler(async (req, res) => {
 const updateInterestCtrl = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { error } = updateInterestSchema.validate(req.body);
-  
+
   if (error) {
-    return res.status(400).json({ 
-      success: false, 
-      message: error.details[0].message 
+    return res.status(400).json({
+      success: false,
+      message: error.details[0].message
     });
   }
 
@@ -298,9 +298,9 @@ const getCityByIdCtrl = asyncHandler(async (req, res) => {
 const createCityCtrl = asyncHandler(async (req, res) => {
   const { error } = createCitySchema.validate(req.body);
   if (error) {
-    return res.status(400).json({ 
-      success: false, 
-      message: error.details[0].message 
+    return res.status(400).json({
+      success: false,
+      message: error.details[0].message
     });
   }
 
@@ -314,11 +314,11 @@ const createCityCtrl = asyncHandler(async (req, res) => {
 const updateCityCtrl = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { error } = updateCitySchema.validate(req.body);
-  
+
   if (error) {
-    return res.status(400).json({ 
-      success: false, 
-      message: error.details[0].message 
+    return res.status(400).json({
+      success: false,
+      message: error.details[0].message
     });
   }
 
@@ -367,9 +367,9 @@ const getHabitByIdCtrl = asyncHandler(async (req, res) => {
 const createHabitCtrl = asyncHandler(async (req, res) => {
   const { error } = createHabitSchema.validate(req.body);
   if (error) {
-    return res.status(400).json({ 
-      success: false, 
-      message: error.details[0].message 
+    return res.status(400).json({
+      success: false,
+      message: error.details[0].message
     });
   }
 
@@ -383,11 +383,11 @@ const createHabitCtrl = asyncHandler(async (req, res) => {
 const updateHabitCtrl = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { error } = updateHabitSchema.validate(req.body);
-  
+
   if (error) {
-    return res.status(400).json({ 
-      success: false, 
-      message: error.details[0].message 
+    return res.status(400).json({
+      success: false,
+      message: error.details[0].message
     });
   }
 
@@ -439,9 +439,9 @@ const getCompanyByIdCtrl = asyncHandler(async (req, res) => {
 const createCompanyCtrl = asyncHandler(async (req, res) => {
   const { error } = createCompanySchema.validate(req.body);
   if (error) {
-    return res.status(400).json({ 
-      success: false, 
-      message: error.details[0].message 
+    return res.status(400).json({
+      success: false,
+      message: error.details[0].message
     });
   }
 
@@ -455,11 +455,11 @@ const createCompanyCtrl = asyncHandler(async (req, res) => {
 const updateCompanyCtrl = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { error } = updateCompanySchema.validate(req.body);
-  
+
   if (error) {
-    return res.status(400).json({ 
-      success: false, 
-      message: error.details[0].message 
+    return res.status(400).json({
+      success: false,
+      message: error.details[0].message
     });
   }
 
@@ -508,9 +508,9 @@ const getIndustryByIdCtrl = asyncHandler(async (req, res) => {
 const createIndustryCtrl = asyncHandler(async (req, res) => {
   const { error } = createIndustrySchema.validate(req.body);
   if (error) {
-    return res.status(400).json({ 
-      success: false, 
-      message: error.details[0].message 
+    return res.status(400).json({
+      success: false,
+      message: error.details[0].message
     });
   }
 
@@ -524,11 +524,11 @@ const createIndustryCtrl = asyncHandler(async (req, res) => {
 const updateIndustryCtrl = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { error } = updateIndustrySchema.validate(req.body);
-  
+
   if (error) {
-    return res.status(400).json({ 
-      success: false, 
-      message: error.details[0].message 
+    return res.status(400).json({
+      success: false,
+      message: error.details[0].message
     });
   }
 
@@ -606,9 +606,9 @@ const createCardCtrl = asyncHandler(async (req, res) => {
 
   // Image file is required for card creation
   if (!logoFile || !logoFile.path) {
-    return res.status(400).json({ 
-      success: false, 
-      message: 'Logo image is required. Please upload an image file.' 
+    return res.status(400).json({
+      success: false,
+      message: 'Logo image is required. Please upload an image file.'
     });
   }
 
@@ -619,7 +619,7 @@ const createCardCtrl = asyncHandler(async (req, res) => {
   const targetPositions = parseArrayField(req.body.targetPositions || req.body['targetPositions[]']);
 
   // Use the Cloudinary URL from the uploaded file
-  const cardData = { 
+  const cardData = {
     ...req.body,
     logo_image: logoFile.path, // Cloudinary URL
     offer_image: offerFile ? offerFile.path : null, // Cloudinary URL
@@ -630,12 +630,12 @@ const createCardCtrl = asyncHandler(async (req, res) => {
     targetAgeMin: req.body.targetAgeMin !== undefined && req.body.targetAgeMin !== '' && req.body.targetAgeMin !== 'null' ? parseInt(req.body.targetAgeMin, 10) : null,
     targetAgeMax: req.body.targetAgeMax !== undefined && req.body.targetAgeMax !== '' && req.body.targetAgeMax !== 'null' ? parseInt(req.body.targetAgeMax, 10) : null,
   };
-  
+
   const { error } = createCardSchema.validate(cardData);
   if (error) {
-    return res.status(400).json({ 
-      success: false, 
-      message: error.details[0].message 
+    return res.status(400).json({
+      success: false,
+      message: error.details[0].message
     });
   }
 
@@ -649,7 +649,7 @@ const createCardCtrl = asyncHandler(async (req, res) => {
  */
 const updateCardCtrl = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  
+
   // If file is uploaded, use file path; otherwise use logo_image/offer_image from body
   const updateData = { ...req.body };
   const logoFile = req.files && req.files['logo_image'] ? req.files['logo_image'][0] : null;
@@ -661,7 +661,7 @@ const updateCardCtrl = asyncHandler(async (req, res) => {
   if (offerFile && offerFile.path) {
     updateData.offer_image = offerFile.path;
   }
-  
+
   // Parse array fields if provided
   updateData.features = parseArrayField(updateData.features || updateData['features[]']);
   updateData.eligibles = parseArrayField(updateData.eligibles || updateData['eligibles[]']);
@@ -674,13 +674,13 @@ const updateCardCtrl = asyncHandler(async (req, res) => {
   if (updateData.targetAgeMax !== undefined) {
     updateData.targetAgeMax = updateData.targetAgeMax !== '' && updateData.targetAgeMax !== 'null' && updateData.targetAgeMax !== null ? parseInt(updateData.targetAgeMax, 10) : null;
   }
-  
+
   const { error } = updateCardSchema.validate(updateData);
-  
+
   if (error) {
-    return res.status(400).json({ 
-      success: false, 
-      message: error.details[0].message 
+    return res.status(400).json({
+      success: false,
+      message: error.details[0].message
     });
   }
 
@@ -724,33 +724,41 @@ const getCardClicksCtrl = asyncHandler(async (req, res) => {
 
   const clicks = await CardClick.aggregate([
     { $match: matchQuery },
-    { $group: {
+    {
+      $group: {
         _id: "$userId",
         clickCount: { $sum: 1 },
         lastClickedAt: { $max: "$createdAt" }
-    }},
-    { $lookup: {
+      }
+    },
+    {
+      $lookup: {
         from: "users",
         localField: "_id",
         foreignField: "_id",
         as: "user"
-    }},
+      }
+    },
     { $unwind: "$user" },
-    { $lookup: {
+    {
+      $lookup: {
         from: "userdetails",
         localField: "user.userDetailId",
         foreignField: "_id",
         as: "userDetail"
-    }},
+      }
+    },
     { $unwind: { path: "$userDetail", preserveNullAndEmptyArrays: true } },
-    { $project: {
+    {
+      $project: {
         _id: 1,
         clickCount: 1,
         lastClickedAt: 1,
         mobile: "$user.phoneNumber",
         email: "$userDetail.email",
         fullName: "$userDetail.fullName"
-    }},
+      }
+    },
     { $sort: { clickCount: -1 } }
   ]);
 
@@ -790,27 +798,35 @@ const broadcastCardMailerCtrl = asyncHandler(async (req, res) => {
   // Find all unique users who clicked this card
   const clicks = await CardClick.aggregate([
     { $match: matchQuery },
-    { $group: {
+    {
+      $group: {
         _id: "$userId"
-    }},
-    { $lookup: {
+      }
+    },
+    {
+      $lookup: {
         from: "users",
         localField: "_id",
         foreignField: "_id",
         as: "user"
-    }},
+      }
+    },
     { $unwind: "$user" },
-    { $lookup: {
+    {
+      $lookup: {
         from: "userdetails",
         localField: "user.userDetailId",
         foreignField: "_id",
         as: "userDetail"
-    }},
+      }
+    },
     { $unwind: { path: "$userDetail", preserveNullAndEmptyArrays: true } },
-    { $project: {
+    {
+      $project: {
         email: "$userDetail.email",
         fullName: "$userDetail.fullName"
-    }}
+      }
+    }
   ]);
 
   // Filter out any entries without emails
@@ -846,26 +862,34 @@ const broadcastAllCardsMailerCountCtrl = asyncHandler(async (req, res) => {
 
   const clicks = await CardClick.aggregate([
     { $match: matchQuery },
-    { $group: {
+    {
+      $group: {
         _id: "$userId"
-    }},
-    { $lookup: {
+      }
+    },
+    {
+      $lookup: {
         from: "users",
         localField: "_id",
         foreignField: "_id",
         as: "user"
-    }},
+      }
+    },
     { $unwind: "$user" },
-    { $lookup: {
+    {
+      $lookup: {
         from: "userdetails",
         localField: "user.userDetailId",
         foreignField: "_id",
         as: "userDetail"
-    }},
+      }
+    },
     { $unwind: { path: "$userDetail", preserveNullAndEmptyArrays: true } },
-    { $project: {
+    {
+      $project: {
         email: "$userDetail.email"
-    }}
+      }
+    }
   ]);
 
   const count = clicks.filter(c => !!c.email).length;
@@ -893,27 +917,35 @@ const broadcastAllCardsMailerCtrl = asyncHandler(async (req, res) => {
   // Find all unique users who clicked any card
   const clicks = await CardClick.aggregate([
     { $match: matchQuery },
-    { $group: {
+    {
+      $group: {
         _id: "$userId"
-    }},
-    { $lookup: {
+      }
+    },
+    {
+      $lookup: {
         from: "users",
         localField: "_id",
         foreignField: "_id",
         as: "user"
-    }},
+      }
+    },
     { $unwind: "$user" },
-    { $lookup: {
+    {
+      $lookup: {
         from: "userdetails",
         localField: "user.userDetailId",
         foreignField: "_id",
         as: "userDetail"
-    }},
+      }
+    },
     { $unwind: { path: "$userDetail", preserveNullAndEmptyArrays: true } },
-    { $project: {
+    {
+      $project: {
         email: "$userDetail.email",
         fullName: "$userDetail.fullName"
-    }}
+      }
+    }
   ]);
 
   // Filter out any entries without emails
@@ -963,27 +995,35 @@ const broadcastCardSmsCtrl = asyncHandler(async (req, res) => {
   // Find all unique users who clicked this card
   const clicks = await CardClick.aggregate([
     { $match: matchQuery },
-    { $group: {
+    {
+      $group: {
         _id: "$userId"
-    }},
-    { $lookup: {
+      }
+    },
+    {
+      $lookup: {
         from: "users",
         localField: "_id",
         foreignField: "_id",
         as: "user"
-    }},
+      }
+    },
     { $unwind: "$user" },
-    { $lookup: {
+    {
+      $lookup: {
         from: "userdetails",
         localField: "user.userDetailId",
         foreignField: "_id",
         as: "userDetail"
-    }},
+      }
+    },
     { $unwind: { path: "$userDetail", preserveNullAndEmptyArrays: true } },
-    { $project: {
+    {
+      $project: {
         phoneNumber: "$user.phoneNumber",
         fullName: "$userDetail.fullName"
-    }}
+      }
+    }
   ]);
 
   // Filter out any entries without phone numbers
@@ -1078,16 +1118,16 @@ const broadcastOfferEmailCtrl = asyncHandler(async (req, res) => {
 const sendBroadcastNotificationCtrl = asyncHandler(async (req, res) => {
   const { error } = broadcastNotificationSchema.validate(req.body);
   if (error) {
-    return res.status(400).json({ 
-      success: false, 
-      message: error.details[0].message 
+    return res.status(400).json({
+      success: false,
+      message: error.details[0].message
     });
   }
 
   const { title, description } = req.body;
-  
+
   const result = await sendBroadcastNotification(title, description);
-  
+
   success(res, result, 'Broadcast notification sent successfully');
 });
 
@@ -1113,11 +1153,11 @@ const downloadIncompleteProfilesCSVCtrl = asyncHandler(async (req, res) => {
   for (const user of users) {
     const mobile = user.phoneNumber || '';
     const name = user.fullName || 'User';
-    
+
     // Escape double quotes and wrap in double quotes
     const escapedMobile = `"${mobile.replace(/"/g, '""')}"`;
     const escapedName = `"${name.replace(/"/g, '""')}"`;
-    
+
     csvRows.push(`${escapedMobile},${escapedName}`);
   }
   const csvContent = csvRows.join('\n');
@@ -1136,7 +1176,7 @@ const sendIncompleteProfileSmsCtrl = asyncHandler(async (req, res) => {
   const { days = 'all' } = req.body;
 
   const users = await getIncompleteProfileUsers(days);
-  
+
   if (users.length === 0) {
     return res.status(200).json({ success: true, message: 'No users found matching the criteria' });
   }
@@ -1149,7 +1189,7 @@ const sendIncompleteProfileSmsCtrl = asyncHandler(async (req, res) => {
       console.error('Error in sendIncompleteProfileBulkSms:', err);
     });
   });
-  
+
   success(res, { sent: users.length }, `SMS broadcast initiated to ${users.length} users`);
 });
 
@@ -1170,16 +1210,16 @@ const getGeneralUserCountCtrl = asyncHandler(async (req, res) => {
 const sendGeneralSmsBroadcastCtrl = asyncHandler(async (req, res) => {
   const { error } = generalSmsBroadcastSchema.validate(req.body);
   if (error) {
-    return res.status(400).json({ 
-      success: false, 
-      message: error.details[0].message 
+    return res.status(400).json({
+      success: false,
+      message: error.details[0].message
     });
   }
 
   const { days = 'all', message, templateId } = req.body;
-  
+
   const users = await getUsersByRegistration(days);
-  
+
   if (users.length === 0) {
     return res.status(200).json({ success: true, message: 'No users found matching the criteria' });
   }
@@ -1192,7 +1232,7 @@ const sendGeneralSmsBroadcastCtrl = asyncHandler(async (req, res) => {
       console.error('Error in sendBulkSms:', err);
     });
   });
-  
+
   success(res, { sent: users.length }, `SMS broadcast initiated to ${users.length} users`);
 });
 
@@ -1213,23 +1253,23 @@ const getTargetedEmailUserCountCtrl = asyncHandler(async (req, res) => {
 const sendTargetedEmailBroadcastCtrl = asyncHandler(async (req, res) => {
   const { error } = targetedEmailBroadcastSchema.validate(req.body);
   if (error) {
-    return res.status(400).json({ 
-      success: false, 
-      message: error.details[0].message 
+    return res.status(400).json({
+      success: false,
+      message: error.details[0].message
     });
   }
 
   const { days = 'all', subject, htmlContent } = req.body;
-  
+
   const recipients = await getEmailUsersByRegistration(days);
-  
+
   if (recipients.length === 0) {
     return res.status(200).json({ success: true, message: 'No users found matching the criteria' });
   }
 
   // Trigger email broadcast
   const result = await sendBulkHtmlEmail(recipients, subject, htmlContent);
-  
+
   success(res, result, `Email broadcast initiated to ${result.sent} users`);
 });
 
@@ -1368,10 +1408,10 @@ const approvePostCtrl = asyncHandler(async (req, res) => {
 
       const notifyPromises = allUsers.map(async (user) => {
         const isConnection = connectionIds.has(user._id.toString());
-        
+
         // Check if user matches post segments
         let shouldNotify = false;
-        
+
         if (post.connectionGroupId) {
           shouldNotify = groupMemberIds.has(user._id.toString());
         } else {
@@ -1417,7 +1457,7 @@ const approvePostCtrl = asyncHandler(async (req, res) => {
 const rejectPostCtrl = asyncHandler(async (req, res) => {
   const { postId } = req.params;
   const Post = require('../models/Post.model');
-  
+
   const post = await Post.findByIdAndDelete(postId);
   if (!post) {
     return res.status(404).json({ success: false, message: 'Post not found' });
@@ -1543,9 +1583,9 @@ const getSportByIdCtrl = asyncHandler(async (req, res) => {
 const createSportCtrl = asyncHandler(async (req, res) => {
   const { error } = createSportSchema.validate(req.body);
   if (error) {
-    return res.status(400).json({ 
-      success: false, 
-      message: error.details[0].message 
+    return res.status(400).json({
+      success: false,
+      message: error.details[0].message
     });
   }
 
@@ -1559,11 +1599,11 @@ const createSportCtrl = asyncHandler(async (req, res) => {
 const updateSportCtrl = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { error } = updateSportSchema.validate(req.body);
-  
+
   if (error) {
-    return res.status(400).json({ 
-      success: false, 
-      message: error.details[0].message 
+    return res.status(400).json({
+      success: false,
+      message: error.details[0].message
     });
   }
 
@@ -1611,9 +1651,9 @@ const getPositionByIdCtrl = asyncHandler(async (req, res) => {
 const createPositionCtrl = asyncHandler(async (req, res) => {
   const { error } = createPositionSchema.validate(req.body);
   if (error) {
-    return res.status(400).json({ 
-      success: false, 
-      message: error.details[0].message 
+    return res.status(400).json({
+      success: false,
+      message: error.details[0].message
     });
   }
 
@@ -1627,11 +1667,11 @@ const createPositionCtrl = asyncHandler(async (req, res) => {
 const updatePositionCtrl = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { error } = updatePositionSchema.validate(req.body);
-  
+
   if (error) {
-    return res.status(400).json({ 
-      success: false, 
-      message: error.details[0].message 
+    return res.status(400).json({
+      success: false,
+      message: error.details[0].message
     });
   }
 
@@ -1695,7 +1735,7 @@ const deleteUserCtrl = asyncHandler(async (req, res) => {
  */
 const getScheduledMailersStatsCtrl = asyncHandler(async (req, res) => {
   const MailQueue = require('../models/MailQueue.model');
-  
+
   const stats = await MailQueue.aggregate([
     {
       $group: {
@@ -1861,9 +1901,9 @@ const updateBusinessCategoryCtrl = asyncHandler(async (req, res) => {
 const sendTestScheduledMailerCtrl = asyncHandler(async (req, res) => {
   const { error } = testScheduledMailerSchema.validate(req.body);
   if (error) {
-    return res.status(400).json({ 
-      success: false, 
-      message: error.details[0].message 
+    return res.status(400).json({
+      success: false,
+      message: error.details[0].message
     });
   }
 
@@ -1923,7 +1963,8 @@ const sendTestScheduledMailerCtrl = asyncHandler(async (req, res) => {
         logo_image: ''
       };
     }
-    const resolvedSubject = configuredSubject.replace(/{offerName}/g, offer.name).replace(/{name}/g, offer.name);
+    const subjectTemplate = offer.customSubject || configuredSubject;
+    const resolvedSubject = subjectTemplate.replace(/{offerName}/g, offer.name).replace(/{name}/g, offer.name);
     subject = `${resolvedSubject} (TEST)`;
     html = renderOfferOfTheDayEmailHtml('Test User', offer, configuredBody);
   } else {
@@ -1961,7 +2002,7 @@ const sendTestScheduledMailerCtrl = asyncHandler(async (req, res) => {
 });
 
 const testCardEmailCtrl = asyncHandler(async (req, res) => {
-  const { email, subject: reqSubject, customHtml, name, description, url, logo_image, offer_image, features } = req.body;
+  const { email, subject: reqSubject, customSubject, customHtml, name, description, url, logo_image, offer_image, features } = req.body;
   if (!email) {
     return res.status(400).json({ success: false, message: 'Recipient email is required' });
   }
@@ -1987,7 +2028,7 @@ const testCardEmailCtrl = asyncHandler(async (req, res) => {
 
   // Get default / configured body if customHtml is not provided
   let configuredBody = null;
-  let subject = reqSubject ? reqSubject.trim() : (offer.name || 'Premium Member Benefits (Sample Offer)');
+  let subject = reqSubject ? reqSubject.trim() : (customSubject ? customSubject.trim() : (offer.name || 'Premium Member Benefits (Sample Offer)'));
   if (!customHtml) {
     const mailerSetting = await Setting.findOne({ key: 'scheduled_mailers_settings' });
     configuredBody = mailerSetting && mailerSetting.value && mailerSetting.value['OFFER_OF_THE_DAY']?.body;
@@ -2027,7 +2068,7 @@ const testCardEmailCtrl = asyncHandler(async (req, res) => {
 
 const getScheduledMailersSettingsCtrl = asyncHandler(async (req, res) => {
   let setting = await Setting.findOne({ key: 'scheduled_mailers_settings' });
-  
+
   const defaultSettings = {
     INCOMPLETE_PROFILE: {
       isEnabled: true,
