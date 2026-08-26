@@ -55,7 +55,7 @@ const getMailerSetting = async (type) => {
       },
       OFFER_OF_THE_DAY: {
         isEnabled: true,
-        subject: 'Offer of the Day: {offerName} 🎁',
+        subject: '{offerName} 🎁',
         body: `<h2 style="margin:0 0 8px;color:#081332;font-size:22px;font-weight:700;">Offer of the Day! 🎁</h2>
 <p style="margin:0 0 20px;color:#495057;font-size:15px;line-height:1.7;">
   Hi <strong>{name}</strong>,<br/>
@@ -286,7 +286,7 @@ const scheduleOfferOfTheDay = async () => {
       const scheduledFor = new Date();
       scheduledFor.setHours(scheduledFor.getHours() + hour);
 
-      const customSubjectTemplate = setting.subject || 'Offer of the Day: {offerName} 🎁';
+      const customSubjectTemplate = setting.subject || '{offerName} 🎁';
       const customSubject = customSubjectTemplate.replace(/{offerName}/g, offer.name).replace(/{name}/g, offer.name);
       const customBody = setting.body;
 

@@ -1889,7 +1889,7 @@ const sendTestScheduledMailerCtrl = asyncHandler(async (req, res) => {
   const defaultSubjects = {
     INCOMPLETE_PROFILE: 'Action Required: Complete your Connect India profile! 🚀',
     CITY_INDUSTRY_SNAPSHOT: 'Weekly Network Snapshot: New Matches in your City & Industry 🌐',
-    OFFER_OF_THE_DAY: 'Offer of the Day: {offerName} 🎁'
+    OFFER_OF_THE_DAY: '{offerName} 🎁'
   };
   const configuredSubject = (mailerSetting && mailerSetting.value && mailerSetting.value[type]?.subject) || defaultSubjects[type];
   const configuredBody = mailerSetting && mailerSetting.value && mailerSetting.value[type]?.body;
@@ -1961,7 +1961,7 @@ const sendTestScheduledMailerCtrl = asyncHandler(async (req, res) => {
 });
 
 const testCardEmailCtrl = asyncHandler(async (req, res) => {
-  const { email, customHtml, name, description, url, logo_image, offer_image, features } = req.body;
+  const { email, subject: reqSubject, customHtml, name, description, url, logo_image, offer_image, features } = req.body;
   if (!email) {
     return res.status(400).json({ success: false, message: 'Recipient email is required' });
   }
@@ -1987,7 +1987,7 @@ const testCardEmailCtrl = asyncHandler(async (req, res) => {
 
   // Get default / configured body if customHtml is not provided
   let configuredBody = null;
-  let subject = `Test Offer Mail: ${offer.name}`;
+  let subject = reqSubject ? reqSubject.trim() : (offer.name || 'Premium Member Benefits (Sample Offer)');
   if (!customHtml) {
     const mailerSetting = await Setting.findOne({ key: 'scheduled_mailers_settings' });
     configuredBody = mailerSetting && mailerSetting.value && mailerSetting.value['OFFER_OF_THE_DAY']?.body;
@@ -2062,7 +2062,7 @@ const getScheduledMailersSettingsCtrl = asyncHandler(async (req, res) => {
     },
     OFFER_OF_THE_DAY: {
       isEnabled: true,
-      subject: 'Offer of the Day: {offerName} 🎁',
+      subject: '{offerName} 🎁',
       body: `<h2 style="margin:0 0 8px;color:#081332;font-size:22px;font-weight:700;">Offer of the Day! 🎁</h2>
 <p style="margin:0 0 20px;color:#495057;font-size:15px;line-height:1.7;">
   Hi <strong>{name}</strong>,<br/>
