@@ -86,6 +86,7 @@ const {
   getScheduledMailersStatsCtrl,
   getScheduledMailersLogsCtrl,
   sendTestScheduledMailerCtrl,
+  testCardEmailCtrl,
   getScheduledMailersSettingsCtrl,
   updateScheduledMailersSettingsCtrl,
   getOfferCategoriesListCtrl,
@@ -253,6 +254,9 @@ router.post('/cards/broadcast-all', broadcastAllCardsMailerCtrl);
 
 // GET /api/admin/cards/:id
 router.get('/cards/:id', getCardByIdCtrl);
+
+// POST /api/admin/cards/test-email - Send a test email for this offer/card
+router.post('/cards/test-email', testCardEmailCtrl);
 
 // POST /api/admin/cards - Requires logo_image file upload (uploaded to Cloudinary automatically)
 router.post('/cards', uploadCardLogo.fields([{ name: 'logo_image', maxCount: 1 }, { name: 'offer_image', maxCount: 1 }]), createCardCtrl);

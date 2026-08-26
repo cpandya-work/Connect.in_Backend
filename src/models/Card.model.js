@@ -73,6 +73,11 @@ const cardSchema = new mongoose.Schema({
     ref: 'OfferCategory',
     default: null
   },
+  customHtml: {
+    type: String,
+    trim: true,
+    default: null
+  },
 }, { timestamps: true });
 
 // Index for faster searches

@@ -24,8 +24,8 @@ const initCronJobs = () => {
     }
   });
 
-  // 2. Daily Scheduler (runs every day at 9:00 AM)
-  cron.schedule('0 9 * * *', async () => {
+  // 2. Daily Scheduler (runs every day at 12:00 PM)
+  cron.schedule('0 12 * * *', async () => {
 
     try {
       console.log('[Cron] Starting daily cron tasks (Offer of the Day)...');

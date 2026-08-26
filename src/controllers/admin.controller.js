@@ -1960,6 +1960,71 @@ const sendTestScheduledMailerCtrl = asyncHandler(async (req, res) => {
   }
 });
 
+const testCardEmailCtrl = asyncHandler(async (req, res) => {
+  const { email, customHtml, name, description, url, logo_image, offer_image, features } = req.body;
+  if (!email) {
+    return res.status(400).json({ success: false, message: 'Recipient email is required' });
+  }
+  if (!process.env.SMTP_HOST) {
+    return res.status(400).json({
+      success: false,
+      message: 'SMTP is not configured on the server. Please set SMTP_HOST environment variable.'
+    });
+  }
+
+  const { renderOfferOfTheDayEmailHtml } = require('../services/email.service');
+
+  // Construct a preview offer object
+  const offer = {
+    name: name || 'Premium Member Benefits (Sample Offer)',
+    description: description || 'Enjoy exclusive discounts on coworking spaces, software tools, and professional courses tailored for you.',
+    url: url || 'https://connect.in/offers',
+    logo_image: logo_image || '',
+    offer_image: offer_image || '',
+    features: Array.isArray(features) ? features : [],
+    customHtml: customHtml || null
+  };
+
+  // Get default / configured body if customHtml is not provided
+  let configuredBody = null;
+  let subject = `Test Offer Mail: ${offer.name}`;
+  if (!customHtml) {
+    const mailerSetting = await Setting.findOne({ key: 'scheduled_mailers_settings' });
+    configuredBody = mailerSetting && mailerSetting.value && mailerSetting.value['OFFER_OF_THE_DAY']?.body;
+  }
+
+  const html = renderOfferOfTheDayEmailHtml('Test User', offer, configuredBody);
+
+  try {
+    const FROM = `"Connect India" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`;
+    const nodemailer = require('nodemailer');
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: parseInt(process.env.SMTP_PORT || '587', 10),
+      secure: process.env.SMTP_SECURE === 'true',
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+    });
+
+    await transporter.sendMail({
+      from: FROM,
+      to: email,
+      subject,
+      html
+    });
+
+    success(res, null, 'Test email sent successfully to ' + email);
+  } catch (err) {
+    console.error(`[Card Email Test] Failed to send to ${email}:`, err);
+    return res.status(500).json({
+      success: false,
+      message: `Failed to send email: ${err.message || 'SMTP Connection Error'}`
+    });
+  }
+});
+
 const getScheduledMailersSettingsCtrl = asyncHandler(async (req, res) => {
   let setting = await Setting.findOne({ key: 'scheduled_mailers_settings' });
   
@@ -2160,6 +2225,7 @@ module.exports = {
   getScheduledMailersStatsCtrl,
   getScheduledMailersLogsCtrl,
   sendTestScheduledMailerCtrl,
+  testCardEmailCtrl,
   getScheduledMailersSettingsCtrl,
   updateScheduledMailersSettingsCtrl,
   getOfferCategoriesListCtrl,

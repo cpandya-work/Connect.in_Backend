@@ -406,6 +406,32 @@ const renderCityIndustrySnapshotEmailHtml = (fullName, matches, customBodyTempla
 };
 
 const renderOfferOfTheDayEmailHtml = (fullName, offer, customBodyTemplate) => {
+  if (offer.customHtml) {
+    const logoUrl = makeAbsoluteUrl(offer.logo_image);
+    const imageUrl = makeAbsoluteUrl(offer.offer_image);
+    
+    let resolvedHtml = offer.customHtml;
+    // Replace src placeholders if any
+    resolvedHtml = resolvedHtml
+      .replace(/src=["']?\{offerImage\}["']?/gi, `src="${imageUrl}"`)
+      .replace(/src=["']?\{offerLogo\}["']?/gi, `src="${logoUrl}"`);
+
+    // Replace other placeholders
+    resolvedHtml = resolvedHtml
+      .replace(/{name}/g, fullName)
+      .replace(/{fullName}/g, fullName)
+      .replace(/{offerName}/g, offer.name)
+      .replace(/{offerDescription}/g, offer.description || '')
+      .replace(/{offerImageUrl}/g, imageUrl)
+      .replace(/{offer_image_url}/g, imageUrl)
+      .replace(/{offerLogoUrl}/g, logoUrl)
+      .replace(/{offer_logo_url}/g, logoUrl)
+      .replace(/{offerUrl}/g, offer.url || `${APP_URL}/offer`)
+      .replace(/{offer_url}/g, offer.url || `${APP_URL}/offer`);
+      
+    return resolvedHtml;
+  }
+
   const featuresList = offer.features && offer.features.length > 0
     ? offer.features.map(f => `<li>${f}</li>`).join('')
     : '';

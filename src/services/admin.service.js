@@ -1106,6 +1106,7 @@ const createCard = async (cardData) => {
     showInPopup: cardData.showInPopup !== undefined ? (cardData.showInPopup === 'true' || cardData.showInPopup === true) : true,
     showInMailer: cardData.showInMailer !== undefined ? (cardData.showInMailer === 'true' || cardData.showInMailer === true) : true,
     category: cardData.category && cardData.category !== '' && cardData.category !== 'null' ? cardData.category : null,
+    customHtml: cardData.customHtml || null,
   });
 
   return card;
@@ -1189,6 +1190,9 @@ const updateCard = async (cardId, updateData, files = null) => {
   }
   if (updateData.category !== undefined) {
     updateData.category = updateData.category && updateData.category !== '' && updateData.category !== 'null' ? updateData.category : null;
+  }
+  if (updateData.customHtml !== undefined) {
+    updateData.customHtml = updateData.customHtml ? updateData.customHtml.trim() : null;
   }
 
   Object.assign(card, updateData);
