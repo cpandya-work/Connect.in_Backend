@@ -40,8 +40,7 @@ const sendEmail = async (to, subject, html) => {
       from: FROM,
       to,
       subject,
-      html,
-      textEncoding: 'base64'
+      html
     });
   } catch (err) {
     console.error(`[Email] Failed to send "${subject}" to ${to}:`, err.message);
