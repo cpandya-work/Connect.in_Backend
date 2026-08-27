@@ -239,7 +239,7 @@ const scheduleCityIndustrySnapshots = async () => {
 /**
  * 3. Offer of the Day Mailer Generator
  * Runs daily. Selects the last 5,000 active users and queues the designated
- * offer of the day, distributing them evenly across 24 hours.
+ * offer of the day, distributing them evenly across 12 hours (from 10:00 AM to 10:00 PM).
  */
 const scheduleOfferOfTheDay = async () => {
   try {
@@ -275,16 +275,16 @@ const scheduleOfferOfTheDay = async () => {
     console.log(`[Scheduler] Found ${total} active users with emails out of last 5000.`);
     if (total === 0) return { scheduled: 0 };
 
-    const chunkSize = Math.ceil(total / 24); // 24 hourly chunks
+    const chunkSize = Math.ceil(total / 12); // 12 hourly chunks
     let queuedCount = 0;
 
-    for (let hour = 0; hour < 24; hour++) {
+    for (let hour = 0; hour < 12; hour++) {
       const startIdx = hour * chunkSize;
       const endIdx = Math.min(startIdx + chunkSize, total);
       const chunk = targetUsers.slice(startIdx, endIdx);
 
       const scheduledFor = new Date();
-      scheduledFor.setHours(scheduledFor.getHours() + hour);
+      scheduledFor.setHours(10 + hour, 0, 0, 0);
 
       const customSubjectTemplate = offer.customSubject || setting.subject || '{offerName} 🎁';
       const customSubject = customSubjectTemplate.replace(/{offerName}/g, offer.name).replace(/{name}/g, offer.name);
@@ -306,7 +306,7 @@ const scheduleOfferOfTheDay = async () => {
       }
     }
 
-    console.log(`[Scheduler] Scheduled ${queuedCount} Offer of the Day emails across 24 hours.`);
+    console.log(`[Scheduler] Scheduled ${queuedCount} Offer of the Day emails across 12 hours.`);
     return { scheduled: queuedCount };
   } catch (err) {
     console.error('[Scheduler] Error scheduling offer of the day:', err);
