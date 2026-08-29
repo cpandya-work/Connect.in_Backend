@@ -1339,6 +1339,14 @@ const approvePostCtrl = asyncHandler(async (req, res) => {
     return res.status(404).json({ success: false, message: 'Post not found' });
   }
 
+  if (req.body.targetSegments) {
+    const { connections, city, industries, ageGroups } = req.body.targetSegments;
+    if (typeof connections === 'boolean') post.targetSegments.connections = connections;
+    if (typeof city === 'boolean') post.targetSegments.city = city;
+    if (Array.isArray(industries)) post.targetSegments.industries = industries;
+    if (Array.isArray(ageGroups)) post.targetSegments.ageGroups = ageGroups;
+  }
+
   post.isApproved = true;
   await post.save();
 

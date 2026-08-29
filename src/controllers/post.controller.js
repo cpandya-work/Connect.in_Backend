@@ -128,6 +128,13 @@ const createPost = asyncHandler(async (req, res) => {
     }
   }
 
+  const onlyForConnections = targetSegments.connections === true &&
+                             targetSegments.city === false &&
+                             (!targetSegments.industries || targetSegments.industries.length === 0) &&
+                             (!targetSegments.ageGroups || targetSegments.ageGroups.length === 0);
+
+  const isApproved = onlyForConnections;
+
   const post = await Post.create({
     userId,
     content,
@@ -136,8 +143,47 @@ const createPost = asyncHandler(async (req, res) => {
     targetSegments,
     authorCity,
     connectionGroupId: connectionGroupId || null,
-    isApproved: false
+    isApproved
   });
+
+  if (isApproved) {
+    setImmediate(async () => {
+      try {
+        const allUsers = await User.find({ _id: { $ne: userId } }).populate('userDetailId');
+        const connections = await UserConnections.find({
+          $or: [
+            { connection1Id: userId },
+            { connection2Id: userId },
+          ],
+        });
+
+        const connectionIds = new Set(
+          connections.map(c =>
+            c.connection1Id.toString() === userId.toString() ? c.connection2Id.toString() : c.connection1Id.toString()
+          )
+        );
+
+        const posterName = poster?.userDetailId?.isBusinessProfile ? poster.userDetailId.businessName : (poster?.userDetailId?.fullName || 'A user');
+        const posterImage = poster?.userDetailId?.isBusinessProfile ? poster.userDetailId.businessLogo : (poster?.userDetailId?.profileImage || '');
+
+        const notifyPromises = allUsers.map(async (user) => {
+          const isConnection = connectionIds.has(user._id.toString());
+          if (isConnection) {
+            sendPostNotification(user._id, posterName, userId, posterImage).catch(console.error);
+
+            if (user.userDetailId?.email) {
+              const recipientName = user.userDetailId.isBusinessProfile ? user.userDetailId.businessName : user.userDetailId.fullName;
+              sendNewPostEmail(user.userDetailId.email, recipientName, posterName).catch(console.error);
+            }
+          }
+        });
+
+        await Promise.all(notifyPromises);
+      } catch (err) {
+        console.error('Error sending auto-approved post notifications:', err);
+      }
+    });
+  }
 
   const populatedPost = await Post.findById(post._id).populate({
     path: 'userId',
@@ -145,7 +191,7 @@ const createPost = asyncHandler(async (req, res) => {
     select: 'userDetailId'
   }).populate('connectionGroupId', 'name');
 
-  success(res, populatedPost, 'Post created successfully and pending admin approval');
+  success(res, populatedPost, isApproved ? 'Post created and published successfully' : 'Post created successfully and pending admin approval');
 });
 
 function getAgeGroup(dateOfBirth) {
@@ -472,7 +518,44 @@ const resharePost = asyncHandler(async (req, res) => {
       ageGroups: []
     },
     authorCity,
-    isApproved: false // requires admin approval
+    isApproved: true
+  });
+
+  setImmediate(async () => {
+    try {
+      const allUsers = await User.find({ _id: { $ne: userId } }).populate('userDetailId');
+      const connections = await UserConnections.find({
+        $or: [
+          { connection1Id: userId },
+          { connection2Id: userId },
+        ],
+      });
+
+      const connectionIds = new Set(
+        connections.map(c =>
+          c.connection1Id.toString() === userId.toString() ? c.connection2Id.toString() : c.connection1Id.toString()
+        )
+      );
+
+      const posterName = poster?.userDetailId?.isBusinessProfile ? poster.userDetailId.businessName : (poster?.userDetailId?.fullName || 'A user');
+      const posterImage = poster?.userDetailId?.isBusinessProfile ? poster.userDetailId.businessLogo : (poster?.userDetailId?.profileImage || '');
+
+      const notifyPromises = allUsers.map(async (user) => {
+        const isConnection = connectionIds.has(user._id.toString());
+        if (isConnection) {
+          sendPostNotification(user._id, posterName, userId, posterImage).catch(console.error);
+
+          if (user.userDetailId?.email) {
+            const recipientName = user.userDetailId.isBusinessProfile ? user.userDetailId.businessName : user.userDetailId.fullName;
+            sendNewPostEmail(user.userDetailId.email, recipientName, posterName).catch(console.error);
+          }
+        }
+      });
+
+      await Promise.all(notifyPromises);
+    } catch (err) {
+      console.error('Error sending reshared post notifications:', err);
+    }
   });
 
   await Post.findByIdAndUpdate(rootPostId, { $inc: { reshareCount: 1 } });
@@ -493,7 +576,91 @@ const resharePost = asyncHandler(async (req, res) => {
     })
     .populate('connectionGroupId', 'name');
 
-  success(res, populatedPost, 'Post reshared successfully and pending admin approval');
+  success(res, populatedPost, 'Post reshared successfully');
+});
+
+const getTopSharers = asyncHandler(async (req, res) => {
+  // Aggregate to find users with most posts
+  const topSharers = await Post.aggregate([
+    { $match: { isApproved: true } },
+    { $group: { _id: '$userId', count: { $sum: 1 } } },
+    { $sort: { count: -1 } },
+    { $limit: 5 }
+  ]);
+
+  // Populate user details
+  const populatedSharers = await Promise.all(
+    topSharers.map(async (item) => {
+      if (!item._id) return null;
+      const user = await User.findById(item._id)
+        .populate('userDetailId', 'fullName profileImage gender dateOfBirth isBusinessProfile businessName businessLogo')
+        .lean();
+      if (!user) return null;
+      return {
+        user: {
+          _id: user._id,
+          userDetailId: user.userDetailId
+        },
+        sharesCount: item.count
+      };
+    })
+  );
+
+  const result = populatedSharers.filter(item => item !== null);
+
+  // Sort final list by sharesCount desc
+  result.sort((a, b) => b.sharesCount - a.sharesCount);
+
+  success(res, result);
+});
+
+const getMostSharedReels = asyncHandler(async (req, res) => {
+  // Query posts that have video attachments
+  let reels = await Post.find({
+    isApproved: true,
+    'attachments.type': 'video'
+  })
+    .populate({
+      path: 'userId',
+      populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth isBusinessProfile businessName businessLogo' },
+      select: 'userDetailId'
+    })
+    .lean();
+
+  // If we don't have enough reels, fallback to other real posts in the database
+  if (reels.length < 5) {
+    const fallbackPosts = await Post.find({
+      isApproved: true,
+      _id: { $nin: reels.map(r => r._id) }
+    })
+      .populate({
+        path: 'userId',
+        populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth isBusinessProfile businessName businessLogo' },
+        select: 'userDetailId'
+      })
+      .limit(5 - reels.length)
+      .lean();
+    reels = [...reels, ...fallbackPosts];
+  }
+
+  // Map and calculate score = reactions.length + reshareCount
+  const reelsWithScore = reels.map(post => {
+    const likesCount = post.reactions ? post.reactions.length : 0;
+    const reshares = post.reshareCount || 0;
+    const score = likesCount + reshares;
+    return {
+      ...post,
+      likesCount,
+      reshares,
+      score
+    };
+  });
+
+  // Sort by score desc, then limit 5
+  reelsWithScore.sort((a, b) => b.score - a.score);
+  const result = reelsWithScore.slice(0, 5);
+
+  success(res, result);
 });
 
 module.exports = {
@@ -501,5 +668,7 @@ module.exports = {
   getPosts,
   reactToPost,
   getLinkPreview,
-  resharePost
+  resharePost,
+  getTopSharers,
+  getMostSharedReels
 };
