@@ -20,7 +20,7 @@ const errorHandler = require('./middlewares/error.middleware');
 const app = express();
 
 // Middleware
-app.use(cors({ origin: process.env.CLIENT_URL || '*', credentials: true }));
+app.use(cors({ origin: (origin, callback) => callback(null, true), credentials: true }));
 app.use(helmet({
   crossOriginResourcePolicy: false,
 }));

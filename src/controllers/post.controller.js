@@ -12,13 +12,15 @@ const createPost = asyncHandler(async (req, res) => {
   const { content, connectionGroupId } = req.body;
   const userId = req.user._id;
 
-  if (!content) {
+  const hasAttachments = req.files && req.files.length > 0;
+  if (!content && !hasAttachments) {
     return res.status(400).json({ success: false, message: 'Content is required' });
   }
 
   let linkPreview = null;
-  const urlMatch = content.match(/(https?:\/\/[^\s]+)/i);
-  if (urlMatch) {
+  if (content) {
+    const urlMatch = content.match(/(https?:\/\/[^\s]+)/i);
+    if (urlMatch) {
     const url = urlMatch[0];
     try {
       let targetUrl = url.trim();
@@ -82,6 +84,7 @@ const createPost = asyncHandler(async (req, res) => {
       console.error('Auto link preview fetching failed:', err.message);
     }
   }
+}
 
   const attachments = [];
   if (req.files && req.files.length > 0) {
@@ -137,7 +140,7 @@ const createPost = asyncHandler(async (req, res) => {
 
   const post = await Post.create({
     userId,
-    content,
+    content: content || '',
     attachments,
     linkPreview,
     targetSegments,

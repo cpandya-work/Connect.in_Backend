@@ -170,12 +170,16 @@ const getPopupOfferCtrl = asyncHandler(async (req, res) => {
     return success(res, { showPopup: false, offer: null }, 'User detail not found');
   }
 
-  // 3. Check if user already saw an offer in the last 24 hours
-  if (userDetail.lastOfferShownAt) {
-    const diffMs = Date.now() - userDetail.lastOfferShownAt.getTime();
+  // 3. Check if user already saw an offer in the last 24 hours for this page via cookies
+  const page = req.query.page || 'people'; // default to people
+  const cookieName = `lastOfferShownAt_${page}`;
+  
+  if (req.cookies && req.cookies[cookieName]) {
+    const lastShownDate = new Date(req.cookies[cookieName]);
+    const diffMs = Date.now() - lastShownDate.getTime();
     const diffHours = diffMs / (1000 * 60 * 60);
     if (diffHours < 24) {
-      return success(res, { showPopup: false, offer: null }, 'Already shown an offer in the last 24 hours');
+      return success(res, { showPopup: false, offer: null }, `Already shown an offer in the last 24 hours on ${page}`);
     }
   }
 
@@ -261,6 +265,15 @@ const getPopupOfferCtrl = asyncHandler(async (req, res) => {
   // Increment view count on the card/offer
   selectedOffer.views = (selectedOffer.views || 0) + 1;
   await selectedOffer.save();
+
+  // Set page-specific cookie for 24 hours
+  res.cookie(cookieName, new Date().toISOString(), {
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    httpOnly: false,
+    path: '/',
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production'
+  });
 
   // Return the selected offer
   return success(res, { showPopup: true, offer: selectedOffer }, 'Eligible offer fetched successfully');
