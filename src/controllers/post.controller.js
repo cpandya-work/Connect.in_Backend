@@ -217,7 +217,11 @@ function getAgeGroup(dateOfBirth) {
 
 const getPosts = asyncHandler(async (req, res) => {
   const userId = req.user._id;
-  const { sortBy } = req.query;
+  const { sortBy, page: queryPage, limit: queryLimit } = req.query;
+
+  const page = Math.max(1, parseInt(queryPage, 10) || 1);
+  const limit = Math.max(1, parseInt(queryLimit, 10) || 10);
+  const skip = (page - 1) * limit;
 
   // Retrieve current user details for targeting match
   const user = await User.findById(userId).populate('userDetailId');
@@ -291,7 +295,7 @@ const getPosts = asyncHandler(async (req, res) => {
     });
   }
 
-  const posts = await Post.find({
+  const queryFilter = {
     $and: [
       { $or: orQueries },
       {
@@ -301,30 +305,34 @@ const getPosts = asyncHandler(async (req, res) => {
         ]
       }
     ]
-  })
-    .populate({
-      path: 'userId',
-      populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth isBusinessProfile businessName businessLogo' },
-      select: 'userDetailId'
-    })
-    .populate({
-      path: 'reactions.userId',
-      populate: { path: 'userDetailId', select: 'fullName isBusinessProfile businessName' },
-      select: 'userDetailId'
-    })
-    .populate('connectionGroupId', 'name')
-    .populate({
-      path: 'sharedPostId',
-      populate: {
+  };
+
+  const totalPosts = await Post.countDocuments(queryFilter);
+
+  let posts;
+  if (sortBy === 'popularity') {
+    posts = await Post.find(queryFilter)
+      .populate({
         path: 'userId',
         populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth isBusinessProfile businessName businessLogo' },
         select: 'userDetailId'
-      }
-    })
-    .sort({ createdAt: -1 })
-    .lean();
+      })
+      .populate({
+        path: 'reactions.userId',
+        populate: { path: 'userDetailId', select: 'fullName isBusinessProfile businessName' },
+        select: 'userDetailId'
+      })
+      .populate('connectionGroupId', 'name')
+      .populate({
+        path: 'sharedPostId',
+        populate: {
+          path: 'userId',
+          populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth isBusinessProfile businessName businessLogo' },
+          select: 'userDetailId'
+        }
+      })
+      .lean();
 
-  if (sortBy === 'popularity') {
     posts.sort((a, b) => {
       const aCount = a.reactions ? a.reactions.length : 0;
       const bCount = b.reactions ? b.reactions.length : 0;
@@ -333,9 +341,50 @@ const getPosts = asyncHandler(async (req, res) => {
       }
       return new Date(b.createdAt) - new Date(a.createdAt);
     });
+
+    posts = posts.slice(skip, skip + limit);
+  } else {
+    posts = await Post.find(queryFilter)
+      .populate({
+        path: 'userId',
+        populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth isBusinessProfile businessName businessLogo' },
+        select: 'userDetailId'
+      })
+      .populate({
+        path: 'reactions.userId',
+        populate: { path: 'userDetailId', select: 'fullName isBusinessProfile businessName' },
+        select: 'userDetailId'
+      })
+      .populate('connectionGroupId', 'name')
+      .populate({
+        path: 'sharedPostId',
+        populate: {
+          path: 'userId',
+          populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth isBusinessProfile businessName businessLogo' },
+          select: 'userDetailId'
+        }
+      })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean();
   }
 
-  success(res, posts);
+  const totalPages = Math.ceil(totalPosts / limit);
+  const hasMore = page < totalPages;
+
+  return res.status(200).json({
+    success: true,
+    data: posts,
+    pagination: {
+      totalPosts,
+      totalPages,
+      currentPage: page,
+      limit,
+      hasMore
+    },
+    message: 'Posts retrieved successfully'
+  });
 });
 
 const reactToPost = asyncHandler(async (req, res) => {
