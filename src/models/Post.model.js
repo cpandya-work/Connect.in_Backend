@@ -51,6 +51,7 @@ const postSchema = new mongoose.Schema({
     connections: { type: Boolean, default: true },
     city: { type: Boolean, default: false },
     industries: [{ type: String }],
+    interests: [{ type: String }],
     ageGroups: [{ type: String }]
   },
   authorCity: {

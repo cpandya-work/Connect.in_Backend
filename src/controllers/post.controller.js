@@ -112,6 +112,7 @@ const createPost = asyncHandler(async (req, res) => {
     connections: connectionGroupId ? false : true,
     city: false,
     industries: [],
+    interests: [],
     ageGroups: []
   };
 
@@ -124,6 +125,7 @@ const createPost = asyncHandler(async (req, res) => {
         connections: connectionGroupId ? false : (typeof parsed.connections === 'boolean' ? parsed.connections : true),
         city: typeof parsed.city === 'boolean' ? parsed.city : false,
         industries: Array.isArray(parsed.industries) ? parsed.industries : [],
+        interests: Array.isArray(parsed.interests) ? parsed.interests : [],
         ageGroups: Array.isArray(parsed.ageGroups) ? parsed.ageGroups : []
       };
     } catch (e) {
@@ -134,6 +136,7 @@ const createPost = asyncHandler(async (req, res) => {
   const onlyForConnections = targetSegments.connections === true &&
                              targetSegments.city === false &&
                              (!targetSegments.industries || targetSegments.industries.length === 0) &&
+                             (!targetSegments.interests || targetSegments.interests.length === 0) &&
                              (!targetSegments.ageGroups || targetSegments.ageGroups.length === 0);
 
   const isApproved = onlyForConnections;
@@ -227,6 +230,7 @@ const getPosts = asyncHandler(async (req, res) => {
   const user = await User.findById(userId).populate('userDetailId');
   const userDetail = user?.userDetailId;
   const userIndustry = userDetail?.industry || '';
+  const userInterests = userDetail?.interests || [];
   const userCityId = userDetail?.city ? userDetail.city.toString() : null;
   const userAgeGroup = userDetail?.dateOfBirth ? getAgeGroup(userDetail.dateOfBirth) : null;
 
@@ -264,6 +268,7 @@ const getPosts = asyncHandler(async (req, res) => {
           'targetSegments.connections': false,
           'targetSegments.city': false,
           'targetSegments.industries': { $size: 0 },
+          'targetSegments.interests': { $size: 0 },
           'targetSegments.ageGroups': { $size: 0 }
         }
       ]
@@ -275,6 +280,14 @@ const getPosts = asyncHandler(async (req, res) => {
     orQueries.push({
       connectionGroupId: null,
       'targetSegments.industries': userIndustry
+    });
+  }
+
+  // 4b. User sees posts targeted at their interests (even if not connected)
+  if (userInterests && userInterests.length > 0) {
+    orQueries.push({
+      connectionGroupId: null,
+      'targetSegments.interests': { $in: userInterests }
     });
   }
 

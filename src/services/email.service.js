@@ -406,31 +406,8 @@ const renderCityIndustrySnapshotEmailHtml = (fullName, matches, customBodyTempla
 };
 
 const renderOfferOfTheDayEmailHtml = (fullName, offer, customBodyTemplate) => {
-  if (offer.customHtml) {
-    const logoUrl = makeAbsoluteUrl(offer.logo_image);
-    const imageUrl = makeAbsoluteUrl(offer.offer_image);
-    
-    let resolvedHtml = offer.customHtml;
-    // Replace src placeholders if any
-    resolvedHtml = resolvedHtml
-      .replace(/src=["']?\{offerImage\}["']?/gi, `src="${imageUrl}"`)
-      .replace(/src=["']?\{offerLogo\}["']?/gi, `src="${logoUrl}"`);
-
-    // Replace other placeholders
-    resolvedHtml = resolvedHtml
-      .replace(/{name}/g, fullName)
-      .replace(/{fullName}/g, fullName)
-      .replace(/{offerName}/g, offer.name)
-      .replace(/{offerDescription}/g, offer.description || '')
-      .replace(/{offerImageUrl}/g, imageUrl)
-      .replace(/{offer_image_url}/g, imageUrl)
-      .replace(/{offerLogoUrl}/g, logoUrl)
-      .replace(/{offer_logo_url}/g, logoUrl)
-      .replace(/{offerUrl}/g, offer.url || `${APP_URL}/offer`)
-      .replace(/{offer_url}/g, offer.url || `${APP_URL}/offer`);
-      
-    return resolvedHtml;
-  }
+  const logoUrl = makeAbsoluteUrl(offer.logo_image);
+  const imageUrl = makeAbsoluteUrl(offer.offer_image);
 
   const featuresList = offer.features && offer.features.length > 0
     ? offer.features.map(f => `<li>${f}</li>`).join('')
@@ -442,9 +419,6 @@ const renderOfferOfTheDayEmailHtml = (fullName, offer, customBodyTemplate) => {
       ${featuresList}
     </ul>
   ` : '';
-
-  const logoUrl = makeAbsoluteUrl(offer.logo_image);
-  const imageUrl = makeAbsoluteUrl(offer.offer_image);
 
   const offerLogo = offer.logo_image ? `
     <tr>
@@ -490,8 +464,10 @@ const renderOfferOfTheDayEmailHtml = (fullName, offer, customBodyTemplate) => {
 
   const offerImageUrl = imageUrl;
 
-  if (customBodyTemplate) {
-    let resolvedBody = customBodyTemplate;
+  const bodyToRender = offer.customHtml || customBodyTemplate;
+
+  if (bodyToRender) {
+    let resolvedBody = bodyToRender;
 
     // Gracefully handle instances where administrators put {offerImage} or {offerLogo} inside an img tag's src attribute
     resolvedBody = resolvedBody
@@ -540,8 +516,14 @@ const renderOfferOfTheDayEmailHtml = (fullName, offer, customBodyTemplate) => {
       .replace(/{offerImageHtml}/g, offerImageHtml)
       .replace(/{offerImageUrl}/g, offerImageUrl)
       .replace(/{offer_image_url}/g, offerImageUrl)
+      .replace(/{offerLogoUrl}/g, logoUrl)
+      .replace(/{offer_logo_url}/g, logoUrl)
       .replace(/{offerUrl}/g, offer.url || `${APP_URL}/offer`)
       .replace(/{offer_url}/g, offer.url || `${APP_URL}/offer`);
+
+    if (resolvedBody.includes('<!DOCTYPE') || resolvedBody.includes('<html')) {
+      return resolvedBody;
+    }
 
     return baseTemplate(`
       ${resolvedBody}
