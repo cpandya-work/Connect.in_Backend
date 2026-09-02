@@ -1340,10 +1340,11 @@ const approvePostCtrl = asyncHandler(async (req, res) => {
   }
 
   if (req.body.targetSegments) {
-    const { connections, city, industries, ageGroups } = req.body.targetSegments;
+    const { connections, city, industries, interests, ageGroups } = req.body.targetSegments;
     if (typeof connections === 'boolean') post.targetSegments.connections = connections;
     if (typeof city === 'boolean') post.targetSegments.city = city;
     if (Array.isArray(industries)) post.targetSegments.industries = industries;
+    if (Array.isArray(interests)) post.targetSegments.interests = interests;
     if (Array.isArray(ageGroups)) post.targetSegments.ageGroups = ageGroups;
   }
 
@@ -1427,14 +1428,15 @@ const approvePostCtrl = asyncHandler(async (req, res) => {
           if (!segments) {
             shouldNotify = isConnection;
           } else {
-            const { connections: targetConn, city: targetCity, industries: targetInd, ageGroups: targetAge } = segments;
+            const { connections: targetConn, city: targetCity, industries: targetInd, interests: targetInt, ageGroups: targetAge } = segments;
             if (targetConn && isConnection) shouldNotify = true;
             else if (targetCity && post.authorCity && user.userDetailId?.city && user.userDetailId.city.toString() === post.authorCity.toString()) shouldNotify = true;
             else if (targetInd && targetInd.length > 0 && user.userDetailId?.industry && targetInd.includes(user.userDetailId.industry)) shouldNotify = true;
+            else if (targetInt && targetInt.length > 0 && user.userDetailId?.interests && user.userDetailId.interests.some(i => targetInt.includes(i))) shouldNotify = true;
             else if (targetAge && targetAge.length > 0 && user.userDetailId?.dateOfBirth) {
               const ageGrp = getAgeGroup(user.userDetailId.dateOfBirth);
               if (ageGrp && targetAge.includes(ageGrp)) shouldNotify = true;
-            } else if (!targetConn && !targetCity && (!targetInd || targetInd.length === 0) && (!targetAge || targetAge.length === 0)) {
+            } else if (!targetConn && !targetCity && (!targetInd || targetInd.length === 0) && (!targetInt || targetInt.length === 0) && (!targetAge || targetAge.length === 0)) {
               // Default to connections if no targets specified
               if (isConnection) shouldNotify = true;
             }
