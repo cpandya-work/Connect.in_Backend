@@ -1229,13 +1229,13 @@ const getCardById = async (cardId) => {
   return card;
 };
 
-const broadcastOfferEmail = async (title, description) => {
+const broadcastOfferEmail = async (title, description, imageUrl = null, offerUrl = null) => {
   // Collect all user emails that are not null/empty
   const userDetails = await UserDetail.find({ email: { $exists: true, $ne: null, $ne: '' } })
     .select('email')
     .lean();
   const emails = userDetails.map((u) => u.email).filter(Boolean);
-  const result = await sendBroadcastOfferEmail(emails, title, description);
+  const result = await sendBroadcastOfferEmail(emails, title, description, imageUrl, offerUrl);
   return { totalEmails: emails.length, ...result };
 };
 
@@ -1483,6 +1483,10 @@ const getDashboardStats = async () => {
     userDetailId: { $exists: true, $ne: null, $nin: incompleteIds }
   });
 
+  const completeProfilePercentage = totalUsers > 0
+    ? parseFloat(((totalCompleteProfiles / totalUsers) * 100).toFixed(1))
+    : 0;
+
   return {
     totalUsers,
     totalConnectionRequests,
@@ -1491,6 +1495,8 @@ const getDashboardStats = async () => {
     totalSharedItems,
     totalChatMessages,
     totalCompleteProfiles,
+    totalIncompleteProfiles: totalUsers - totalCompleteProfiles,
+    completeProfilePercentage,
     totalBusinesses,
     totalOfferClicks,
     totalReshares

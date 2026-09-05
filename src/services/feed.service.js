@@ -4,7 +4,74 @@ const UserLikes = require('../models/UserLikes.model');
 const UserRequests = require('../models/UserRequests.model');
 const UserConnections = require('../models/UserConnections.model');
 const UserSkips = require('../models/UserSkips.model');
+const City = require('../models/City.model');
 const mongoose = require('mongoose');
+
+const getMatchingCityConditions = async (userCity) => {
+  if (!userCity) return null;
+
+  const cityIds = new Set();
+  const cityNames = new Set();
+  let cityName = null;
+
+  if (mongoose.Types.ObjectId.isValid(userCity)) {
+    const cityIdStr = userCity.toString();
+    cityIds.add(cityIdStr);
+    try {
+      const cityDoc = await City.findById(userCity);
+      if (cityDoc && cityDoc.name) {
+        cityName = cityDoc.name.trim();
+      }
+    } catch (e) {
+      console.error('Error finding city by id:', e);
+    }
+  } else if (typeof userCity === 'string' && userCity.trim()) {
+    cityName = userCity.trim();
+    cityNames.add(cityName);
+  }
+
+  if (cityName) {
+    cityNames.add(cityName);
+    let searchRegex = `^${cityName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`;
+    if (/^bangalore$/i.test(cityName) || /^bengaluru$/i.test(cityName)) {
+      searchRegex = '^(bangalore|bengaluru)$';
+      cityNames.add('Bangalore');
+      cityNames.add('Bengaluru');
+      cityNames.add('bangalore');
+      cityNames.add('bengaluru');
+    }
+
+    try {
+      const matchingCities = await City.find({
+        name: { $regex: searchRegex, $options: 'i' }
+      });
+      matchingCities.forEach(c => {
+        cityIds.add(c._id.toString());
+        if (c.name) cityNames.add(c.name);
+      });
+    } catch (e) {
+      console.error('Error finding cities by name:', e);
+    }
+  }
+
+  const conditions = [];
+
+  cityIds.forEach(id => {
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      conditions.push({ 'details.city': new mongoose.Types.ObjectId(id) });
+    }
+    conditions.push({ 'details.city': id });
+  });
+
+  cityNames.forEach(name => {
+    conditions.push({ 'details.city': name });
+    conditions.push({ 'details.city': { $regex: `^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, $options: 'i' } });
+  });
+
+  if (conditions.length === 1) return conditions[0];
+  if (conditions.length > 1) return { $or: conditions };
+  return null;
+};
 
 const getFeed = async (userId, userGender, cursor = null, limit = 20, filters = {}, search = '', userLocation = null, userCity = null) => {
   const cursorObj = cursor ? new mongoose.Types.ObjectId(cursor) : null;
@@ -68,11 +135,14 @@ const getFeed = async (userId, userGender, cursor = null, limit = 20, filters = 
   // Apply city filter - show only profiles in the same city as the logged-in user
   // Skip city filter when search is active (to search across all cities)
   if (userCity && (!search || !search.trim())) {
-    // Handle both ObjectId and string formats
-    if (mongoose.Types.ObjectId.isValid(userCity)) {
-      matchStage['details.city'] = new mongoose.Types.ObjectId(userCity);
-    } else if (typeof userCity === 'string' && userCity.trim()) {
-      matchStage['details.city'] = userCity.trim();
+    const cityCond = await getMatchingCityConditions(userCity);
+    if (cityCond) {
+      if (cityCond.$or) {
+        matchStage.$and = matchStage.$and || [];
+        matchStage.$and.push({ $or: cityCond.$or });
+      } else {
+        Object.assign(matchStage, cityCond);
+      }
     }
   }
 
@@ -342,7 +412,15 @@ const getFeedWeb = async (userId, userGender, page = 1, limit = 20, filters = {}
 
   // Apply city filter - skip when search is active (to search across all cities)
   if (userCity && (!search || !search.trim())) {
-    matchStage['details.city'] = new mongoose.Types.ObjectId(userCity);
+    const cityCond = await getMatchingCityConditions(userCity);
+    if (cityCond) {
+      if (cityCond.$or) {
+        matchStage.$and = matchStage.$and || [];
+        matchStage.$and.push({ $or: cityCond.$or });
+      } else {
+        Object.assign(matchStage, cityCond);
+      }
+    }
   }
 
   // Apply filters if provided
@@ -616,7 +694,15 @@ const getBusinessFeed = async (userId, page = 1, limit = 20, filters = {}, searc
 
   // Filter by city if userCity is provided and search is not active
   if (userCity && (!search || !search.trim())) {
-    matchStage['details.city'] = new mongoose.Types.ObjectId(userCity);
+    const cityCond = await getMatchingCityConditions(userCity);
+    if (cityCond) {
+      if (cityCond.$or) {
+        matchStage.$and = matchStage.$and || [];
+        matchStage.$and.push({ $or: cityCond.$or });
+      } else {
+        Object.assign(matchStage, cityCond);
+      }
+    }
   }
 
   // Filter by search query (businessName or businessTagline)
@@ -653,7 +739,18 @@ const getBusinessFeed = async (userId, page = 1, limit = 20, filters = {}, searc
     },
     {
       $addFields: {
-        cityName: { $arrayElemAt: ['$cityInfo.name', 0] },
+        cityName: {
+          $ifNull: [
+            { $arrayElemAt: ['$cityInfo.name', 0] },
+            {
+              $cond: {
+                if: { $eq: [{ $type: '$details.city' }, 'string'] },
+                then: '$details.city',
+                else: null
+              }
+            }
+          ]
+        },
         cityId: '$details.city',
         businessCategoryName: { $arrayElemAt: ['$categoryInfo.name', 0] }
       },

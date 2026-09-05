@@ -1103,11 +1103,11 @@ const toggleAuthBannerCtrl = asyncHandler(async (req, res) => {
  * Body: { title, description }
  */
 const broadcastOfferEmailCtrl = asyncHandler(async (req, res) => {
-  const { title, description } = req.body;
+  const { title, description, imageUrl, offerUrl } = req.body;
   if (!title || !description) {
     return res.status(400).json({ success: false, message: 'title and description are required' });
   }
-  const result = await broadcastOfferEmail(title, description);
+  const result = await broadcastOfferEmail(title, description, imageUrl, offerUrl);
   success(res, result, `Offer email sent to ${result.sent} users`);
 });
 
@@ -2156,6 +2156,28 @@ const updateScheduledMailersSettingsCtrl = asyncHandler(async (req, res) => {
   success(res, { settings: updatedSetting.value }, 'Scheduled mailer settings updated successfully');
 });
 
+const triggerSundayCronCtrl = asyncHandler(async (req, res) => {
+  const { scheduleIncompleteProfiles, scheduleCityIndustrySnapshots } = require('../services/scheduler.service');
+
+  console.log('[Admin] Manually triggering Sunday cron tasks (Incomplete Profiles & Snapshots)...');
+  const incompleteResult = await scheduleIncompleteProfiles();
+  const snapshotResult = await scheduleCityIndustrySnapshots();
+
+  success(res, {
+    incompleteProfilesScheduled: incompleteResult?.scheduled || 0,
+    snapshotsScheduled: snapshotResult?.scheduled || 0
+  }, 'Sunday scheduled mailers triggered and queued successfully');
+});
+
+const triggerProcessQueueCtrl = asyncHandler(async (req, res) => {
+  const { processMailQueue } = require('../services/scheduler.service');
+
+  console.log('[Admin] Manually triggering Mail Queue Processor...');
+  const result = await processMailQueue();
+
+  success(res, result, 'Mail queue processed successfully');
+});
+
 const OfferCategory = require('../models/OfferCategory.model');
 
 // GET /api/admin/offer-categories
@@ -2279,6 +2301,8 @@ module.exports = {
   testCardEmailCtrl,
   getScheduledMailersSettingsCtrl,
   updateScheduledMailersSettingsCtrl,
+  triggerSundayCronCtrl,
+  triggerProcessQueueCtrl,
   getOfferCategoriesListCtrl,
   createOfferCategoryCtrl,
 };

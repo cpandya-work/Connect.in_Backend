@@ -89,6 +89,8 @@ const {
   testCardEmailCtrl,
   getScheduledMailersSettingsCtrl,
   updateScheduledMailersSettingsCtrl,
+  triggerSundayCronCtrl,
+  triggerProcessQueueCtrl,
   getOfferCategoriesListCtrl,
   createOfferCategoryCtrl,
 } = require('../controllers/admin.controller');
@@ -340,6 +342,8 @@ router.get('/scheduled-mailers/logs', getScheduledMailersLogsCtrl);
 router.post('/scheduled-mailers/test', sendTestScheduledMailerCtrl);
 router.get('/scheduled-mailers/settings', getScheduledMailersSettingsCtrl);
 router.put('/scheduled-mailers/settings', updateScheduledMailersSettingsCtrl);
+router.post('/scheduled-mailers/trigger-sunday', triggerSundayCronCtrl);
+router.post('/scheduled-mailers/process-queue', triggerProcessQueueCtrl);
 
 // Business Category Management routes
 router.get('/business-categories', getBusinessCategoriesListCtrl);
