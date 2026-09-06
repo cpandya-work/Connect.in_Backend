@@ -202,6 +202,9 @@ const getUsersList = async ({ page = 1, limit = 10, search = '', city = '', indu
         businessCoverImage: user.userDetailId.businessCoverImage,
         businessTagline: user.userDetailId.businessTagline,
         businessCategory: user.userDetailId.businessCategory,
+        businessDocument: user.userDetailId.businessDocument,
+        businessApprovalStatus: isBiz ? (user.userDetailId.businessApprovalStatus || 'pending') : undefined,
+        businessRejectionReason: user.userDetailId.businessRejectionReason,
         website: user.userDetailId.website,
         contactPerson: user.userDetailId.contactPerson,
         whatsappNumber: user.userDetailId.whatsappNumber,
@@ -2049,5 +2052,71 @@ module.exports = {
   getEmailUsersByRegistration,
   getDashboardStats,
   getStatsTrend,
+  getBusinessDocumentInfo,
+  approveBusiness,
+  rejectBusiness,
 };
+
+/**
+ * Look up a business's uploaded verification document for admin download.
+ * @param {string} userId - The User document's _id
+ */
+async function getBusinessDocumentInfo(userId) {
+  const user = await User.findById(userId).populate('userDetailId');
+  if (!user || !user.userDetailId) {
+    throw new Error('Business not found');
+  }
+  if (!user.userDetailId.isBusinessProfile) {
+    throw new Error('This user is not a business profile');
+  }
+  if (!user.userDetailId.businessDocument) {
+    throw new Error('No document has been uploaded for this business');
+  }
+
+  return {
+    filePath: user.userDetailId.businessDocument,
+    businessName: user.userDetailId.businessName || 'business',
+  };
+}
+
+/**
+ * Approve a business's verification and mark it as Verified.
+ * @param {string} userId - The User document's _id
+ */
+async function approveBusiness(userId) {
+  const user = await User.findById(userId).populate('userDetailId');
+  if (!user || !user.userDetailId) {
+    throw new Error('Business not found');
+  }
+  if (!user.userDetailId.isBusinessProfile) {
+    throw new Error('This user is not a business profile');
+  }
+
+  user.userDetailId.businessApprovalStatus = 'approved';
+  user.userDetailId.businessRejectionReason = undefined;
+  await user.userDetailId.save();
+
+  return user.userDetailId;
+}
+
+/**
+ * Reject a business's verification, optionally recording a reason.
+ * @param {string} userId - The User document's _id
+ * @param {string} [reason] - Optional reason shown to the business
+ */
+async function rejectBusiness(userId, reason) {
+  const user = await User.findById(userId).populate('userDetailId');
+  if (!user || !user.userDetailId) {
+    throw new Error('Business not found');
+  }
+  if (!user.userDetailId.isBusinessProfile) {
+    throw new Error('This user is not a business profile');
+  }
+
+  user.userDetailId.businessApprovalStatus = 'rejected';
+  user.userDetailId.businessRejectionReason = reason || undefined;
+  await user.userDetailId.save();
+
+  return user.userDetailId;
+}
 

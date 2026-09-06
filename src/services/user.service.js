@@ -67,6 +67,11 @@ const getPublicProfile = async (userId, loggedInUserId) => {
     }
   });
   
+  // The verification document and rejection reason are private to the business
+  // owner and admin — never expose them on the public profile-by-id view.
+  delete userDetailObj.businessDocument;
+  delete userDetailObj.businessRejectionReason;
+
   return {
     phoneNumber: user.phoneNumber,
     email: user.userDetailId.email,
@@ -77,6 +82,7 @@ const getPublicProfile = async (userId, loggedInUserId) => {
     position: userDetailObj.position,
     // City name for display (if populated)
     city: userDetailObj.cityName || (userDetailObj.city && typeof userDetailObj.city === 'object' ? userDetailObj.city.name : null),
+    verified: userDetailObj.isBusinessProfile === true && userDetailObj.businessApprovalStatus === 'approved',
     isLiked,
     isConnected,
     hasSentRequest,
@@ -95,9 +101,21 @@ const updateProfile = async (userId, updates, files) => {
 
   const detail = user.userDetailId;
 
+  // Approval status/reason are admin-controlled only — never trust these from the client
+  delete updates.businessApprovalStatus;
+  delete updates.businessRejectionReason;
+
   const isBusiness = detail.isBusinessProfile === true || updates.isBusinessProfile === 'true' || updates.isBusinessProfile === true;
 
   if (files) {
+    if (files.businessDocument && files.businessDocument[0]) {
+      updates.businessDocument = files.businessDocument[0].path;
+      // Re-submitting a document after a rejection puts it back up for review
+      if (detail.businessApprovalStatus === 'rejected') {
+        updates.businessApprovalStatus = 'pending';
+        updates.businessRejectionReason = undefined;
+      }
+    }
     if (files.profileImage && files.profileImage[0]) {
       if (detail.profileImage) {
         await deleteFromCloudinary(detail.profileImage);

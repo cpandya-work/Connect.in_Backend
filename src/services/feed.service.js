@@ -687,6 +687,12 @@ const getBusinessFeed = async (userId, page = 1, limit = 20, filters = {}, searc
     'details.isBusinessProfile': true
   };
 
+  // "Verified only" checkbox — narrows the feed to admin-approved businesses.
+  // Off by default: all businesses show, verified or not (verified ones just carry the tick).
+  if (filters.verifiedOnly) {
+    matchStage['details.businessApprovalStatus'] = 'approved';
+  }
+
   // Filter by business category if provided
   if (filters.category) {
     matchStage['details.businessCategory'] = new mongoose.Types.ObjectId(filters.category);
@@ -738,7 +744,30 @@ const getBusinessFeed = async (userId, page = 1, limit = 20, filters = {}, searc
       },
     },
     {
+      // Count how many people are connected to this business (connection can be
+      // stored in either direction, so match on both sides of the pair)
+      $lookup: {
+        from: 'userconnections',
+        let: { businessUserId: '$_id' },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $or: [
+                  { $eq: ['$connection1Id', '$$businessUserId'] },
+                  { $eq: ['$connection2Id', '$$businessUserId'] },
+                ],
+              },
+            },
+          },
+          { $count: 'count' },
+        ],
+        as: 'connectionsInfo',
+      },
+    },
+    {
       $addFields: {
+        connectionsCount: { $ifNull: [{ $arrayElemAt: ['$connectionsInfo.count', 0] }, 0] },
         cityName: {
           $ifNull: [
             { $arrayElemAt: ['$cityInfo.name', 0] },
@@ -760,6 +789,9 @@ const getBusinessFeed = async (userId, page = 1, limit = 20, filters = {}, searc
       $project: {
         id: '$_id',
         isBusinessProfile: '$details.isBusinessProfile',
+        // Every profile reaching this stage already passed the approved-status match above
+        verified: { $eq: ['$details.businessApprovalStatus', 'approved'] },
+        connectionsCount: '$connectionsCount',
         businessName: '$details.businessName',
         businessLogo: '$details.businessLogo',
         businessCoverImage: '$details.businessCoverImage',

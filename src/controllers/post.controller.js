@@ -193,7 +193,7 @@ const createPost = asyncHandler(async (req, res) => {
 
   const populatedPost = await Post.findById(post._id).populate({
     path: 'userId',
-    populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth isBusinessProfile businessName businessLogo' },
+    populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth isBusinessProfile businessName businessLogo businessApprovalStatus' },
     select: 'userDetailId'
   }).populate('connectionGroupId', 'name');
 
@@ -327,7 +327,7 @@ const getPosts = asyncHandler(async (req, res) => {
     posts = await Post.find(queryFilter)
       .populate({
         path: 'userId',
-        populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth isBusinessProfile businessName businessLogo' },
+        populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth isBusinessProfile businessName businessLogo businessApprovalStatus' },
         select: 'userDetailId'
       })
       .populate({
@@ -340,7 +340,7 @@ const getPosts = asyncHandler(async (req, res) => {
         path: 'sharedPostId',
         populate: {
           path: 'userId',
-          populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth isBusinessProfile businessName businessLogo' },
+          populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth isBusinessProfile businessName businessLogo businessApprovalStatus' },
           select: 'userDetailId'
         }
       })
@@ -360,7 +360,7 @@ const getPosts = asyncHandler(async (req, res) => {
     posts = await Post.find(queryFilter)
       .populate({
         path: 'userId',
-        populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth isBusinessProfile businessName businessLogo' },
+        populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth isBusinessProfile businessName businessLogo businessApprovalStatus' },
         select: 'userDetailId'
       })
       .populate({
@@ -373,7 +373,7 @@ const getPosts = asyncHandler(async (req, res) => {
         path: 'sharedPostId',
         populate: {
           path: 'userId',
-          populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth isBusinessProfile businessName businessLogo' },
+          populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth isBusinessProfile businessName businessLogo businessApprovalStatus' },
           select: 'userDetailId'
         }
       })
@@ -628,14 +628,14 @@ const resharePost = asyncHandler(async (req, res) => {
   const populatedPost = await Post.findById(reshare._id)
     .populate({
       path: 'userId',
-      populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth isBusinessProfile businessName businessLogo' },
+      populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth isBusinessProfile businessName businessLogo businessApprovalStatus' },
       select: 'userDetailId'
     })
     .populate({
       path: 'sharedPostId',
       populate: {
         path: 'userId',
-        populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth isBusinessProfile businessName businessLogo' },
+        populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth isBusinessProfile businessName businessLogo businessApprovalStatus' },
         select: 'userDetailId'
       }
     })
@@ -658,7 +658,7 @@ const getTopSharers = asyncHandler(async (req, res) => {
     topSharers.map(async (item) => {
       if (!item._id) return null;
       const user = await User.findById(item._id)
-        .populate('userDetailId', 'fullName profileImage gender dateOfBirth isBusinessProfile businessName businessLogo')
+        .populate('userDetailId', 'fullName profileImage gender dateOfBirth isBusinessProfile businessName businessLogo businessApprovalStatus')
         .lean();
       if (!user) return null;
       return {
@@ -687,7 +687,7 @@ const getMostSharedReels = asyncHandler(async (req, res) => {
   })
     .populate({
       path: 'userId',
-      populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth isBusinessProfile businessName businessLogo' },
+      populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth isBusinessProfile businessName businessLogo businessApprovalStatus' },
       select: 'userDetailId'
     })
     .lean();
@@ -700,7 +700,7 @@ const getMostSharedReels = asyncHandler(async (req, res) => {
     })
       .populate({
         path: 'userId',
-        populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth isBusinessProfile businessName businessLogo' },
+        populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth isBusinessProfile businessName businessLogo businessApprovalStatus' },
         select: 'userDetailId'
       })
       .limit(5 - reels.length)

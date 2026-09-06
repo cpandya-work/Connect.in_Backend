@@ -98,8 +98,12 @@ const getProfile = asyncHandler(async (req, res) => {
 });
 
 const createProfile = asyncHandler(async (req, res) => {
+  // Approval status/reason are admin-controlled only — never trust these from the client
+  delete req.body.businessApprovalStatus;
+  delete req.body.businessRejectionReason;
+
   const isBusiness = req.body.isBusinessProfile === 'true' || req.body.isBusinessProfile === true;
-  
+
   if (!isBusiness) {
     const { error } = profileSchema.validate(req.body);
     if (error) return res.status(400).json({ success: false, message: error.details[0].message });
@@ -114,7 +118,8 @@ const createProfile = asyncHandler(async (req, res) => {
 
   const profileImage = req.files?.profileImage?.[0]?.path || null;
   const coverImage = req.files?.coverImage?.[0]?.path || null;
-  
+  const businessDocument = req.files?.businessDocument?.[0]?.path || null;
+
   // Get user - check token first, then userId/phoneNumber from body
   let user = null;
   const authHeader = req.headers.authorization;
@@ -167,6 +172,11 @@ const createProfile = asyncHandler(async (req, res) => {
       isBusinessProfile: true,
       businessLogo: profileImage || user.userDetailId.businessLogo || user.userDetailId.profileImage,
       businessCoverImage: coverImage || user.userDetailId.businessCoverImage || user.userDetailId.coverImage,
+      businessDocument: businessDocument || user.userDetailId.businessDocument,
+      // Re-submitting a document after a rejection puts it back up for review
+      ...(businessDocument && user.userDetailId.businessApprovalStatus === 'rejected'
+        ? { businessApprovalStatus: 'pending' }
+        : {}),
       lastCompletedStep: 3,
       isProfileComplete: true,
     } : {
@@ -193,6 +203,7 @@ const createProfile = asyncHandler(async (req, res) => {
       isBusinessProfile: true,
       businessLogo: profileImage,
       businessCoverImage: coverImage,
+      businessDocument,
       lastCompletedStep: 3,
       isProfileComplete: true,
     } : {
@@ -242,14 +253,19 @@ const getUserProfileById = asyncHandler(async (req, res) => {
 const updateUserProfile = asyncHandler(async (req, res) => {
   const hasFiles = req.files && (
     (req.files.profileImage && req.files.profileImage.length > 0) ||
-    (req.files.coverImage && req.files.coverImage.length > 0)
+    (req.files.coverImage && req.files.coverImage.length > 0) ||
+    (req.files.businessDocument && req.files.businessDocument.length > 0)
   );
 
   if (Object.keys(req.body).length > 0 || !hasFiles) {
     const { error } = updateProfileSchema.validate(req.body);
     if (error) return res.status(400).json({ success: false, message: error.details[0].message });
   }
-  
+
+  // Approval status/reason are admin-controlled only — never trust these from the client
+  delete req.body.businessApprovalStatus;
+  delete req.body.businessRejectionReason;
+
   const updates = req.body;
   const files = req.files;
 
@@ -324,7 +340,8 @@ const saveProfileStep = asyncHandler(async (req, res) => {
   const stepNumber = parseInt(req.body.stepNumber, 10);
   const profileImage = req.files?.profileImage?.[0]?.path || null;
   const coverImage = req.files?.coverImage?.[0]?.path || null;
-  
+  const businessDocument = req.files?.businessDocument?.[0]?.path || null;
+
   const user = await User.findById(req.user._id).populate('userDetailId');
   const isBusiness = req.body.isBusinessProfile === 'true' || req.body.isBusinessProfile === true || (user.userDetailId && user.userDetailId.isBusinessProfile === true);
 
@@ -351,6 +368,13 @@ const saveProfileStep = asyncHandler(async (req, res) => {
       if (req.body.businessCategory) stepData.businessCategory = req.body.businessCategory;
       if (profileImage) stepData.businessLogo = profileImage;
       if (coverImage) stepData.businessCoverImage = coverImage;
+      if (businessDocument) {
+        stepData.businessDocument = businessDocument;
+        // Re-submitting a document after a rejection puts it back up for review
+        if (user.userDetailId && user.userDetailId.businessApprovalStatus === 'rejected') {
+          stepData.businessApprovalStatus = 'pending';
+        }
+      }
     }
     
     // Step 2: Contact Person, WhatsApp Number, Email Address, Website URL, City, Pincode

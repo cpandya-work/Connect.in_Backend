@@ -16,7 +16,7 @@ const sendOtp = async (phoneNumber) => {
     { upsert: true, new: true }
   );
   
-   await axios.get(`https://bulkpush.mytoday.com/BulkSms/SingleMsgApi?feedid=393258&username=9884196886&password=SuX@2egALigzEKZ&To=${phoneNumber}&Text=Dear%20User%20Your%20OTP%20for%20completing%20the%20registration%20in%20Connect%20is%20${otp}.%20-%20Connect%20India%20Team&templateid=1207172657402140627&entityid=1201160765852941646&senderid=CONCTN`)
+  // await axios.get(`https://bulkpush.mytoday.com/BulkSms/SingleMsgApi?feedid=393258&username=9884196886&password=SuX@2egALigzEKZ&To=${phoneNumber}&Text=Dear%20User%20Your%20OTP%20for%20completing%20the%20registration%20in%20Connect%20is%20${otp}.%20-%20Connect%20India%20Team&templateid=1207172657402140627&entityid=1201160765852941646&senderid=CONCTN`)
 
   console.log(`OTP for ${phoneNumber}: ${otp}`); // Replace with SMS
   return { success: true };

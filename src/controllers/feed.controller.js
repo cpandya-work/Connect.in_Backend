@@ -171,12 +171,13 @@ const getBusinessFeedCtrl = asyncHandler(async (req, res) => {
     return res.status(400).json({ success: false, message: 'Complete your profile first' });
   }
 
-  const { page = 1, limit = 20, category, search } = req.query;
+  const { page = 1, limit = 20, category, search, verifiedOnly } = req.query;
   const pageNum = parseInt(page) || 1;
   const limitNum = parseInt(limit) || 20;
 
   const filters = {
     category: category || null,
+    verifiedOnly: verifiedOnly === 'true' || verifiedOnly === true,
   };
 
   // Extract city ID

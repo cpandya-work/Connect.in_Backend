@@ -60,6 +60,14 @@ const userDetailSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'BusinessCategory'
   },
+  // Business verification document (e.g. GST certificate, registration certificate)
+  businessDocument: String, // uploaded file path
+  businessApprovalStatus: {
+    type: String,
+    enum: ['pending', 'approved', 'rejected'],
+    default: 'pending'
+  },
+  businessRejectionReason: String,
   website: String,
   contactPerson: String,
   whatsappNumber: String,

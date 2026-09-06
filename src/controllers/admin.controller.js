@@ -62,6 +62,9 @@ const {
   getEmailUsersByRegistration,
   getDashboardStats,
   getStatsTrend,
+  getBusinessDocumentInfo,
+  approveBusiness,
+  rejectBusiness,
 } = require('../services/admin.service');
 const { createSkillSchema, updateSkillSchema } = require('../validators/skill.validator');
 const { createPositionSchema, updatePositionSchema } = require('../validators/position.validator');
@@ -124,6 +127,84 @@ const getUsersListCtrl = asyncHandler(async (req, res) => {
   });
 
   success(res, result, 'Users retrieved successfully');
+});
+
+/**
+ * Download a business's uploaded verification document
+ */
+const downloadBusinessDocumentCtrl = asyncHandler(async (req, res) => {
+  const path = require('path');
+  const fs = require('fs');
+  const { id } = req.params;
+
+  let documentInfo;
+  try {
+    documentInfo = await getBusinessDocumentInfo(id);
+  } catch (err) {
+    return res.status(404).json({ success: false, message: err.message });
+  }
+
+  const absolutePath = path.join(__dirname, '../..', documentInfo.filePath);
+  if (!fs.existsSync(absolutePath)) {
+    return res.status(404).json({ success: false, message: 'Document file not found on server' });
+  }
+
+  const ext = path.extname(absolutePath);
+  const safeName = documentInfo.businessName.replace(/[^a-zA-Z0-9-_]/g, '_');
+  res.download(absolutePath, `${safeName}-document${ext}`);
+});
+
+/**
+ * Approve a pending business's verification document — marks it Verified
+ */
+const approveBusinessCtrl = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  try {
+    const detail = await approveBusiness(id);
+    success(res, { business: detail }, 'Business approved and verified successfully');
+  } catch (err) {
+    return res.status(400).json({ success: false, message: err.message });
+  }
+});
+
+/**
+ * Reject a business's verification document
+ */
+const rejectBusinessCtrl = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { reason } = req.body;
+  try {
+    const detail = await rejectBusiness(id, reason);
+    success(res, { business: detail }, 'Business rejected');
+  } catch (err) {
+    return res.status(400).json({ success: false, message: err.message });
+  }
+});
+
+/**
+ * Admin edits a business's name
+ */
+const updateBusinessNameCtrl = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { businessName } = req.body;
+
+  if (!businessName || !businessName.trim()) {
+    return res.status(400).json({ success: false, message: 'Business name is required' });
+  }
+
+  const User = require('../models/User.model');
+  const user = await User.findById(id).populate('userDetailId');
+  if (!user || !user.userDetailId) {
+    return res.status(404).json({ success: false, message: 'Business not found' });
+  }
+  if (!user.userDetailId.isBusinessProfile) {
+    return res.status(400).json({ success: false, message: 'This user is not a business profile' });
+  }
+
+  user.userDetailId.businessName = businessName.trim();
+  await user.userDetailId.save();
+
+  success(res, { businessName: user.userDetailId.businessName }, 'Business name updated successfully');
 });
 
 /**
@@ -2305,4 +2386,8 @@ module.exports = {
   triggerProcessQueueCtrl,
   getOfferCategoriesListCtrl,
   createOfferCategoryCtrl,
+  downloadBusinessDocumentCtrl,
+  approveBusinessCtrl,
+  rejectBusinessCtrl,
+  updateBusinessNameCtrl,
 };

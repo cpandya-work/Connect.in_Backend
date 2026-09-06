@@ -93,6 +93,10 @@ const {
   triggerProcessQueueCtrl,
   getOfferCategoriesListCtrl,
   createOfferCategoryCtrl,
+  downloadBusinessDocumentCtrl,
+  approveBusinessCtrl,
+  rejectBusinessCtrl,
+  updateBusinessNameCtrl,
 } = require('../controllers/admin.controller');
 const { isAdmin } = require('../middlewares/admin.middleware');
 const uploadCardLogo = require('../middlewares/cardUpload.middleware');
@@ -355,5 +359,11 @@ router.delete('/business-categories/:id', deleteBusinessCategoryCtrl);
 // Offer Category Management routes
 router.get('/offer-categories', getOfferCategoriesListCtrl);
 router.post('/offer-categories', createOfferCategoryCtrl);
+
+// Business verification routes
+router.get('/businesses/:id/document', downloadBusinessDocumentCtrl);
+router.put('/businesses/:id/approve', approveBusinessCtrl);
+router.put('/businesses/:id/reject', rejectBusinessCtrl);
+router.put('/businesses/:id/name', updateBusinessNameCtrl);
 
 module.exports = router;
