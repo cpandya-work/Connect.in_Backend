@@ -84,7 +84,7 @@ const getFeedWebCtrl = asyncHandler(async (req, res) => {
     return res.status(400).json({ success: false, message: 'Complete your profile first' });
   }
 
-  const { page = 1, limit = 20, ageMin, ageMax, gender, habits, interests, sports, language, relationship, religion, company, industry, search, latitude, longitude } = req.query;
+  const { page = 1, limit = 20, seed, ageMin, ageMax, gender, habits, interests, sports, language, relationship, religion, company, industry, search, latitude, longitude } = req.query;
   const pageNum = parseInt(page) || 1;
   const limitNum = parseInt(limit) || 20;
   
@@ -141,7 +141,8 @@ const getFeedWebCtrl = asyncHandler(async (req, res) => {
     filters,
     search,
     userLocation,
-    userCityId
+    userCityId,
+    seed
   );
 
   if (profiles.length === 0) {
@@ -171,7 +172,7 @@ const getBusinessFeedCtrl = asyncHandler(async (req, res) => {
     return res.status(400).json({ success: false, message: 'Complete your profile first' });
   }
 
-  const { page = 1, limit = 20, category, search, verifiedOnly } = req.query;
+  const { page = 1, limit = 20, seed, category, search, verifiedOnly } = req.query;
   const pageNum = parseInt(page) || 1;
   const limitNum = parseInt(limit) || 20;
 
@@ -192,7 +193,8 @@ const getBusinessFeedCtrl = asyncHandler(async (req, res) => {
     limitNum,
     filters,
     search,
-    userCityId
+    userCityId,
+    seed
   );
 
   success(res, { profiles, hasMore, nextPage }, 'Business feed loaded');

@@ -1490,6 +1490,24 @@ const getDashboardStats = async () => {
     ? parseFloat(((totalCompleteProfiles / totalUsers) * 100).toFixed(1))
     : 0;
 
+  // Completion rate against NEW profiles (signups in the last 7 days), rather than
+  // the all-time total — surfaced on the dashboard's "Completed Profiles" box.
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  sevenDaysAgo.setHours(0, 0, 0, 0);
+
+  const [newProfilesLast7Days, newCompleteProfilesLast7Days] = await Promise.all([
+    User.countDocuments({ createdAt: { $gte: sevenDaysAgo } }),
+    User.countDocuments({
+      createdAt: { $gte: sevenDaysAgo },
+      userDetailId: { $exists: true, $ne: null, $nin: incompleteIds }
+    })
+  ]);
+
+  const newProfilesCompletionPercentage = newProfilesLast7Days > 0
+    ? parseFloat(((newCompleteProfilesLast7Days / newProfilesLast7Days) * 100).toFixed(1))
+    : 0;
+
   return {
     totalUsers,
     totalConnectionRequests,
@@ -1500,6 +1518,9 @@ const getDashboardStats = async () => {
     totalCompleteProfiles,
     totalIncompleteProfiles: totalUsers - totalCompleteProfiles,
     completeProfilePercentage,
+    newProfilesLast7Days,
+    newCompleteProfilesLast7Days,
+    newProfilesCompletionPercentage,
     totalBusinesses,
     totalOfferClicks,
     totalReshares
@@ -1546,9 +1567,8 @@ const getStatsTrend = async (statId) => {
     return results;
   }
 
-  // Pre-fetch incomplete user detail IDs if we are calculating complete profiles trend
-  let incompleteIds = [];
-  let businessDetailIds = [];
+  // Complete-profiles trend is computed as a percentage against that day's new
+  // signups, not just a raw count, so it needs its own per-day query shape.
   if (statId === 'complete-profiles') {
     const incompleteDetails = await UserDetail.find({
       $or: [
@@ -1558,8 +1578,31 @@ const getStatsTrend = async (statId) => {
         { isProfileComplete: false }
       ]
     }).select('_id').lean();
-    incompleteIds = incompleteDetails.map(d => d._id);
-  } else if (statId === 'businesses') {
+    const incompleteIds = incompleteDetails.map(d => d._id);
+
+    const results = await Promise.all(
+      trends.map(async (t) => {
+        const [newSignups, completed] = await Promise.all([
+          User.countDocuments({ createdAt: { $gte: t.start, $lte: t.end } }),
+          User.countDocuments({
+            createdAt: { $gte: t.start, $lte: t.end },
+            userDetailId: { $exists: true, $ne: null, $nin: incompleteIds }
+          })
+        ]);
+        const percentage = newSignups > 0 ? parseFloat(((completed / newSignups) * 100).toFixed(1)) : 0;
+        return {
+          date: t.label,
+          count: completed,
+          newSignups,
+          percentage
+        };
+      })
+    );
+    return results;
+  }
+
+  let businessDetailIds = [];
+  if (statId === 'businesses') {
     const businessDetails = await UserDetail.find({ isBusinessProfile: true }).select('_id').lean();
     businessDetailIds = businessDetails.map(d => d._id);
   }
@@ -1569,11 +1612,6 @@ const getStatsTrend = async (statId) => {
     switch (statId) {
       case 'users':
         return await User.countDocuments({ createdAt: { $gte: start, $lte: end } });
-      case 'complete-profiles':
-        return await User.countDocuments({
-          userDetailId: { $exists: true, $ne: null, $nin: incompleteIds },
-          createdAt: { $gte: start, $lte: end }
-        });
       case 'businesses':
         return await User.countDocuments({
           userDetailId: { $in: businessDetailIds },

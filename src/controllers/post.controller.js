@@ -728,6 +728,86 @@ const getMostSharedReels = asyncHandler(async (req, res) => {
   success(res, result);
 });
 
+/**
+ * Let a user edit their own post while it's still pending admin approval.
+ * Once approved, it can no longer be edited here.
+ */
+const updatePost = asyncHandler(async (req, res) => {
+  const { postId } = req.params;
+  const { content } = req.body;
+  const userId = req.user._id;
+
+  const post = await Post.findById(postId);
+  if (!post) {
+    return res.status(404).json({ success: false, message: 'Post not found' });
+  }
+
+  if (post.userId.toString() !== userId.toString()) {
+    return res.status(403).json({ success: false, message: 'You can only edit your own posts' });
+  }
+
+  if (post.isApproved) {
+    return res.status(400).json({ success: false, message: 'This post has already been approved and can no longer be edited' });
+  }
+
+  const hasNewAttachments = req.files && req.files.length > 0;
+  const nextContent = content !== undefined ? content : post.content;
+  const nextAttachmentsCount = hasNewAttachments ? req.files.length : post.attachments.length;
+
+  if (!nextContent?.trim() && nextAttachmentsCount === 0) {
+    return res.status(400).json({ success: false, message: 'Content is required' });
+  }
+
+  if (content !== undefined) {
+    post.content = content;
+  }
+
+  // Replace attachments only if new files were uploaded
+  if (hasNewAttachments) {
+    post.attachments = req.files.map(file => {
+      let type = 'image';
+      if (file.mimetype.includes('pdf')) type = 'pdf';
+      else if (file.mimetype.includes('doc') || file.mimetype.includes('msword') || file.mimetype.includes('officedocument')) type = 'doc';
+      else if (file.mimetype.includes('video') || file.mimetype.includes('mp4')) type = 'video';
+      return { url: file.path, type, name: file.originalname };
+    });
+  }
+
+  await post.save();
+
+  const updatedPost = await Post.findById(postId).populate({
+    path: 'userId',
+    populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth isBusinessProfile businessName businessLogo businessApprovalStatus' },
+  });
+
+  success(res, { post: updatedPost }, 'Post updated successfully');
+});
+
+/**
+ * Let a user delete their own post while it's still pending admin approval.
+ */
+const deletePost = asyncHandler(async (req, res) => {
+  const { postId } = req.params;
+  const userId = req.user._id;
+
+  const post = await Post.findById(postId);
+  if (!post) {
+    return res.status(404).json({ success: false, message: 'Post not found' });
+  }
+
+  if (post.userId.toString() !== userId.toString()) {
+    return res.status(403).json({ success: false, message: 'You can only delete your own posts' });
+  }
+
+  if (post.isApproved) {
+    return res.status(400).json({ success: false, message: 'This post has already been approved and can no longer be deleted here' });
+  }
+
+  await Post.findByIdAndDelete(postId);
+
+  success(res, null, 'Post deleted successfully');
+});
+
 module.exports = {
   createPost,
   getPosts,
@@ -735,5 +815,7 @@ module.exports = {
   getLinkPreview,
   resharePost,
   getTopSharers,
-  getMostSharedReels
+  getMostSharedReels,
+  updatePost,
+  deletePost,
 };

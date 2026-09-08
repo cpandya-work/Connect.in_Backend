@@ -7,6 +7,33 @@ const UserSkips = require('../models/UserSkips.model');
 const City = require('../models/City.model');
 const mongoose = require('mongoose');
 
+function mulberry32(a) {
+  return function() {
+    let t = (a += 0x6D2B79F5);
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+const shuffleArray = (array, seedVal) => {
+  let rng = Math.random;
+  if (seedVal !== null && seedVal !== undefined && seedVal !== '') {
+    let numSeed = 0;
+    const str = String(seedVal);
+    for (let i = 0; i < str.length; i++) {
+      numSeed = (numSeed << 5) - numSeed + str.charCodeAt(i);
+      numSeed |= 0;
+    }
+    rng = mulberry32(numSeed);
+  }
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+};
+
 const getMatchingCityConditions = async (userCity) => {
   if (!userCity) return null;
 
@@ -349,7 +376,7 @@ const getFeed = async (userId, userGender, cursor = null, limit = 20, filters = 
   return { profiles, nextCursor };
 };
 
-const getFeedWeb = async (userId, userGender, page = 1, limit = 20, filters = {}, search = '', userLocation = null, userCity = null) => {
+const getFeedWeb = async (userId, userGender, page = 1, limit = 20, filters = {}, search = '', userLocation = null, userCity = null, seed = null) => {
   console.log(userLocation,'userLocation service');
   console.log(userCity,'userCity');
   
@@ -602,22 +629,13 @@ const getFeedWeb = async (userId, userGender, page = 1, limit = 20, filters = {}
     const matchingProfiles = result.filter(p => p.pincode && p.pincode.toString().trim() === loggedInPincode);
     const nonMatchingProfiles = result.filter(p => !p.pincode || p.pincode.toString().trim() !== loggedInPincode);
 
-    for (let i = matchingProfiles.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [matchingProfiles[i], matchingProfiles[j]] = [matchingProfiles[j], matchingProfiles[i]];
-    }
-    for (let i = nonMatchingProfiles.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [nonMatchingProfiles[i], nonMatchingProfiles[j]] = [nonMatchingProfiles[j], nonMatchingProfiles[i]];
-    }
+    shuffleArray(matchingProfiles, seed ? seed + '_match' : null);
+    shuffleArray(nonMatchingProfiles, seed ? seed + '_nonmatch' : null);
 
     result = matchingProfiles.concat(nonMatchingProfiles);
   } else {
     // Shuffle the results to display users randomly
-    for (let i = result.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [result[i], result[j]] = [result[j], result[i]];
-    }
+    shuffleArray(result, seed);
   }
 
   // Calculate pagination
@@ -641,7 +659,7 @@ const getFeedWeb = async (userId, userGender, page = 1, limit = 20, filters = {}
   };
 };
 
-const getBusinessFeed = async (userId, page = 1, limit = 20, filters = {}, search = '', userCity = null) => {
+const getBusinessFeed = async (userId, page = 1, limit = 20, filters = {}, search = '', userCity = null, seed = null) => {
   // Build excluded user IDs and get logged-in user details
   const [liked, sentReq, receivedReq, connections, skippedByMe, skippedMe, loggedInUserDoc] = await Promise.all([
     UserLikes.find({ userId }).select('likedUserId'),
@@ -835,22 +853,13 @@ const getBusinessFeed = async (userId, page = 1, limit = 20, filters = {}, searc
     const matchingProfiles = decoratedProfiles.filter(p => p.pincode && p.pincode.toString().trim() === loggedInPincode);
     const nonMatchingProfiles = decoratedProfiles.filter(p => !p.pincode || p.pincode.toString().trim() !== loggedInPincode);
 
-    for (let i = matchingProfiles.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [matchingProfiles[i], matchingProfiles[j]] = [matchingProfiles[j], matchingProfiles[i]];
-    }
-    for (let i = nonMatchingProfiles.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [nonMatchingProfiles[i], nonMatchingProfiles[j]] = [nonMatchingProfiles[j], nonMatchingProfiles[i]];
-    }
+    shuffleArray(matchingProfiles, seed ? seed + '_biz_match' : null);
+    shuffleArray(nonMatchingProfiles, seed ? seed + '_biz_nonmatch' : null);
 
     finalProfiles = matchingProfiles.concat(nonMatchingProfiles);
   } else {
     // Shuffle the results to display businesses randomly
-    for (let i = decoratedProfiles.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [decoratedProfiles[i], decoratedProfiles[j]] = [decoratedProfiles[j], decoratedProfiles[i]];
-    }
+    shuffleArray(decoratedProfiles, seed ? seed + '_biz' : null);
   }
 
   const skip = (page - 1) * limit;
