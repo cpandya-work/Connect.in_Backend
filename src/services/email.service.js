@@ -573,6 +573,7 @@ const renderOfferOfTheDayEmailHtml = (fullName, offer, customBodyTemplate) => {
 
 module.exports = {
   sendEmail,
+  baseTemplate,
   sendRegistrationEmail,
   sendConnectionRequestEmail,
   sendConnectionAcceptedEmail,

@@ -1355,6 +1355,81 @@ const sendTargetedEmailBroadcastCtrl = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Send test targeted HTML email to a single test email
+ * Body: { email, subject, htmlContent }
+ */
+const sendTestTargetedEmailCtrl = asyncHandler(async (req, res) => {
+  const { email, subject, htmlContent } = req.body;
+  if (!email || !email.trim()) return res.status(400).json({ success: false, message: 'Test email address is required' });
+  if (!subject || !subject.trim()) return res.status(400).json({ success: false, message: 'Subject is required' });
+  if (!htmlContent || !htmlContent.trim()) return res.status(400).json({ success: false, message: 'HTML content is required' });
+
+  if (!process.env.SMTP_HOST) {
+    return res.status(400).json({ success: false, message: 'SMTP is not configured on the server. Please set SMTP_HOST environment variable.' });
+  }
+
+  const { sendEmail, baseTemplate } = require('../services/email.service');
+  const personalizedHtml = htmlContent.replace(/\{\{\s*name\s*\}\}/gi, 'Test User');
+  const finalHtml = (personalizedHtml.includes('<!DOCTYPE') || personalizedHtml.includes('<html'))
+    ? personalizedHtml
+    : baseTemplate(personalizedHtml);
+  await sendEmail(email.trim(), subject.trim(), finalHtml);
+  success(res, {}, `Test email sent successfully to ${email}`);
+});
+
+/**
+ * Send test broadcast offer email to a single test email
+ * Body: { email, title, description }
+ */
+const sendTestOfferEmailCtrl = asyncHandler(async (req, res) => {
+  const { email, title, description } = req.body;
+  if (!email || !email.trim()) return res.status(400).json({ success: false, message: 'Test email address is required' });
+  if (!title || !title.trim()) return res.status(400).json({ success: false, message: 'Title is required' });
+  if (!description || !description.trim()) return res.status(400).json({ success: false, message: 'Description is required' });
+
+  if (!process.env.SMTP_HOST) {
+    return res.status(400).json({ success: false, message: 'SMTP is not configured on the server. Please set SMTP_HOST environment variable.' });
+  }
+
+  const { sendBroadcastOfferEmail } = require('../services/email.service');
+  const result = await sendBroadcastOfferEmail([email.trim()], title.trim(), description.trim());
+  success(res, result, `Test offer email sent successfully to ${email}`);
+});
+
+/**
+ * Send test general SMS to a single test phone number
+ * Body: { phoneNumber, message, templateId }
+ */
+const sendTestGeneralSmsCtrl = asyncHandler(async (req, res) => {
+  const { phoneNumber, message, templateId } = req.body;
+  if (!phoneNumber || !phoneNumber.trim()) return res.status(400).json({ success: false, message: 'Test phone number is required' });
+  if (!message?.trim() && !templateId?.trim()) return res.status(400).json({ success: false, message: 'Message or Template ID is required' });
+
+  const { sendBulkSms } = require('../services/sms.service');
+  const result = await sendBulkSms([{ phoneNumber: phoneNumber.trim(), fullName: 'Test User' }], message ? message.trim() : '', templateId ? templateId.trim() : '');
+  if (result.errors > 0 && result.sent === 0) {
+    return res.status(400).json({ success: false, message: 'Failed to send test SMS. Check phone number and SMS configuration.' });
+  }
+  success(res, result, `Test SMS sent successfully to ${phoneNumber}`);
+});
+
+/**
+ * Send test incomplete profile SMS to a single test phone number
+ * Body: { phoneNumber }
+ */
+const sendTestIncompleteSmsCtrl = asyncHandler(async (req, res) => {
+  const { phoneNumber } = req.body;
+  if (!phoneNumber || !phoneNumber.trim()) return res.status(400).json({ success: false, message: 'Test phone number is required' });
+
+  const { sendIncompleteProfileBulkSms } = require('../services/sms.service');
+  const result = await sendIncompleteProfileBulkSms([{ phoneNumber: phoneNumber.trim() }]);
+  if (result.errors > 0 && result.sent === 0) {
+    return res.status(400).json({ success: false, message: 'Failed to send test SMS. Check phone number and SMS configuration.' });
+  }
+  success(res, result, `Test SMS sent successfully to ${phoneNumber}`);
+});
+
+/**
  * Get core platform metrics snapshot for Admin Dashboard
  */
 const getDashboardStatsCtrl = asyncHandler(async (req, res) => {
@@ -2359,6 +2434,10 @@ module.exports = {
   sendGeneralSmsBroadcastCtrl,
   getTargetedEmailUserCountCtrl,
   sendTargetedEmailBroadcastCtrl,
+  sendTestTargetedEmailCtrl,
+  sendTestOfferEmailCtrl,
+  sendTestGeneralSmsCtrl,
+  sendTestIncompleteSmsCtrl,
   getDashboardStatsCtrl,
   getStatsTrendCtrl,
   getPendingPostsCtrl,
