@@ -68,6 +68,10 @@ const {
   sendGeneralSmsBroadcastCtrl,
   getTargetedEmailUserCountCtrl,
   sendTargetedEmailBroadcastCtrl,
+  sendTestTargetedEmailCtrl,
+  sendTestOfferEmailCtrl,
+  sendTestGeneralSmsCtrl,
+  sendTestIncompleteSmsCtrl,
   getDashboardStatsCtrl,
   getStatsTrendCtrl,
   getPendingPostsCtrl,
@@ -315,6 +319,12 @@ router.get('/notifications/broadcast-targeted-email-count', getTargetedEmailUser
 
 // POST /api/admin/notifications/broadcast-targeted-email - Send targeted HTML email broadcast
 router.post('/notifications/broadcast-targeted-email', sendTargetedEmailBroadcastCtrl);
+
+// Test routes for Broadcast section
+router.post('/notifications/test-targeted-email', sendTestTargetedEmailCtrl);
+router.post('/notifications/test-offer-email', sendTestOfferEmailCtrl);
+router.post('/notifications/test-general-sms', sendTestGeneralSmsCtrl);
+router.post('/notifications/test-incomplete-sms', sendTestIncompleteSmsCtrl);
 
 
 // Auth banner management routes
