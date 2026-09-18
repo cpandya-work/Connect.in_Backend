@@ -255,34 +255,15 @@ const sendBroadcastOfferEmail = async (recipientEmails, offerTitle, offerDescrip
   if (!recipientEmails || recipientEmails.length === 0) return { sent: 0, skipped: 0 };
 
   const subject = offerTitle || 'Exclusive Offer for Connect Members';
-  const targetUrl = offerUrl || `${APP_URL}/offer`;
-  const resolvedImageUrl = offerImageUrl ? makeAbsoluteUrl(offerImageUrl) : null;
-  const imageBlock = resolvedImageUrl ? `
-    <tr>
-      <td align="center" style="padding:16px 24px 0;">
-        <img src="${resolvedImageUrl}" alt="${offerTitle || 'Offer'}" style="max-width:100%;height:auto;border-radius:8px;max-height:280px;display:block;" />
-      </td>
-    </tr>
-  ` : '';
 
-  const html = baseTemplate(`
-    <h2 style="margin:0 0 8px;color:#081332;font-size:22px;font-weight:700;">Exclusive Offer 🎁</h2>
-    <p style="margin:0 0 20px;color:#495057;font-size:15px;line-height:1.7;">
-      We have a special offer just for Connect India members.
-    </p>
-
-    <table width="100%" cellpadding="0" cellspacing="0" style="background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;margin-bottom:24px;overflow:hidden;">
-      ${imageBlock}
-      <tr>
-        <td style="padding:24px;">
-          <p style="margin:0 0 8px;color:#EC7523;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">Offer Details</p>
-          <p style="margin:0;color:#374151;font-size:15px;line-height:1.7;">${offerDescription}</p>
-        </td>
-      </tr>
-    </table>
-
-    ${ctaButton(targetUrl, 'View Offer →')}
-  `);
+  // Send message directly as entered without any template wrapper, header, CTA button, or footer
+  // to avoid email clients categorizing the email into the Promotions tab.
+  const html = (offerDescription.includes('<p>') || offerDescription.includes('<div>') || offerDescription.includes('<br'))
+    ? offerDescription
+    : offerDescription
+        .split('\n')
+        .map(line => line.trim() ? `<p style="margin: 0 0 12px 0; font-size: 15px; color: #222222; line-height: 1.6;">${line}</p>` : '<br/>')
+        .join('');
 
   let sent = 0;
   let skipped = 0;
