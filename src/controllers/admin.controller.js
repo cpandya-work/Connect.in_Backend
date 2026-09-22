@@ -905,18 +905,19 @@ const broadcastCardMailerCtrl = asyncHandler(async (req, res) => {
     {
       $project: {
         email: "$userDetail.email",
-        fullName: "$userDetail.fullName"
+        fullName: "$userDetail.fullName",
+        isEmailVerified: "$userDetail.isEmailVerified"
       }
     }
   ]);
 
-  // Filter out any entries without emails
+  // Filter out any entries without verified emails
   const recipients = clicks
+    .filter(c => !!c.email && c.isEmailVerified === true)
     .map(c => ({
       email: c.email,
       fullName: c.fullName
-    }))
-    .filter(r => !!r.email);
+    }));
 
   if (recipients.length === 0) {
     return res.status(400).json({ success: false, message: 'No users with emails found who clicked this offer' });
@@ -968,12 +969,13 @@ const broadcastAllCardsMailerCountCtrl = asyncHandler(async (req, res) => {
     { $unwind: { path: "$userDetail", preserveNullAndEmptyArrays: true } },
     {
       $project: {
-        email: "$userDetail.email"
+        email: "$userDetail.email",
+        isEmailVerified: "$userDetail.isEmailVerified"
       }
     }
   ]);
 
-  const count = clicks.filter(c => !!c.email).length;
+  const count = clicks.filter(c => !!c.email && c.isEmailVerified === true).length;
   success(res, { count }, 'Targeted clickers count retrieved successfully');
 });
 
@@ -1024,18 +1026,19 @@ const broadcastAllCardsMailerCtrl = asyncHandler(async (req, res) => {
     {
       $project: {
         email: "$userDetail.email",
-        fullName: "$userDetail.fullName"
+        fullName: "$userDetail.fullName",
+        isEmailVerified: "$userDetail.isEmailVerified"
       }
     }
   ]);
 
-  // Filter out any entries without emails
+  // Filter out any entries without verified emails
   const recipients = clicks
+    .filter(c => !!c.email && c.isEmailVerified === true)
     .map(c => ({
       email: c.email,
       fullName: c.fullName
-    }))
-    .filter(r => !!r.email);
+    }));
 
   if (recipients.length === 0) {
     return res.status(400).json({ success: false, message: 'No users with emails found who clicked any offer' });

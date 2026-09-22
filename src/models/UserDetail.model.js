@@ -32,6 +32,18 @@ const userDetailSchema = new mongoose.Schema({
     type: Boolean, 
     default: false 
   },
+  isEmailVerified: {
+    type: Boolean,
+    default: false
+  },
+  emailVerificationToken: {
+    type: String,
+    default: null
+  },
+  emailVerificationExpires: {
+    type: Date,
+    default: null
+  },
   fastConnect: {
     type: Boolean,
     default: false

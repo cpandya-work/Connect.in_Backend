@@ -1,10 +1,11 @@
 const express = require('express');
-const { sendOtpCtrl, verifyOtpCtrl, loginWithEmailCtrl, googleLoginCtrl } = require('../controllers/auth.controller');
+const { sendOtpCtrl, verifyOtpCtrl, loginWithEmailCtrl, googleLoginCtrl, verifyEmailCtrl } = require('../controllers/auth.controller');
 const { logout } = require('../controllers/user.controller');
 const { protect } = require('../middlewares/auth.middleware');
 
 const router = express.Router();
 
+router.get('/verify-email', verifyEmailCtrl);
 router.post('/send-otp', sendOtpCtrl);
 router.post('/verify-otp', verifyOtpCtrl);
 router.post('/login-with-email', loginWithEmailCtrl);

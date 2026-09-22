@@ -233,10 +233,22 @@ const createProfile = asyncHandler(async (req, res) => {
   success(res, { profile }, 'Profile completed');
 
   // Fire welcome email + SMS outside the request lifecycle
-  setImmediate(() => {
+  setImmediate(async () => {
     const displayName = isBusiness ? detail.businessName : detail.fullName;
     if (detail.email && displayName) {
-      sendRegistrationEmail(detail.email, displayName).catch(() => {});
+      try {
+        let token = detail.emailVerificationToken;
+        if (!token) {
+          const crypto = require('crypto');
+          token = crypto.randomBytes(32).toString('hex');
+          await UserDetail.findByIdAndUpdate(detail._id, { emailVerificationToken: token });
+        }
+        const backendUrl = process.env.BACKEND_URL || 'https://api.connect.in';
+        const verificationUrl = `${backendUrl}/api/auth/verify-email?token=${token}`;
+        await sendRegistrationEmail(detail.email, displayName, verificationUrl);
+      } catch (err) {
+        console.error("Error sending registration email with verification:", err);
+      }
     }
     if (updatedUser.phoneNumber && displayName) {
       sendRegistrationSms(updatedUser.phoneNumber, displayName);

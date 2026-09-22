@@ -15,7 +15,7 @@ const createTransporter = () =>
 
 const FROM = `"Connect India" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`;
 const APP_URL = process.env.APP_URL || 'https://connect.in';
-const IMAGE_BASE_URL = process.env.BACKEND_URL || 'https://api.conect.in';
+const IMAGE_BASE_URL = process.env.BACKEND_URL || 'https://api.connect.in';
 const UNSUBSCRIBE_URL = process.env.UNSUBSCRIBE_URL || 'https://www.connect.in';
 
 const makeAbsoluteUrl = (url) => {
@@ -112,14 +112,32 @@ const ctaButton = (href, label) => `
 
 // ─── 1. Registration / Welcome ───────────────────────────────────────────────
 
-const sendRegistrationEmail = async (email, fullName) => {
-  const subject = 'Welcome to Connect India! 🎉';
+const sendRegistrationEmail = async (email, fullName, verificationUrl = null) => {
+  const subject = 'Welcome to Connect India! 🎉 Verify Your Email';
+  const verificationBlock = verificationUrl ? `
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;margin-bottom:24px;text-align:center;">
+      <tr>
+        <td style="padding:24px;">
+          <h3 style="margin:0 0 8px;color:#1e40af;font-size:18px;font-weight:700;">Please Verify Your Email Address 📧</h3>
+          <p style="margin:0 0 16px;color:#3b82f6;font-size:14px;line-height:1.6;">
+            Click the button below to confirm your email address and activate your account for mailers.
+          </p>
+          <a href="${verificationUrl}" target="_blank" style="display:inline-block;padding:12px 28px;background:#ec7523;color:#ffffff;font-size:14px;font-weight:600;text-decoration:none;border-radius:8px;">
+            Verify Email Address →
+          </a>
+        </td>
+      </tr>
+    </table>
+  ` : '';
+
   const html = baseTemplate(`
     <h2 style="margin:0 0 8px;color:#081332;font-size:22px;font-weight:700;">Welcome, ${fullName}! 👋</h2>
     <p style="margin:0 0 20px;color:#495057;font-size:15px;line-height:1.7;">
       Your profile is live on <strong>Connect India</strong> — India's network for real professional connections.
       Start exploring profiles, send connection requests, and grow your network today.
     </p>
+
+    ${verificationBlock}
 
     <table width="100%" cellpadding="0" cellspacing="0" style="background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;margin-bottom:24px;">
       <tr>

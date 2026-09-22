@@ -109,7 +109,7 @@ const scheduleIncompleteProfiles = async () => {
     const customSubject = setting.subject || 'Action Required: Complete your Connect India profile! 🚀';
     const customBody = setting.body;
 
-    // Find all incomplete user details with valid emails
+    // Find all incomplete user details with valid & verified emails
     const incompleteDetails = await UserDetail.find({
       $or: [
         { profileImage: { $exists: false } },
@@ -117,7 +117,8 @@ const scheduleIncompleteProfiles = async () => {
         { profileImage: null },
         { isProfileComplete: false }
       ],
-      email: { $exists: true, $ne: null, $ne: '' }
+      email: { $exists: true, $ne: null, $ne: '' },
+      isEmailVerified: true
     }).select('_id email fullName').lean();
 
     const total = incompleteDetails.length;
@@ -174,9 +175,10 @@ const scheduleCityIndustrySnapshots = async () => {
     const customSubject = setting.subject || 'Weekly Network Snapshot: New Matches in your City & Industry 🌐';
     const customBody = setting.body;
 
-    // Fetch active users with completed city/industry fields & valid email
+    // Fetch active users with completed city/industry fields & valid verified email
     const targetUsers = await UserDetail.find({
       email: { $exists: true, $ne: null, $ne: '' },
+      isEmailVerified: true,
       city: { $exists: true, $ne: null },
       industry: { $exists: true, $ne: null, $ne: '' }
     }).select('_id email fullName city industry').lean();
@@ -264,12 +266,12 @@ const scheduleOfferOfTheDay = async () => {
     const users = await User.find({ isActive: true })
       .sort({ createdAt: -1 })
       .limit(5000)
-      .populate('userDetailId', 'email fullName')
+      .populate('userDetailId', 'email fullName isEmailVerified')
       .lean();
 
     const targetUsers = users
       .map(u => u.userDetailId)
-      .filter(ud => ud && ud.email);
+      .filter(ud => ud && ud.email && ud.isEmailVerified === true);
 
     const total = targetUsers.length;
     console.log(`[Scheduler] Found ${total} active users with emails out of last 5000.`);

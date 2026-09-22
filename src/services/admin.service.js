@@ -1233,8 +1233,8 @@ const getCardById = async (cardId) => {
 };
 
 const broadcastOfferEmail = async (title, description, imageUrl = null, offerUrl = null) => {
-  // Collect all user emails that are not null/empty
-  const userDetails = await UserDetail.find({ email: { $exists: true, $ne: null, $ne: '' } })
+  // Collect all user emails that are verified and not null/empty
+  const userDetails = await UserDetail.find({ email: { $exists: true, $ne: null, $ne: '' }, isEmailVerified: true })
     .select('email')
     .lean();
   const emails = userDetails.map((u) => u.email).filter(Boolean);
@@ -1401,9 +1401,10 @@ const getEmailUsersCountByRegistration = async (days) => {
     query.createdAt = { $gte: date };
   }
 
-  // Find user details that have a registered email
+  // Find user details that have a registered & verified email
   const emailDetails = await UserDetail.find({
-    email: { $exists: true, $ne: null, $ne: '' }
+    email: { $exists: true, $ne: null, $ne: '' },
+    isEmailVerified: true
   }).select('_id');
 
   const detailIds = emailDetails.map(d => d._id);
@@ -1426,9 +1427,10 @@ const getEmailUsersByRegistration = async (days) => {
     query.createdAt = { $gte: date };
   }
 
-  // Find user details that have a registered email
+  // Find user details that have a registered & verified email
   const emailDetails = await UserDetail.find({
-    email: { $exists: true, $ne: null, $ne: '' }
+    email: { $exists: true, $ne: null, $ne: '' },
+    isEmailVerified: true
   }).select('_id email fullName');
 
   const detailIds = emailDetails.map(d => d._id);
