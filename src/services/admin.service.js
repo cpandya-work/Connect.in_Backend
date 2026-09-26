@@ -1510,6 +1510,16 @@ const getDashboardStats = async () => {
     ? parseFloat(((newCompleteProfilesLast7Days / newProfilesLast7Days) * 100).toFixed(1))
     : 0;
 
+  const totalCompletedUserProfiles = await UserDetail.countDocuments({ isProfileComplete: true });
+  const completedVerifiedProfiles = await UserDetail.countDocuments({
+    isProfileComplete: true,
+    isEmailVerified: true
+  });
+
+  const completedVerifiedEmailPercentage = totalCompletedUserProfiles > 0
+    ? parseFloat(((completedVerifiedProfiles / totalCompletedUserProfiles) * 100).toFixed(1))
+    : 0;
+
   return {
     totalUsers,
     totalConnectionRequests,
@@ -1520,6 +1530,8 @@ const getDashboardStats = async () => {
     totalCompleteProfiles,
     totalIncompleteProfiles: totalUsers - totalCompleteProfiles,
     completeProfilePercentage,
+    completedVerifiedProfiles,
+    completedVerifiedEmailPercentage,
     newProfilesLast7Days,
     newCompleteProfilesLast7Days,
     newProfilesCompletionPercentage,
