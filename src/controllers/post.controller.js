@@ -5,6 +5,7 @@ const User = require('../models/User.model');
 const ConnectionGroup = require('../models/ConnectionGroup.model');
 const { sendPostNotification } = require('../services/notification.service');
 const { sendNewPostEmail } = require('../services/email.service');
+const { generateAiAnswer, recommendPeopleAndBusinesses } = require('../services/ai.service');
 const { success } = require('../utils/response');
 const axios = require('axios');
 
@@ -122,6 +123,8 @@ const createPost = asyncHandler(async (req, res) => {
         ? JSON.parse(req.body.targetSegments)
         : req.body.targetSegments;
       targetSegments = {
+        getAiResponses: typeof parsed.getAiResponses === 'boolean' ? parsed.getAiResponses : true,
+        audienceType: parsed.audienceType || 'help',
         connections: connectionGroupId ? false : (typeof parsed.connections === 'boolean' ? parsed.connections : true),
         city: typeof parsed.city === 'boolean' ? parsed.city : false,
         industries: Array.isArray(parsed.industries) ? parsed.industries : [],
@@ -139,7 +142,24 @@ const createPost = asyncHandler(async (req, res) => {
                              (!targetSegments.interests || targetSegments.interests.length === 0) &&
                              (!targetSegments.ageGroups || targetSegments.ageGroups.length === 0);
 
-  const isApproved = onlyForConnections;
+  const isApproved = true;
+
+  // Generate AI Answer and Profile Recommendations
+  let aiAnswer = null;
+  let aiRecommendations = { people: [], businesses: [] };
+
+  const shouldGenerateAiAnswer = targetSegments.getAiResponses !== false;
+
+  if (content && content.trim()) {
+    try {
+      if (shouldGenerateAiAnswer) {
+        aiAnswer = await generateAiAnswer(content.trim(), targetSegments);
+      }
+      aiRecommendations = await recommendPeopleAndBusinesses(content.trim(), targetSegments, userId);
+    } catch (aiErr) {
+      console.error('Error generating AI data during post creation:', aiErr);
+    }
+  }
 
   const post = await Post.create({
     userId,
@@ -149,7 +169,9 @@ const createPost = asyncHandler(async (req, res) => {
     targetSegments,
     authorCity,
     connectionGroupId: connectionGroupId || null,
-    isApproved
+    isApproved,
+    aiAnswer,
+    aiRecommendations
   });
 
   if (isApproved) {
@@ -220,7 +242,7 @@ function getAgeGroup(dateOfBirth) {
 
 const getPosts = asyncHandler(async (req, res) => {
   const userId = req.user._id;
-  const { sortBy, page: queryPage, limit: queryLimit } = req.query;
+  const { sortBy, filter, page: queryPage, limit: queryLimit } = req.query;
 
   const page = Math.max(1, parseInt(queryPage, 10) || 1);
   const limit = Math.max(1, parseInt(queryLimit, 10) || 10);
@@ -272,6 +294,11 @@ const getPosts = asyncHandler(async (req, res) => {
           'targetSegments.ageGroups': { $size: 0 }
         }
       ]
+    },
+
+    // 4. Public questions on Share/Ask page (not restricted to a connection group)
+    {
+      connectionGroupId: null
     }
   ];
 
@@ -292,11 +319,22 @@ const getPosts = asyncHandler(async (req, res) => {
   }
 
   // 5. User sees posts targeted at their city (even if not connected)
-  if (userCityId) {
+  const userCityIdStr = userCityId || (userDetail?.city?._id ? userDetail.city._id.toString() : (userDetail?.city ? userDetail.city.toString() : null));
+  if (userCityIdStr) {
     orQueries.push({
       connectionGroupId: null,
       'targetSegments.city': true,
-      authorCity: userCityId
+      $or: [
+        { authorCity: userCityIdStr },
+        { authorCity: null },
+        { authorCity: { $exists: false } }
+      ]
+    });
+  } else {
+    // If viewing user city is not explicitly set, include city-targeted questions so they are discoverable
+    orQueries.push({
+      connectionGroupId: null,
+      'targetSegments.city': true
     });
   }
 
@@ -314,11 +352,26 @@ const getPosts = asyncHandler(async (req, res) => {
       {
         $or: [
           { isApproved: true },
+          { isApproved: { $ne: false } },
           { userId: userId }
         ]
       }
     ]
   };
+
+  if (filter === 'my') {
+    queryFilter.$and.push({ userId: userId });
+  } else if (filter === 'connections') {
+    queryFilter.$and.push({ userId: { $in: [...connectionIds, userId] } });
+  } else if (filter === 'unanswered') {
+    queryFilter.$and.push({
+      $or: [
+        { commentsCount: 0 },
+        { commentsCount: { $exists: false } },
+        { comments: { $size: 0 } }
+      ]
+    });
+  }
 
   const totalPosts = await Post.countDocuments(queryFilter);
 
@@ -343,6 +396,16 @@ const getPosts = asyncHandler(async (req, res) => {
           populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth isBusinessProfile businessName businessLogo businessApprovalStatus' },
           select: 'userDetailId'
         }
+      })
+      .populate({
+        path: 'comments.userId',
+        populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth isBusinessProfile businessName businessLogo position company industry' },
+        select: 'userDetailId'
+      })
+      .populate({
+        path: 'comments.replies.userId',
+        populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth isBusinessProfile businessName businessLogo position company industry' },
+        select: 'userDetailId'
       })
       .lean();
 
@@ -376,6 +439,16 @@ const getPosts = asyncHandler(async (req, res) => {
           populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth isBusinessProfile businessName businessLogo businessApprovalStatus' },
           select: 'userDetailId'
         }
+      })
+      .populate({
+        path: 'comments.userId',
+        populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth isBusinessProfile businessName businessLogo position company industry' },
+        select: 'userDetailId'
+      })
+      .populate({
+        path: 'comments.replies.userId',
+        populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth isBusinessProfile businessName businessLogo position company industry' },
+        select: 'userDetailId'
       })
       .sort({ createdAt: -1 })
       .skip(skip)
@@ -475,6 +548,19 @@ const reactToPost = asyncHandler(async (req, res) => {
   });
 
   success(res, populatedPost.reactions, 'Reaction updated successfully');
+});
+
+const incrementPostView = asyncHandler(async (req, res) => {
+  const { postId } = req.params;
+  const post = await Post.findByIdAndUpdate(
+    postId,
+    { $inc: { views: 1 } },
+    { new: true }
+  );
+  if (!post) {
+    return res.status(404).json({ success: false, message: 'Post not found' });
+  }
+  success(res, { views: post.views }, 'Post view incremented');
 });
 
 const getLinkPreview = asyncHandler(async (req, res) => {
@@ -808,14 +894,193 @@ const deletePost = asyncHandler(async (req, res) => {
   success(res, null, 'Post deleted successfully');
 });
 
+const addPostComment = asyncHandler(async (req, res) => {
+  const { postId } = req.params;
+  const { text } = req.body;
+  const userId = req.user._id;
+
+  if (!text || !text.trim()) {
+    return res.status(400).json({ success: false, message: 'Comment text is required' });
+  }
+
+  const post = await Post.findById(postId);
+  if (!post) {
+    return res.status(404).json({ success: false, message: 'Post not found' });
+  }
+
+  if (!post.comments) post.comments = [];
+
+  post.comments.push({
+    userId,
+    text: text.trim(),
+    createdAt: new Date()
+  });
+
+  post.commentsCount = post.comments.length;
+  await post.save();
+
+  const updatedPost = await Post.findById(postId)
+    .populate({
+      path: 'comments.userId',
+      populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth isBusinessProfile businessName businessLogo position company industry' },
+      select: 'userDetailId email username'
+    })
+    .populate({
+      path: 'comments.replies.userId',
+      populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth isBusinessProfile businessName businessLogo position company industry' },
+      select: 'userDetailId email username'
+    });
+
+  return success(res, updatedPost.comments, 'Comment added successfully');
+});
+
+const likePostComment = asyncHandler(async (req, res) => {
+  const { postId, commentId } = req.params;
+  const userId = req.user._id;
+
+  const post = await Post.findById(postId);
+  if (!post) {
+    return res.status(404).json({ success: false, message: 'Post not found' });
+  }
+
+  const comment = post.comments.id(commentId);
+  if (!comment) {
+    return res.status(404).json({ success: false, message: 'Comment not found' });
+  }
+
+  if (!Array.isArray(comment.likes)) comment.likes = [];
+
+  const userIdStr = userId.toString();
+  const index = comment.likes.findIndex(id => id.toString() === userIdStr);
+  if (index > -1) {
+    comment.likes.splice(index, 1);
+  } else {
+    comment.likes.push(userId);
+  }
+
+  await post.save();
+
+  const updatedPost = await Post.findById(postId)
+    .populate({
+      path: 'comments.userId',
+      populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth isBusinessProfile businessName businessLogo position company industry' },
+      select: 'userDetailId email username'
+    })
+    .populate({
+      path: 'comments.replies.userId',
+      populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth isBusinessProfile businessName businessLogo position company industry' },
+      select: 'userDetailId email username'
+    });
+
+  return success(res, updatedPost.comments, 'Comment like updated successfully');
+});
+
+const replyPostComment = asyncHandler(async (req, res) => {
+  const { postId, commentId } = req.params;
+  const { text } = req.body;
+  const userId = req.user._id;
+
+  if (!text || !text.trim()) {
+    return res.status(400).json({ success: false, message: 'Reply text is required' });
+  }
+
+  const post = await Post.findById(postId);
+  if (!post) {
+    return res.status(404).json({ success: false, message: 'Post not found' });
+  }
+
+  const comment = post.comments.id(commentId);
+  if (!comment) {
+    return res.status(404).json({ success: false, message: 'Comment not found' });
+  }
+
+  if (!Array.isArray(comment.replies)) comment.replies = [];
+
+  comment.replies.push({
+    userId,
+    text: text.trim(),
+    createdAt: new Date()
+  });
+
+  await post.save();
+
+  const updatedPost = await Post.findById(postId)
+    .populate({
+      path: 'comments.userId',
+      populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth isBusinessProfile businessName businessLogo position company industry' },
+      select: 'userDetailId email username'
+    })
+    .populate({
+      path: 'comments.replies.userId',
+      populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth isBusinessProfile businessName businessLogo position company industry' },
+      select: 'userDetailId email username'
+    });
+
+  return success(res, updatedPost.comments, 'Reply added successfully');
+});
+
+const rateAiAnswer = asyncHandler(async (req, res) => {
+  const { postId } = req.params;
+  const { feedback } = req.body;
+  const userId = req.user._id;
+
+  if (!['up', 'down'].includes(feedback)) {
+    return res.status(400).json({ success: false, message: 'Invalid feedback. Must be up or down' });
+  }
+
+  const post = await Post.findById(postId);
+  if (!post) {
+    return res.status(404).json({ success: false, message: 'Post not found' });
+  }
+
+  if (!post.aiAnswer) {
+    post.aiAnswer = { content: '', sources: [], helpfulUp: [], helpfulDown: [] };
+  }
+
+  if (!Array.isArray(post.aiAnswer.helpfulUp)) post.aiAnswer.helpfulUp = [];
+  if (!Array.isArray(post.aiAnswer.helpfulDown)) post.aiAnswer.helpfulDown = [];
+
+  const userIdStr = userId.toString();
+  const upIndex = post.aiAnswer.helpfulUp.findIndex(id => id.toString() === userIdStr);
+  const downIndex = post.aiAnswer.helpfulDown.findIndex(id => id.toString() === userIdStr);
+
+  if (feedback === 'up') {
+    if (upIndex > -1) {
+      post.aiAnswer.helpfulUp.splice(upIndex, 1);
+    } else {
+      post.aiAnswer.helpfulUp.push(userId);
+      if (downIndex > -1) post.aiAnswer.helpfulDown.splice(downIndex, 1);
+    }
+  } else if (feedback === 'down') {
+    if (downIndex > -1) {
+      post.aiAnswer.helpfulDown.splice(downIndex, 1);
+    } else {
+      post.aiAnswer.helpfulDown.push(userId);
+      if (upIndex > -1) post.aiAnswer.helpfulUp.splice(upIndex, 1);
+    }
+  }
+
+  await post.save();
+
+  return success(res, {
+    helpfulUp: post.aiAnswer.helpfulUp,
+    helpfulDown: post.aiAnswer.helpfulDown
+  }, 'Feedback recorded successfully');
+});
+
 module.exports = {
   createPost,
   getPosts,
   reactToPost,
+  incrementPostView,
   getLinkPreview,
   resharePost,
   getTopSharers,
   getMostSharedReels,
   updatePost,
   deletePost,
+  addPostComment,
+  likePostComment,
+  replyPostComment,
+  rateAiAnswer,
 };

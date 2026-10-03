@@ -72,6 +72,73 @@ const postSchema = new mongoose.Schema({
     type: Number,
     default: 0,
   },
+  views: {
+    type: Number,
+    default: 0,
+  },
+  commentsCount: {
+    type: Number,
+    default: 0,
+  },
+  comments: [{
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+    },
+    text: {
+      type: String,
+      required: true
+    },
+    likes: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    }],
+    replies: [{
+      userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+      },
+      text: {
+        type: String,
+        required: true
+      },
+      createdAt: {
+        type: Date,
+        default: Date.now
+      }
+    }],
+    createdAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+  aiAnswer: {
+    content: { type: String, default: "" },
+    sources: [{ type: String }],
+    helpfulUp: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    helpfulDown: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    createdAt: { type: Date, default: Date.now }
+  },
+  aiRecommendations: {
+    people: [{
+      user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      fullName: String,
+      position: String,
+      city: String,
+      profileImage: String,
+      gender: String,
+      dateOfBirth: Date
+    }],
+    businesses: [{
+      user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      businessName: String,
+      businessCategory: String,
+      city: String,
+      businessLogo: String
+    }]
+  }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Post', postSchema);
