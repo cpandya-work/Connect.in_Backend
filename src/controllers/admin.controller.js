@@ -1491,7 +1491,6 @@ const approvePostCtrl = asyncHandler(async (req, res) => {
   const User = require('../models/User.model');
   const UserConnections = require('../models/UserConnections.model');
   const { sendPostNotification } = require('../services/notification.service');
-  const { sendNewPostEmail } = require('../services/email.service');
 
   const post = await Post.findById(postId);
   if (!post) {
@@ -1605,12 +1604,6 @@ const approvePostCtrl = asyncHandler(async (req, res) => {
         if (shouldNotify) {
           // Send push notification
           sendPostNotification(user._id, posterName, userId, posterImage).catch(console.error);
-
-          // Send email if user has email
-          if (user.userDetailId?.email) {
-            const recipientName = user.userDetailId.isBusinessProfile ? user.userDetailId.businessName : user.userDetailId.fullName;
-            sendNewPostEmail(user.userDetailId.email, recipientName, posterName).catch(console.error);
-          }
         }
       });
 

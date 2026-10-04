@@ -4,7 +4,7 @@ const UserConnections = require('../models/UserConnections.model');
 const User = require('../models/User.model');
 const ConnectionGroup = require('../models/ConnectionGroup.model');
 const { sendPostNotification } = require('../services/notification.service');
-const { sendNewPostEmail } = require('../services/email.service');
+const { sendQuestionAnsweredEmail, sendAnswerRepliedEmail } = require('../services/email.service');
 const { generateAiAnswer, recommendPeopleAndBusinesses } = require('../services/ai.service');
 const { success } = require('../utils/response');
 const axios = require('axios');
@@ -198,11 +198,6 @@ const createPost = asyncHandler(async (req, res) => {
           const isConnection = connectionIds.has(user._id.toString());
           if (isConnection) {
             sendPostNotification(user._id, posterName, userId, posterImage).catch(console.error);
-
-            if (user.userDetailId?.email) {
-              const recipientName = user.userDetailId.isBusinessProfile ? user.userDetailId.businessName : user.userDetailId.fullName;
-              sendNewPostEmail(user.userDetailId.email, recipientName, posterName).catch(console.error);
-            }
           }
         });
 
@@ -695,11 +690,6 @@ const resharePost = asyncHandler(async (req, res) => {
         const isConnection = connectionIds.has(user._id.toString());
         if (isConnection) {
           sendPostNotification(user._id, posterName, userId, posterImage).catch(console.error);
-
-          if (user.userDetailId?.email) {
-            const recipientName = user.userDetailId.isBusinessProfile ? user.userDetailId.businessName : user.userDetailId.fullName;
-            sendNewPostEmail(user.userDetailId.email, recipientName, posterName).catch(console.error);
-          }
         }
       });
 
@@ -931,6 +921,50 @@ const addPostComment = asyncHandler(async (req, res) => {
       select: 'userDetailId email username'
     });
 
+  setImmediate(async () => {
+    try {
+      const postWithAuthor = await Post.findById(postId).populate({
+        path: 'userId',
+        populate: { path: 'userDetailId', select: 'fullName email isBusinessProfile businessName' }
+      });
+
+      if (postWithAuthor && postWithAuthor.userId) {
+        const questionAuthorId = postWithAuthor.userId._id ? postWithAuthor.userId._id.toString() : postWithAuthor.userId.toString();
+        const commenterId = userId.toString();
+
+        if (questionAuthorId !== commenterId) {
+          const authorEmail = postWithAuthor.userId.userDetailId?.email || postWithAuthor.userId.email;
+          const authorName = postWithAuthor.userId.userDetailId?.isBusinessProfile
+            ? postWithAuthor.userId.userDetailId.businessName
+            : (postWithAuthor.userId.userDetailId?.fullName || 'User');
+
+          const commenterUser = await User.findById(userId).populate('userDetailId');
+          const commenterName = commenterUser?.userDetailId?.isBusinessProfile
+            ? commenterUser.userDetailId.businessName
+            : (commenterUser?.userDetailId?.fullName || 'A member');
+
+          console.log(`[AddComment Email Trigger] Question Author Email: "${authorEmail}", Author Name: "${authorName}", Commenter: "${commenterName}"`);
+
+          if (authorEmail) {
+            sendQuestionAnsweredEmail(
+              authorEmail,
+              authorName,
+              commenterName,
+              postWithAuthor.content,
+              text.trim()
+            ).catch(err => console.error('[AddComment Email Error] Failed:', err));
+          } else {
+            console.log(`[AddComment Email Skipped] Question author (${authorName}) does not have a valid email.`);
+          }
+        } else {
+          console.log(`[AddComment Email Skipped] Author commented on their own question.`);
+        }
+      }
+    } catch (err) {
+      console.error('[AddComment Email Error] Unexpected error:', err);
+    }
+  });
+
   return success(res, updatedPost.comments, 'Comment added successfully');
 });
 
@@ -1015,6 +1049,52 @@ const replyPostComment = asyncHandler(async (req, res) => {
       populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth isBusinessProfile businessName businessLogo position company industry' },
       select: 'userDetailId email username'
     });
+
+  setImmediate(async () => {
+    try {
+      const postWithComment = await Post.findById(postId).populate({
+        path: 'comments.userId',
+        populate: { path: 'userDetailId', select: 'fullName email isBusinessProfile businessName' }
+      });
+
+      if (postWithComment) {
+        const targetComment = postWithComment.comments.id(commentId);
+        if (targetComment && targetComment.userId) {
+          const commentAuthorId = targetComment.userId._id ? targetComment.userId._id.toString() : targetComment.userId.toString();
+          const replierId = userId.toString();
+
+          if (commentAuthorId !== replierId) {
+            const authorEmail = targetComment.userId.userDetailId?.email || targetComment.userId.email;
+            const authorName = targetComment.userId.userDetailId?.isBusinessProfile
+              ? targetComment.userId.userDetailId.businessName
+              : (targetComment.userId.userDetailId?.fullName || 'User');
+
+            const replierUser = await User.findById(userId).populate('userDetailId');
+            const replierName = replierUser?.userDetailId?.isBusinessProfile
+              ? replierUser.userDetailId.businessName
+              : (replierUser?.userDetailId?.fullName || 'A member');
+
+            console.log(`[ReplyComment Email Trigger] Answer Author Email: "${authorEmail}", Author Name: "${authorName}", Replier: "${replierName}"`);
+
+            if (authorEmail) {
+              sendAnswerRepliedEmail(
+                authorEmail,
+                authorName,
+                replierName,
+                text.trim()
+              ).catch(err => console.error('[ReplyComment Email Error] Failed:', err));
+            } else {
+              console.log(`[ReplyComment Email Skipped] Answer author (${authorName}) does not have a valid email.`);
+            }
+          } else {
+            console.log(`[ReplyComment Email Skipped] Author replied to their own answer.`);
+          }
+        }
+      }
+    } catch (err) {
+      console.error('[ReplyComment Email Error] Unexpected error:', err);
+    }
+  });
 
   return success(res, updatedPost.comments, 'Reply added successfully');
 });

@@ -33,7 +33,14 @@ const makeAbsoluteUrl = (url) => {
 // ─── Core sender ─────────────────────────────────────────────────────────────
 
 const sendEmail = async (to, subject, html) => {
-  if (!to || !process.env.SMTP_HOST) return; // silently skip if no email or SMTP not configured
+  if (!to) {
+    console.log(`[Email] Skipped sending "${subject}" — Recipient email is missing.`);
+    return;
+  }
+  if (!process.env.SMTP_HOST) {
+    console.log(`[Email] Skipped sending "${subject}" to ${to} — SMTP_HOST is not configured in .env.`);
+    return;
+  }
   try {
     const transporter = createTransporter();
     await transporter.sendMail({
@@ -42,8 +49,9 @@ const sendEmail = async (to, subject, html) => {
       subject,
       html
     });
+    console.log(`[Email SUCCESS] Sent "${subject}" to ${to}`);
   } catch (err) {
-    console.error(`[Email] Failed to send "${subject}" to ${to}:`, err.message);
+    console.error(`[Email ERROR] Failed to send "${subject}" to ${to}:`, err.message);
   }
 };
 
@@ -263,6 +271,52 @@ const sendNewPostEmail = async (receiverEmail, receiverName, posterName) => {
     </table>
 
     ${ctaButton(`${APP_URL}/share`, 'View Post →')}
+  `);
+  await sendEmail(receiverEmail, subject, html);
+};
+
+// ─── 5b. Question Answered Email ─────────────────────────────────────────────
+
+const sendQuestionAnsweredEmail = async (receiverEmail, receiverName, respondentName, questionTitle, answerSnippet) => {
+  console.log(`[Email INIT] Preparing QuestionAnswered email for ${receiverEmail} (Author: ${receiverName}, Respondent: ${respondentName})`);
+  const subject = `💬 ${respondentName} answered your question on Connect`;
+  const html = baseTemplate(`
+    <h2 style="margin:0 0 8px;color:#081332;font-size:22px;font-weight:700;">Your Question Has an Answer! 💡</h2>
+    <p style="margin:0 0 16px;color:#495057;font-size:15px;line-height:1.7;">
+      Hi <strong>${receiverName}</strong>,<br/>
+      <strong>${respondentName}</strong> just answered your question:
+    </p>
+
+    <div style="background:#F8FAFC;border-left:4px solid #FF4D00;padding:16px 20px;border-radius:8px;margin-bottom:20px;">
+      <p style="margin:0 0 8px;color:#777E90;font-size:12px;font-weight:700;text-transform:uppercase;">Question:</p>
+      <p style="margin:0 0 12px;color:#09122E;font-size:14px;font-weight:600;line-height:1.5;">"${questionTitle || 'Your Question'}"</p>
+      <p style="margin:0 0 4px;color:#777E90;font-size:12px;font-weight:700;text-transform:uppercase;">Answer from ${respondentName}:</p>
+      <p style="margin:0;color:#353945;font-size:14px;line-height:1.6;">"${answerSnippet}"</p>
+    </div>
+
+    ${ctaButton(`${APP_URL}/share`, 'View Answer →')}
+  `);
+  await sendEmail(receiverEmail, subject, html);
+};
+
+// ─── 5c. Answer Replied Email ───────────────────────────────────────────────
+
+const sendAnswerRepliedEmail = async (receiverEmail, receiverName, replierName, replySnippet) => {
+  console.log(`[Email INIT] Preparing AnswerReplied email for ${receiverEmail} (Author: ${receiverName}, Replier: ${replierName})`);
+  const subject = `💬 ${replierName} replied to your answer on Connect`;
+  const html = baseTemplate(`
+    <h2 style="margin:0 0 8px;color:#081332;font-size:22px;font-weight:700;">New Reply to Your Answer! 💬</h2>
+    <p style="margin:0 0 16px;color:#495057;font-size:15px;line-height:1.7;">
+      Hi <strong>${receiverName}</strong>,<br/>
+      <strong>${replierName}</strong> replied to your answer:
+    </p>
+
+    <div style="background:#F8FAFC;border-left:4px solid #0066FF;padding:16px 20px;border-radius:8px;margin-bottom:20px;">
+      <p style="margin:0 0 4px;color:#777E90;font-size:12px;font-weight:700;text-transform:uppercase;">Reply from ${replierName}:</p>
+      <p style="margin:0;color:#353945;font-size:14px;line-height:1.6;">"${replySnippet}"</p>
+    </div>
+
+    ${ctaButton(`${APP_URL}/share`, 'View Reply →')}
   `);
   await sendEmail(receiverEmail, subject, html);
 };
@@ -579,6 +633,8 @@ module.exports = {
   sendIncomingLikeEmail,
   sendBroadcastOfferEmail,
   sendNewPostEmail,
+  sendQuestionAnsweredEmail,
+  sendAnswerRepliedEmail,
   sendBulkHtmlEmail,
   renderIncompleteProfileEmailHtml,
   renderCityIndustrySnapshotEmailHtml,
