@@ -12,15 +12,28 @@ const getPublicProfile = async (userId, loggedInUserId) => {
     throw new Error('Invalid user ID');
   }
 
-  const user = await User.findById(userId).populate({
+  let user = await User.findById(userId).populate({
     path: 'userDetailId',
     populate: [
       { path: 'city', model: 'City' },
       { path: 'businessCategory', model: 'BusinessCategory' }
     ]
   });
+
+  if (!user) {
+    user = await User.findOne({ userDetailId: userId }).populate({
+      path: 'userDetailId',
+      populate: [
+        { path: 'city', model: 'City' },
+        { path: 'businessCategory', model: 'BusinessCategory' }
+      ]
+    });
+  }
+
   if (!user) throw new Error('User not found');
   if (!user.userDetailId) throw new Error('Profile not completed');
+
+  const targetUserId = user._id;
 
   let isLiked = false;
   let isConnected = false;
@@ -30,16 +43,16 @@ const getPublicProfile = async (userId, loggedInUserId) => {
 
   if (loggedInUserId) {
     const [iLikedThem, theyLikedMe, connection, sentRequest, receivedRequest] = await Promise.all([
-      UserLikes.findOne({ userId: loggedInUserId, likedUserId: userId }),
-      UserLikes.findOne({ userId: userId, likedUserId: loggedInUserId }),
+      UserLikes.findOne({ userId: loggedInUserId, likedUserId: targetUserId }),
+      UserLikes.findOne({ userId: targetUserId, likedUserId: loggedInUserId }),
       UserConnections.findOne({
         $or: [
-          { connection1Id: loggedInUserId, connection2Id: userId },
-          { connection1Id: userId, connection2Id: loggedInUserId }
+          { connection1Id: loggedInUserId, connection2Id: targetUserId },
+          { connection1Id: targetUserId, connection2Id: loggedInUserId }
         ]
       }),
-      UserRequests.findOne({ senderId: loggedInUserId, receiverId: userId, status: 'pending' }),
-      UserRequests.findOne({ senderId: userId, receiverId: loggedInUserId, status: 'pending' })
+      UserRequests.findOne({ senderId: loggedInUserId, receiverId: targetUserId, status: 'pending' }),
+      UserRequests.findOne({ senderId: targetUserId, receiverId: loggedInUserId, status: 'pending' })
     ]);
     
     isLiked = !!iLikedThem;

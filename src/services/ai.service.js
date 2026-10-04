@@ -97,18 +97,22 @@ async function recommendPeopleAndBusinesses(questionContent, targetSegments = {}
     const targetIndustries = (targetSegments.industries || []).map(i => i.toLowerCase());
     const targetInterests = (targetSegments.interests || []).map(i => i.toLowerCase());
 
-    // Fetch user details populated with user reference and city
-    const allUserDetails = await UserDetail.find()
-      .populate({ path: 'city', select: 'name' })
+    // Fetch users populated with user detail and city
+    const allUsers = await User.find({ isActive: true })
+      .populate({
+        path: 'userDetailId',
+        populate: { path: 'city', select: 'name' }
+      })
       .lean();
 
     const peopleList = [];
     const businessList = [];
 
-    for (const detail of allUserDetails) {
-      if (!detail) continue;
+    for (const u of allUsers) {
+      if (!u || !u.userDetailId) continue;
+      const detail = u.userDetailId;
       // Skip asking user
-      if (currentUserId && String(detail._id) === String(currentUserId)) continue;
+      if (currentUserId && (String(u._id) === String(currentUserId) || String(detail._id) === String(currentUserId))) continue;
 
       const cityName = detail.city?.name || '';
       const industryStr = (detail.industry || detail.businessCategory?.name || '').toLowerCase();
@@ -146,11 +150,13 @@ async function recommendPeopleAndBusinesses(questionContent, targetSegments = {}
       if (detail.isBusinessProfile) {
         if (detail.businessApprovalStatus === 'rejected') continue;
         businessList.push({
+          user: u,
           userDetail: detail,
           score: score + (detail.businessApprovalStatus === 'approved' ? 5 : 0)
         });
       } else {
         peopleList.push({
+          user: u,
           userDetail: detail,
           score
         });
@@ -163,10 +169,11 @@ async function recommendPeopleAndBusinesses(questionContent, targetSegments = {}
 
     // Top People from real database profiles
     const realPeople = peopleList.slice(0, 3).map(item => {
+      const u = item.user;
       const d = item.userDetail;
       const cityName = d.city?.name || '';
       return {
-        user: d._id,
+        user: u._id,
         fullName: d.fullName || 'Connect Member',
         position: d.position || d.industry || 'Professional',
         city: cityName ? (cityName.includes('India') ? cityName : `${cityName}, India`) : '',
@@ -178,10 +185,11 @@ async function recommendPeopleAndBusinesses(questionContent, targetSegments = {}
 
     // Top Businesses from real database profiles
     const realBusinesses = businessList.slice(0, 3).map(item => {
+      const u = item.user;
       const d = item.userDetail;
       const cityName = d.city?.name || '';
       return {
-        user: d._id,
+        user: u._id,
         businessName: d.businessName || 'Connect Business',
         businessCategory: d.businessTagline || d.industry || 'Verified Business Services',
         city: cityName ? (cityName.includes('India') ? cityName : `${cityName}, India`) : '',
