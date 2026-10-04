@@ -200,7 +200,105 @@ async function recommendPeopleAndBusinesses(questionContent, targetSegments = {}
   }
 }
 
+/**
+ * Rank candidate profiles using AI Profile-to-Profile matching logic.
+ * Matches logged-in user's profile summary (industry, position, skills, interests, habits, sports, location)
+ * against candidate profiles.
+ */
+function rankProfilesByAiProfileMatch(loggedInUserDetail, candidateProfiles) {
+  if (!loggedInUserDetail || !Array.isArray(candidateProfiles) || candidateProfiles.length === 0) {
+    return candidateProfiles;
+  }
+
+  const userCityName = (loggedInUserDetail.city?.name || loggedInUserDetail.city || '').toString().toLowerCase();
+  const userIndustry = (loggedInUserDetail.industry || loggedInUserDetail.businessCategory?.name || '').toString().toLowerCase();
+  const userPosition = (loggedInUserDetail.position || '').toString().toLowerCase();
+  const userCompany = (loggedInUserDetail.company || '').toString().toLowerCase();
+  const userSkills = (loggedInUserDetail.skills || []).map(s => String(s).toLowerCase());
+  const userInterests = (loggedInUserDetail.interests || []).map(i => String(i).toLowerCase());
+  const userHabits = (loggedInUserDetail.habits || []).map(h => String(h).toLowerCase());
+  const userSports = (loggedInUserDetail.sports || []).map(s => String(s).toLowerCase());
+  const userDesc = (loggedInUserDetail.businessDescription || loggedInUserDetail.businessTagline || '').toString().toLowerCase();
+
+  const userSummaryText = `${loggedInUserDetail.fullName || ''} ${loggedInUserDetail.businessName || ''} ${userCityName} ${userIndustry} ${userPosition} ${userCompany} ${userSkills.join(' ')} ${userInterests.join(' ')} ${userHabits.join(' ')} ${userSports.join(' ')} ${userDesc}`.toLowerCase();
+  const userTokens = userSummaryText.split(/\s+/).filter(w => w.length > 3);
+
+  const scoredProfiles = candidateProfiles.map(profile => {
+    let score = 0;
+    const matchReasons = [];
+
+    const cityName = (profile.city || profile.cityName || '').toString().toLowerCase();
+    const industry = (profile.industry || profile.businessCategory || '').toString().toLowerCase();
+    const position = (profile.position || '').toString().toLowerCase();
+    const company = (profile.company || '').toString().toLowerCase();
+    const skills = (profile.skills || []).map(s => String(s).toLowerCase());
+    const interests = (profile.interests || []).map(i => String(i).toLowerCase());
+    const habits = (profile.habits || []).map(h => String(h).toLowerCase());
+    const sports = (profile.sports || []).map(s => String(s).toLowerCase());
+    const candidateName = (profile.businessName || profile.fullName || profile.name || '').toString().toLowerCase();
+
+    const candidateSummaryText = `${candidateName} ${cityName} ${industry} ${position} ${company} ${skills.join(' ')} ${interests.join(' ')} ${habits.join(' ')} ${sports.join(' ')}`.toLowerCase();
+
+    // 1. Industry / Category Match
+    if (userIndustry && industry && (userIndustry.includes(industry) || industry.includes(userIndustry))) {
+      score += 15;
+      matchReasons.push('Industry match');
+    }
+
+    // 2. Skills Match
+    const matchingSkills = userSkills.filter(s => s && (skills.includes(s) || candidateSummaryText.includes(s)));
+    if (matchingSkills.length > 0) {
+      score += matchingSkills.length * 10;
+      matchReasons.push('Skills match');
+    }
+
+    // 3. Interests Match
+    const matchingInterests = userInterests.filter(i => i && (interests.includes(i) || candidateSummaryText.includes(i)));
+    if (matchingInterests.length > 0) {
+      score += matchingInterests.length * 10;
+      matchReasons.push('Interests match');
+    }
+
+    // 4. Lifestyle Match (Habits / Sports)
+    const matchingHabits = userHabits.filter(h => h && (habits.includes(h) || candidateSummaryText.includes(h)));
+    const matchingSports = userSports.filter(sp => sp && (sports.includes(sp) || candidateSummaryText.includes(sp)));
+    if (matchingHabits.length > 0 || matchingSports.length > 0) {
+      score += (matchingHabits.length + matchingSports.length) * 5;
+      matchReasons.push('Lifestyle match');
+    }
+
+    // 5. City Proximity
+    if (userCityName && cityName && (userCityName.includes(cityName) || cityName.includes(userCityName))) {
+      score += 10;
+      matchReasons.push('Location match');
+    }
+
+    // 6. Text similarity score
+    userTokens.forEach(token => {
+      if (candidateSummaryText.includes(token)) {
+        score += 2;
+      }
+    });
+
+    return {
+      profile,
+      score,
+      matchReasons: matchReasons.length > 0 ? matchReasons : ['AI Match']
+    };
+  });
+
+  // Sort descending by AI match score
+  scoredProfiles.sort((a, b) => b.score - a.score);
+
+  return scoredProfiles.map(item => ({
+    ...item.profile,
+    aiMatchScore: item.score,
+    aiMatchReasons: item.matchReasons
+  }));
+}
+
 module.exports = {
   generateAiAnswer,
-  recommendPeopleAndBusinesses
+  recommendPeopleAndBusinesses,
+  rankProfilesByAiProfileMatch
 };

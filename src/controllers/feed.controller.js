@@ -84,7 +84,7 @@ const getFeedWebCtrl = asyncHandler(async (req, res) => {
     return res.status(400).json({ success: false, message: 'Complete your profile first' });
   }
 
-  const { page = 1, limit = 20, seed, ageMin, ageMax, gender, habits, interests, sports, language, relationship, religion, company, industry, search, latitude, longitude } = req.query;
+  const { page = 1, limit = 20, seed, ageMin, ageMax, gender, habits, interests, sports, language, relationship, religion, company, industry, search, latitude, longitude, aiMatches } = req.query;
   const pageNum = parseInt(page) || 1;
   const limitNum = parseInt(limit) || 20;
   
@@ -108,6 +108,7 @@ const getFeedWebCtrl = asyncHandler(async (req, res) => {
   }
 
   const filters = {
+    aiMatches: aiMatches === 'true' || aiMatches === true,
     ageMin: ageMin ? parseInt(ageMin) : null,
     ageMax: ageMax ? parseInt(ageMax) : null,
     gender: gender || null,
@@ -172,11 +173,12 @@ const getBusinessFeedCtrl = asyncHandler(async (req, res) => {
     return res.status(400).json({ success: false, message: 'Complete your profile first' });
   }
 
-  const { page = 1, limit = 20, seed, category, search, verifiedOnly } = req.query;
+  const { page = 1, limit = 20, seed, category, search, verifiedOnly, aiMatches } = req.query;
   const pageNum = parseInt(page) || 1;
   const limitNum = parseInt(limit) || 20;
 
   const filters = {
+    aiMatches: aiMatches === 'true' || aiMatches === true,
     category: category || null,
     verifiedOnly: verifiedOnly === 'true' || verifiedOnly === true,
   };
