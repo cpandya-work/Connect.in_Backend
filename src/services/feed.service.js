@@ -6,6 +6,7 @@ const UserConnections = require('../models/UserConnections.model');
 const UserSkips = require('../models/UserSkips.model');
 const City = require('../models/City.model');
 const mongoose = require('mongoose');
+const { rankProfilesByAiProfileMatch } = require('./ai.service');
 
 function mulberry32(a) {
   return function() {
@@ -624,8 +625,13 @@ const getFeedWeb = async (userId, userGender, page = 1, limit = 20, filters = {}
     };
   });
 
-  // Group by pincode matching if logged-in user has a pincode
-  if (loggedInPincode) {
+  // AI Profile-to-Profile matching or pincode grouping
+  if (filters.aiMatches) {
+    const loggedInUserDetail = await UserDetail.findById(loggedInUserDoc?.userDetailId)
+      .populate('city')
+      .lean();
+    result = rankProfilesByAiProfileMatch(loggedInUserDetail, result);
+  } else if (loggedInPincode) {
     const matchingProfiles = result.filter(p => p.pincode && p.pincode.toString().trim() === loggedInPincode);
     const nonMatchingProfiles = result.filter(p => !p.pincode || p.pincode.toString().trim() !== loggedInPincode);
 
@@ -848,8 +854,12 @@ const getBusinessFeed = async (userId, page = 1, limit = 20, filters = {}, searc
   });
 
   let finalProfiles = decoratedProfiles;
-  // Group by pincode matching if logged-in user has a pincode
-  if (loggedInPincode) {
+  if (filters.aiMatches) {
+    const loggedInUserDetail = await UserDetail.findById(loggedInUserDoc?.userDetailId)
+      .populate('city')
+      .lean();
+    finalProfiles = rankProfilesByAiProfileMatch(loggedInUserDetail, decoratedProfiles);
+  } else if (loggedInPincode) {
     const matchingProfiles = decoratedProfiles.filter(p => p.pincode && p.pincode.toString().trim() === loggedInPincode);
     const nonMatchingProfiles = decoratedProfiles.filter(p => !p.pincode || p.pincode.toString().trim() !== loggedInPincode);
 
