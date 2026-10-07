@@ -1498,7 +1498,9 @@ const approvePostCtrl = asyncHandler(async (req, res) => {
   }
 
   if (req.body.targetSegments) {
-    const { connections, city, industries, interests, ageGroups } = req.body.targetSegments;
+    const { audienceType, getAiResponses, connections, city, industries, interests, ageGroups } = req.body.targetSegments;
+    if (audienceType) post.targetSegments.audienceType = audienceType;
+    if (typeof getAiResponses === 'boolean') post.targetSegments.getAiResponses = getAiResponses;
     if (typeof connections === 'boolean') post.targetSegments.connections = connections;
     if (typeof city === 'boolean') post.targetSegments.city = city;
     if (Array.isArray(industries)) post.targetSegments.industries = industries;

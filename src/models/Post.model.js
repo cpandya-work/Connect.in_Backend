@@ -48,6 +48,8 @@ const postSchema = new mongoose.Schema({
     url: { type: String }
   },
   targetSegments: {
+    getAiResponses: { type: Boolean, default: true },
+    audienceType: { type: String, default: 'help' },
     connections: { type: Boolean, default: true },
     city: { type: Boolean, default: false },
     industries: [{ type: String }],

@@ -136,13 +136,19 @@ const createPost = asyncHandler(async (req, res) => {
     }
   }
 
-  const onlyForConnections = targetSegments.connections === true &&
-                             targetSegments.city === false &&
-                             (!targetSegments.industries || targetSegments.industries.length === 0) &&
-                             (!targetSegments.interests || targetSegments.interests.length === 0) &&
-                             (!targetSegments.ageGroups || targetSegments.ageGroups.length === 0);
-
-  const isApproved = true;
+  const isAskedOnlyToConnections = Boolean(
+    connectionGroupId ||
+    targetSegments.audienceType === 'connections' ||
+    (
+      !targetSegments.audienceType &&
+      targetSegments.connections === true &&
+      targetSegments.city === false &&
+      (!targetSegments.industries || targetSegments.industries.length === 0) &&
+      (!targetSegments.interests || targetSegments.interests.length === 0) &&
+      (!targetSegments.ageGroups || targetSegments.ageGroups.length === 0)
+    )
+  );
+  const isApproved = isAskedOnlyToConnections;
 
   // Generate AI Answer and Profile Recommendations
   let aiAnswer = null;
@@ -347,8 +353,7 @@ const getPosts = asyncHandler(async (req, res) => {
       {
         $or: [
           { isApproved: true },
-          { isApproved: { $ne: false } },
-          { userId: userId }
+          { isApproved: { $ne: false } }
         ]
       }
     ]
