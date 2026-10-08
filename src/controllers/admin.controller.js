@@ -60,6 +60,8 @@ const {
   getUsersByRegistration,
   getEmailUsersCountByRegistration,
   getEmailUsersByRegistration,
+  getUnverifiedEmailUsersCountByRegistration,
+  getUnverifiedEmailUsersByRegistration,
   getDashboardStats,
   getStatsTrend,
   getBusinessDocumentInfo,
@@ -1187,11 +1189,11 @@ const toggleAuthBannerCtrl = asyncHandler(async (req, res) => {
  * Body: { title, description }
  */
 const broadcastOfferEmailCtrl = asyncHandler(async (req, res) => {
-  const { title, description, imageUrl, offerUrl } = req.body;
+  const { title, description, imageUrl, offerUrl, days = 'all' } = req.body;
   if (!title || !description) {
     return res.status(400).json({ success: false, message: 'title and description are required' });
   }
-  const result = await broadcastOfferEmail(title, description, imageUrl, offerUrl);
+  const result = await broadcastOfferEmail(title, description, imageUrl, offerUrl, days);
   success(res, result, `Offer email sent to ${result.sent} users`);
 });
 
@@ -1378,6 +1380,75 @@ const sendTestTargetedEmailCtrl = asyncHandler(async (req, res) => {
     : baseTemplate(personalizedHtml);
   await sendEmail(email.trim(), subject.trim(), finalHtml);
   success(res, {}, `Test email sent successfully to ${email}`);
+});
+
+/**
+ * Get count of users with unverified email addresses filtered by registration duration
+ * Query: days (7, 15, 30, 45, all)
+ */
+const getVerificationEmailUserCountCtrl = asyncHandler(async (req, res) => {
+  const { days = 'all' } = req.query;
+  const count = await getUnverifiedEmailUsersCountByRegistration(days);
+  success(res, { count }, 'Verification email user count retrieved');
+});
+
+/**
+ * Send verification emails to unverified users filtered by registration duration
+ * Body: { days }
+ */
+const sendVerificationEmailBroadcastCtrl = asyncHandler(async (req, res) => {
+  const { days = 'all' } = req.body;
+  const recipients = await getUnverifiedEmailUsersByRegistration(days);
+
+  if (recipients.length === 0) {
+    return res.status(200).json({ success: true, message: 'No unverified users found matching the criteria' });
+  }
+
+  const { sendVerificationEmail } = require('../services/email.service');
+  const UserDetail = require('../models/UserDetail.model');
+  const crypto = require('crypto');
+  const backendUrl = process.env.BACKEND_URL || 'https://api.connect.in';
+
+  // Trigger broadcast in background
+  setImmediate(async () => {
+    for (const recipient of recipients) {
+      try {
+        let token = recipient.emailVerificationToken;
+        if (!token && recipient.userDetailId) {
+          token = crypto.randomBytes(32).toString('hex');
+          await UserDetail.findByIdAndUpdate(recipient.userDetailId, { emailVerificationToken: token });
+        }
+        if (token) {
+          const verificationUrl = `${backendUrl}/api/auth/verify-email?token=${token}`;
+          await sendVerificationEmail(recipient.email, recipient.fullName, verificationUrl);
+        }
+      } catch (err) {
+        console.error(`[Verification Email Broadcast] Error sending to ${recipient.email}:`, err);
+      }
+    }
+  });
+
+  success(res, { sent: recipients.length }, `Verification email broadcast initiated to ${recipients.length} users`);
+});
+
+/**
+ * Send test verification email to a single test email
+ * Body: { email }
+ */
+const sendTestVerificationEmailCtrl = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+  if (!email || !email.trim()) return res.status(400).json({ success: false, message: 'Test email address is required' });
+
+  if (!process.env.SMTP_HOST) {
+    return res.status(400).json({ success: false, message: 'SMTP is not configured on the server. Please set SMTP_HOST environment variable.' });
+  }
+
+  const { sendVerificationEmail } = require('../services/email.service');
+  const backendUrl = process.env.BACKEND_URL || 'https://api.connect.in';
+  const testVerificationUrl = `${backendUrl}/api/auth/verify-email?token=test-verification-token`;
+
+  await sendVerificationEmail(email.trim(), 'Test User', testVerificationUrl);
+  success(res, {}, `Test verification email sent successfully to ${email}`);
 });
 
 /**
@@ -2136,7 +2207,7 @@ const sendTestScheduledMailerCtrl = asyncHandler(async (req, res) => {
   }
 
   try {
-    const FROM = `"Connect India" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`;
+    const FROM = `"Connect" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`;
     const nodemailer = require('nodemailer');
     const transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
@@ -2201,7 +2272,7 @@ const testCardEmailCtrl = asyncHandler(async (req, res) => {
   const html = renderOfferOfTheDayEmailHtml('Test User', offer, configuredBody);
 
   try {
-    const FROM = `"Connect India" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`;
+    const FROM = `"Connect" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`;
     const nodemailer = require('nodemailer');
     const transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
@@ -2433,6 +2504,9 @@ module.exports = {
   getTargetedEmailUserCountCtrl,
   sendTargetedEmailBroadcastCtrl,
   sendTestTargetedEmailCtrl,
+  getVerificationEmailUserCountCtrl,
+  sendVerificationEmailBroadcastCtrl,
+  sendTestVerificationEmailCtrl,
   sendTestOfferEmailCtrl,
   sendTestGeneralSmsCtrl,
   sendTestIncompleteSmsCtrl,

@@ -69,6 +69,9 @@ const {
   getTargetedEmailUserCountCtrl,
   sendTargetedEmailBroadcastCtrl,
   sendTestTargetedEmailCtrl,
+  getVerificationEmailUserCountCtrl,
+  sendVerificationEmailBroadcastCtrl,
+  sendTestVerificationEmailCtrl,
   sendTestOfferEmailCtrl,
   sendTestGeneralSmsCtrl,
   sendTestIncompleteSmsCtrl,
@@ -320,8 +323,15 @@ router.get('/notifications/broadcast-targeted-email-count', getTargetedEmailUser
 // POST /api/admin/notifications/broadcast-targeted-email - Send targeted HTML email broadcast
 router.post('/notifications/broadcast-targeted-email', sendTargetedEmailBroadcastCtrl);
 
+// GET /api/admin/notifications/broadcast-verification-email-count - Get count of unverified email users by registration
+router.get('/notifications/broadcast-verification-email-count', getVerificationEmailUserCountCtrl);
+
+// POST /api/admin/notifications/broadcast-verification-email - Send verification email broadcast
+router.post('/notifications/broadcast-verification-email', sendVerificationEmailBroadcastCtrl);
+
 // Test routes for Broadcast section
 router.post('/notifications/test-targeted-email', sendTestTargetedEmailCtrl);
+router.post('/notifications/test-verification-email', sendTestVerificationEmailCtrl);
 router.post('/notifications/test-offer-email', sendTestOfferEmailCtrl);
 router.post('/notifications/test-general-sms', sendTestGeneralSmsCtrl);
 router.post('/notifications/test-incomplete-sms', sendTestIncompleteSmsCtrl);

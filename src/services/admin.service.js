@@ -1232,12 +1232,30 @@ const getCardById = async (cardId) => {
   return card;
 };
 
-const broadcastOfferEmail = async (title, description, imageUrl = null, offerUrl = null) => {
+const broadcastOfferEmail = async (title, description, imageUrl = null, offerUrl = null, days = 'all') => {
+  let query = {};
+
+  if (days !== 'all') {
+    const daysNum = parseInt(days, 10);
+    const date = new Date();
+    date.setDate(date.getDate() - daysNum);
+    query.createdAt = { $gte: date };
+  }
+
   // Collect all user emails that are verified and not null/empty
   const userDetails = await UserDetail.find({ email: { $exists: true, $ne: null, $ne: '' }, isEmailVerified: true })
-    .select('email')
+    .select('_id email')
     .lean();
-  const emails = userDetails.map((u) => u.email).filter(Boolean);
+
+  const detailIds = userDetails.map((u) => u._id);
+  query.userDetailId = { $in: detailIds };
+
+  const users = await User.find(query)
+    .populate('userDetailId', 'email')
+    .select('userDetailId')
+    .lean();
+
+  const emails = users.map((u) => u.userDetailId?.email).filter(Boolean);
   const result = await sendBroadcastOfferEmail(emails, title, description, imageUrl, offerUrl);
   return { totalEmails: emails.length, ...result };
 };
@@ -1444,6 +1462,68 @@ const getEmailUsersByRegistration = async (days) => {
   return users.map(user => ({
     email: user.userDetailId?.email,
     fullName: user.userDetailId?.fullName || 'User'
+  })).filter(user => user.email);
+};
+
+/**
+ * Get count of users with email addresses who are not yet verified filtered by registration duration
+ * @param {string|number} days - Duration in days ('all', 7, 15, 30, 45)
+ */
+const getUnverifiedEmailUsersCountByRegistration = async (days) => {
+  let query = {};
+
+  if (days !== 'all') {
+    const daysNum = parseInt(days, 10);
+    const date = new Date();
+    date.setDate(date.getDate() - daysNum);
+    query.createdAt = { $gte: date };
+  }
+
+  // Find user details that have a registered email but isEmailVerified is false or not true
+  const emailDetails = await UserDetail.find({
+    email: { $exists: true, $ne: null, $ne: '' },
+    isEmailVerified: { $ne: true }
+  }).select('_id');
+
+  const detailIds = emailDetails.map(d => d._id);
+  query.userDetailId = { $in: detailIds };
+
+  return await User.countDocuments(query);
+};
+
+/**
+ * Get list of unverified email users for Verification Email broadcast
+ * @param {string|number} days - Duration in days ('all', 7, 15, 30, 45)
+ */
+const getUnverifiedEmailUsersByRegistration = async (days) => {
+  let query = {};
+
+  if (days !== 'all') {
+    const daysNum = parseInt(days, 10);
+    const date = new Date();
+    date.setDate(date.getDate() - daysNum);
+    query.createdAt = { $gte: date };
+  }
+
+  // Find user details with unverified email addresses
+  const emailDetails = await UserDetail.find({
+    email: { $exists: true, $ne: null, $ne: '' },
+    isEmailVerified: { $ne: true }
+  }).select('_id email fullName emailVerificationToken');
+
+  const detailIds = emailDetails.map(d => d._id);
+  query.userDetailId = { $in: detailIds };
+
+  const users = await User.find(query)
+    .populate('userDetailId', 'fullName email emailVerificationToken')
+    .select('userDetailId')
+    .lean();
+
+  return users.map(user => ({
+    userDetailId: user.userDetailId?._id,
+    email: user.userDetailId?.email,
+    fullName: user.userDetailId?.fullName || 'User',
+    emailVerificationToken: user.userDetailId?.emailVerificationToken
   })).filter(user => user.email);
 };
 
@@ -2102,6 +2182,8 @@ module.exports = {
   getUsersByRegistration,
   getEmailUsersCountByRegistration,
   getEmailUsersByRegistration,
+  getUnverifiedEmailUsersCountByRegistration,
+  getUnverifiedEmailUsersByRegistration,
   getDashboardStats,
   getStatsTrend,
   getBusinessDocumentInfo,
