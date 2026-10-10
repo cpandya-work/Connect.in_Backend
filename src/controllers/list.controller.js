@@ -11,6 +11,7 @@ const PositionModel = require("../models/Position.model");
 const SettingModel = require("../models/Setting.model");
 const CardClickModel = require("../models/CardClick.model");
 const BusinessCategoryModel = require("../models/BusinessCategory.model");
+const OfferCategoryModel = require("../models/OfferCategory.model");
 const asyncHandler = require("../utils/asyncHandler");
 const { success } = require("../utils/response");
 
@@ -75,7 +76,7 @@ const listHabitsCtrl = asyncHandler(async (req, res) => {
   })
 
   const listCardsCtrl = asyncHandler(async (req, res) => {
-    const { search } = req.query;
+    const { search, category } = req.query;
     
     // Build query - always filter by isActive: true
     let query = { isActive: true };
@@ -84,6 +85,11 @@ const listHabitsCtrl = asyncHandler(async (req, res) => {
     if (search && search.trim()) {
       const searchRegex = new RegExp(search.trim(), 'i');
       query.name = searchRegex;
+    }
+
+    // Add category filter if provided
+    if (category && category.trim() && category !== 'all') {
+      query.category = category.trim();
     }
     
     const cards = await CardModel.find(query)
@@ -322,6 +328,11 @@ const listBusinessCategoriesCtrl = asyncHandler(async (req, res) => {
   success(res, { categories }, 'business categories list fetched');
 });
 
+const listOfferCategoriesCtrl = asyncHandler(async (req, res) => {
+  const categories = await OfferCategoryModel.find({ isActive: true }).sort({ name: 1 });
+  success(res, { categories }, 'offer categories list fetched');
+});
+
 module.exports = {
   listCityCtrl,
   listSkillCtrl,
@@ -336,4 +347,5 @@ module.exports = {
   getPopupOfferCtrl,
   clickCardCtrl,
   listBusinessCategoriesCtrl,
+  listOfferCategoriesCtrl,
 };
