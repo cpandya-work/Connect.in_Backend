@@ -11,21 +11,15 @@ async function generateAiAnswer(questionContent, targetSegments = {}) {
   if (apiKey && apiKey.startsWith('sk-')) {
     try {
       const response = await axios.post(
-        'https://api.openai.com/v1/chat/completions',
+        'https://api.openai.com/v1/responses',
         {
-          model: 'gpt-4o-mini',
-          messages: [
-            {
-              role: 'system',
-              content: 'You are an expert AI assistant for Connect.in, a professional and community network in India. Provide concise, well-structured, practical advice for questions. Format your answer with clear numbered key points.'
-            },
-            {
-              role: 'user',
-              content: `Question: "${questionContent}". Provide a structured, helpful answer with key aspects to consider.`
-            }
-          ],
-          max_tokens: 600,
-          temperature: 0.7
+          model: 'gpt-6-luna',
+          reasoning: {
+            effort: 'none'
+          },
+          instructions: 'You are an expert AI assistant for Connect.in, a professional and community network in India. Provide concise, practical and accurate answers. Format answers with clear numbered key points. Answer the users question directly. Do not invent facts or requirements. When information depends on location, industry or circumstances, clearly mention that.',
+          input: `Question: "${questionContent}"`,
+          max_output_tokens: 800
         },
         {
           headers: {
@@ -36,10 +30,45 @@ async function generateAiAnswer(questionContent, targetSegments = {}) {
         }
       );
 
-      if (response.data && response.data.choices && response.data.choices.length > 0) {
-        const text = response.data.choices[0].message.content;
+      let text = '';
+      if (response.data) {
+        if (typeof response.data.output_text === 'string' && response.data.output_text.trim()) {
+          text = response.data.output_text.trim();
+        } else if (typeof response.data.output === 'string' && response.data.output.trim()) {
+          text = response.data.output.trim();
+        } else if (Array.isArray(response.data.output)) {
+          const pieces = response.data.output.map(item => {
+            if (typeof item === 'string') return item;
+            if (item && typeof item.text === 'string') return item.text;
+            if (item && typeof item.content === 'string') return item.content;
+            if (item && Array.isArray(item.content)) {
+              return item.content.map(c => (typeof c === 'string' ? c : c?.text || '')).join('');
+            }
+            return '';
+          }).filter(Boolean);
+          text = pieces.join('\n\n').trim();
+        } else if (Array.isArray(response.data.output_text)) {
+          const pieces = response.data.output_text.map(item => {
+            if (typeof item === 'string') return item;
+            if (item && typeof item.text === 'string') return item.text;
+            return '';
+          }).filter(Boolean);
+          text = pieces.join('\n\n').trim();
+        } else if (Array.isArray(response.data.choices) && response.data.choices.length > 0) {
+          const choice = response.data.choices[0];
+          if (typeof choice?.message?.content === 'string') text = choice.message.content.trim();
+          else if (typeof choice?.text === 'string') text = choice.text.trim();
+        }
+      }
+
+      // Ensure text is strictly a string (not an object or array)
+      if (typeof text !== 'string') {
+        text = String(text || '');
+      }
+
+      if (text && text.trim()) {
         return {
-          content: text,
+          content: text.trim(),
           sources: ['Community knowledge', 'Industry guidelines', 'Connect.in trusted sources'],
           createdAt: new Date()
         };

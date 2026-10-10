@@ -85,6 +85,7 @@ const {
   adminDeletePostCtrl,
   toggleUserStatusCtrl,
   deleteUserCtrl,
+  unverifyBouncedEmailsCtrl,
   getPositionsListCtrl,
   getPositionByIdCtrl,
   createPositionCtrl,
@@ -127,6 +128,8 @@ router.get('/users', getUsersListCtrl);
 router.put('/users/:id/toggle-status', toggleUserStatusCtrl);
 // DELETE /api/admin/users/:id
 router.delete('/users/:id', deleteUserCtrl);
+// POST /api/admin/users/unverify-bounced-emails - Unverify bounced or unsubscribed emails from CSV
+router.post('/users/unverify-bounced-emails', unverifyBouncedEmailsCtrl);
 
 // Skill management routes
 // GET /api/admin/skills?page=1&limit=10&search=javascript&isActive=true

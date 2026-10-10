@@ -67,6 +67,7 @@ const {
   getBusinessDocumentInfo,
   approveBusiness,
   rejectBusiness,
+  unverifyBouncedEmails,
 } = require('../services/admin.service');
 const { createSkillSchema, updateSkillSchema } = require('../validators/skill.validator');
 const { createPositionSchema, updatePositionSchema } = require('../validators/position.validator');
@@ -2436,6 +2437,36 @@ const createOfferCategoryCtrl = asyncHandler(async (req, res) => {
   success(res, { category }, 'Offer category created successfully');
 });
 
+/**
+ * Unverify bounced or unsubscribed email addresses from uploaded CSV/array
+ * Body: { emails: [...] }
+ */
+const unverifyBouncedEmailsCtrl = asyncHandler(async (req, res) => {
+  const { emails } = req.body;
+  if (!emails || !Array.isArray(emails) || emails.length === 0) {
+    return res.status(400).json({ success: false, message: 'Emails array is required' });
+  }
+
+  const result = await unverifyBouncedEmails(emails);
+
+  let messageDetails = [];
+  if (result.updatedCount > 0) {
+    messageDetails.push(`Marked ${result.updatedCount} email(s) as unverified`);
+  }
+  if (result.alreadyUnverifiedCount > 0) {
+    messageDetails.push(`${result.alreadyUnverifiedCount} were already unverified`);
+  }
+  if (result.notFoundCount > 0) {
+    messageDetails.push(`${result.notFoundCount} not registered in database`);
+  }
+
+  const msg = messageDetails.length > 0 
+    ? messageDetails.join(', ') + '.'
+    : 'No changes performed.';
+
+  success(res, result, msg);
+});
+
 module.exports = {
   getBusinessCategoriesListCtrl,
   createBusinessCategoryCtrl,
@@ -2541,4 +2572,5 @@ module.exports = {
   approveBusinessCtrl,
   rejectBusinessCtrl,
   updateBusinessNameCtrl,
+  unverifyBouncedEmailsCtrl,
 };

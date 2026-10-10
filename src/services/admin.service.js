@@ -1674,21 +1674,34 @@ const getStatsTrend = async (statId) => {
     }).select('_id').lean();
     const incompleteIds = incompleteDetails.map(d => d._id);
 
+    const verifiedDetails = await UserDetail.find({
+      email: { $exists: true, $ne: null, $ne: '' },
+      isEmailVerified: true
+    }).select('_id').lean();
+    const verifiedIds = verifiedDetails.map(d => d._id);
+
     const results = await Promise.all(
       trends.map(async (t) => {
-        const [newSignups, completed] = await Promise.all([
+        const [newSignups, completed, completedVerified] = await Promise.all([
           User.countDocuments({ createdAt: { $gte: t.start, $lte: t.end } }),
           User.countDocuments({
             createdAt: { $gte: t.start, $lte: t.end },
             userDetailId: { $exists: true, $ne: null, $nin: incompleteIds }
+          }),
+          User.countDocuments({
+            createdAt: { $gte: t.start, $lte: t.end },
+            userDetailId: { $exists: true, $ne: null, $nin: incompleteIds, $in: verifiedIds }
           })
         ]);
         const percentage = newSignups > 0 ? parseFloat(((completed / newSignups) * 100).toFixed(1)) : 0;
+        const verifiedEmailPercentage = completed > 0 ? parseFloat(((completedVerified / completed) * 100).toFixed(1)) : 0;
         return {
           date: t.label,
           count: completed,
           newSignups,
-          percentage
+          percentage,
+          completedVerified,
+          verifiedEmailPercentage
         };
       })
     );
@@ -1821,7 +1834,13 @@ const getTrafficSourcesStats = async () => {
   }).select('_id');
   const incompleteIds = incompleteDetails.map(d => d._id);
 
-  const [totalStats, completeStats] = await Promise.all([
+  const verifiedDetails = await UserDetail.find({
+    email: { $exists: true, $ne: null, $ne: '' },
+    isEmailVerified: true
+  }).select('_id').lean();
+  const verifiedIds = verifiedDetails.map(d => d._id);
+
+  const [totalStats, completeStats, verifiedStats] = await Promise.all([
     // Aggregate total users by traffic source
     User.aggregate([
       {
@@ -1858,10 +1877,31 @@ const getTrafficSourcesStats = async () => {
           _id: 0
         }
       }
+    ]),
+    // Aggregate completed verified email profiles by traffic source
+    User.aggregate([
+      {
+        $match: {
+          userDetailId: { $exists: true, $ne: null, $nin: incompleteIds, $in: verifiedIds }
+        }
+      },
+      {
+        $group: {
+          _id: { $ifNull: ['$trafficSource', 'direct'] },
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $project: {
+          trafficSource: '$_id',
+          count: 1,
+          _id: 0
+        }
+      }
     ])
   ]);
 
-  // Create a map of complete source counts
+  // Create maps of complete and verified source counts
   const completeMap = {};
   completeStats.forEach(item => {
     if (item.trafficSource) {
@@ -1869,12 +1909,26 @@ const getTrafficSourcesStats = async () => {
     }
   });
 
+  const verifiedMap = {};
+  verifiedStats.forEach(item => {
+    if (item.trafficSource) {
+      verifiedMap[item.trafficSource] = item.count;
+    }
+  });
+
   // Combine results
-  const combinedStats = totalStats.map(item => ({
-    trafficSource: item.trafficSource,
-    count: item.count,
-    completeCount: completeMap[item.trafficSource] || 0
-  }));
+  const combinedStats = totalStats.map(item => {
+    const compCount = completeMap[item.trafficSource] || 0;
+    const verCount = verifiedMap[item.trafficSource] || 0;
+    const verifiedRate = compCount > 0 ? parseFloat(((verCount / compCount) * 100).toFixed(1)) : 0;
+    return {
+      trafficSource: item.trafficSource,
+      count: item.count,
+      completeCount: compCount,
+      verifiedCount: verCount,
+      verifiedRate
+    };
+  });
 
   // Sort by total count descending
   combinedStats.sort((a, b) => b.count - a.count);
@@ -2189,6 +2243,7 @@ module.exports = {
   getBusinessDocumentInfo,
   approveBusiness,
   rejectBusiness,
+  unverifyBouncedEmails,
 };
 
 /**
@@ -2247,10 +2302,59 @@ async function rejectBusiness(userId, reason) {
     throw new Error('This user is not a business profile');
   }
 
-  user.userDetailId.businessApprovalStatus = 'rejected';
-  user.userDetailId.businessRejectionReason = reason || undefined;
-  await user.userDetailId.save();
-
   return user.userDetailId;
 }
+
+/**
+ * Unverify email addresses for bounced or unsubscribed users
+ * @param {Array<string>} emails - List of bounced/unsubscribed email addresses
+ * @returns {Promise<Object>} Summary object with updated count and matched count
+ */
+async function unverifyBouncedEmails(emails = []) {
+  if (!Array.isArray(emails) || emails.length === 0) {
+    return { updatedCount: 0, totalProvided: 0, matchedEmailsCount: 0, matchedDbEmailsCount: 0, alreadyUnverifiedCount: 0, notFoundCount: 0 };
+  }
+
+  const cleanEmails = Array.from(new Set(
+    emails
+      .filter(e => typeof e === 'string')
+      .map(e => e.replace(/\0/g, '').trim().toLowerCase())
+      .filter(e => e && /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/.test(e))
+  ));
+
+  if (cleanEmails.length === 0) {
+    return { updatedCount: 0, totalProvided: emails.length, matchedEmailsCount: 0, matchedDbEmailsCount: 0, alreadyUnverifiedCount: 0, notFoundCount: emails.length };
+  }
+
+  // Create case-insensitive regex for each email to match any casing in MongoDB
+  const emailRegexes = cleanEmails.map(e => new RegExp(`^${e.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i'));
+
+  // Find matching UserDetails in DB
+  const matchingDocs = await UserDetail.find({ email: { $in: emailRegexes } }).select('_id email isEmailVerified');
+  const matchedDbEmailsCount = matchingDocs.length;
+
+  const updateResult = await UserDetail.updateMany(
+    {
+      email: { $in: emailRegexes },
+      isEmailVerified: { $ne: false }
+    },
+    {
+      $set: { isEmailVerified: false }
+    }
+  );
+
+  const updatedCount = updateResult.modifiedCount || updateResult.nModified || 0;
+  const alreadyUnverifiedCount = Math.max(0, matchedDbEmailsCount - updatedCount);
+  const notFoundCount = Math.max(0, cleanEmails.length - matchedDbEmailsCount);
+
+  return {
+    updatedCount,
+    totalProvided: emails.length,
+    matchedEmailsCount: cleanEmails.length,
+    matchedDbEmailsCount,
+    alreadyUnverifiedCount,
+    notFoundCount
+  };
+}
+
 

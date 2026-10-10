@@ -18,8 +18,8 @@ const sendRegistrationSms = async (phoneNumber, fullName) => {
 
     const url = `https://test1bulksms.mytoday.com/BulkSms/SingleMsgApi?feedid=393258&username=9884196886&password=SuX@2egALigzEKZ&To=${cleanPhone}&Text=${encText}&templateid=1207177869921422898&entityid=1201160765852941646&senderid=CONCTN`;
 
-    console.log(`[SMS] Sending Registration SMS to ${cleanPhone}`);
-    await axios.get(url);
+    console.log(`[SMS Disabled] Non-OTP SMS disabled. Skipped Registration SMS to ${cleanPhone}`);
+    // await axios.get(url);
   } catch (err) {
     console.error(`[SMS] Failed to send Registration SMS to ${phoneNumber}:`, err.message);
   }
@@ -37,8 +37,8 @@ const sendConnectionRequestSms = async (phoneNumber, receiverName, senderName) =
 
     const url = `https://test1bulksms.mytoday.com/BulkSms/SingleMsgApi?feedid=393258&username=9884196886&password=SuX@2egALigzEKZ&To=${cleanPhone}&Text=Dear%20${encReceiverName}%20You%20have%20received%20a%20Connection%20Request%20from%20${encSenderName}.%20To%20stay%20connected%20click%20here%20https://www.connect.in.-%20Team%20Connect.in&templateid=1207164380651856408&entityid=1201160765852941646&senderid=CONCTN`;
 
-    console.log(`[SMS] Sending Connection Request SMS tossss ${cleanPhone}`);
-    await axios.get(url);
+    console.log(`[SMS Disabled] Non-OTP SMS disabled. Skipped Connection Request SMS to ${cleanPhone}`);
+    // await axios.get(url);
   } catch (err) {
     console.error(`[SMS] Failed to send Connection Request SMS to ${phoneNumber}:`, err.message);
   }
@@ -56,8 +56,8 @@ const sendConnectionAcceptedSms = async (phoneNumber, senderName, accepterName) 
 
     const url = `https://test1bulksms.mytoday.com/BulkSms/SingleMsgApi?feedid=393258&username=9884196886&password=SuX@2egALigzEKZ&To=${cleanPhone}&Text=Dear%20${encSenderName}%0A${encAccepterName}%20has%20accepted%20your%20connection%20request.%20To%20stay%20connected%20click%20here%20https://www.connect.in.%20Team%20Connect.in&templateid=1207163471957799962&entityid=1201160765852941646&senderid=CONCTN`;
 
-    console.log(`[SMS] Sending Connection Acceptance SMS to ${cleanPhone}`);
-    await axios.get(url);
+    console.log(`[SMS Disabled] Non-OTP SMS disabled. Skipped Connection Acceptance SMS to ${cleanPhone}`);
+    // await axios.get(url);
   } catch (err) {
     console.error(`[SMS] Failed to send Connection Acceptance SMS to ${phoneNumber}:`, err.message);
   }
@@ -76,8 +76,8 @@ const sendProfileLikedSms = async (phoneNumber, receiverName, likerName) => {
 
     const url = `https://test1bulksms.mytoday.com/BulkSms/SingleMsgApi?feedid=393258&username=9884196886&password=SuX@2egALigzEKZ&To=${cleanPhone}&Text=${encText}&templateid=1207177869522536093&entityid=1201160765852941646&senderid=CONCTN`;
 
-    console.log(`[SMS] Sending Profile Liked SMS to ${cleanPhone}`);
-    await axios.get(url);
+    console.log(`[SMS Disabled] Non-OTP SMS disabled. Skipped Profile Liked SMS to ${cleanPhone}`);
+    // await axios.get(url);
   } catch (err) {
     console.error(`[SMS] Failed to send Profile Liked SMS to ${phoneNumber}:`, err.message);
   }
@@ -86,7 +86,7 @@ const sendProfileLikedSms = async (phoneNumber, receiverName, likerName) => {
 // ─── Incomplete Profile Bulk SMS ──────────────────────────────────────────────
 // Uses the direct MyToday BulkSMS URL with pre-approved template ID 1207177849537448569
 const sendIncompleteProfileBulkSms = async (users) => {
-  console.log(`[SMS] Initiating bulk SMS for ${users.length} incomplete profile users`);
+  console.log(`[SMS Disabled] Non-OTP SMS disabled. Skipped bulk SMS for ${users.length} incomplete profile users`);
   let sentCount = 0;
   let errorCount = 0;
   
@@ -97,8 +97,8 @@ const sendIncompleteProfileBulkSms = async (users) => {
       
       const url = `https://test1bulksms.mytoday.com/BulkSms/SingleMsgApi?feedid=393258&username=9884196886&password=SuX@2egALigzEKZ&To=${cleanPhone}&Text=Hi!%20%0D%0A%0D%0AYou%20signed%20up%20to%20connect%20with%20professionals%20at%20TCS.%20Complete%20your%20profile%20to%20unlock%20networking%20opportunities%20https://www.connect.in/%20-%20Team%20Connect.in%0D%0A%0D%0A-%20Team%20Connect.in&templateid=1207177849537448569&entityid=1201160765852941646&senderid=CONCTN`;
       
-      console.log(`[SMS] Sending Bulk SMS to ${cleanPhone} using template 1207177849537448569`);
-      await axios.get(url);
+      console.log(`[SMS Disabled] Non-OTP SMS disabled. Skipped Bulk SMS to ${cleanPhone}`);
+      // await axios.get(url);
       sentCount++;
     } catch (err) {
       console.error(`[SMS] Failed to send bulk SMS to ${user.phoneNumber}:`, err.message);
@@ -106,13 +106,13 @@ const sendIncompleteProfileBulkSms = async (users) => {
     }
   }
   
-  console.log(`[SMS] Bulk SMS completed. Sent: ${sentCount}, Errors: ${errorCount}`);
+  console.log(`[SMS Disabled] Bulk SMS completed (skipped). Sent: ${sentCount}, Errors: ${errorCount}`);
   return { sent: sentCount, errors: errorCount };
 };
 
 // ─── General Bulk SMS Broadcast ──────────────────────────────────────────────
 const sendBulkSms = async (users, message, templateId, entityId) => {
-  console.log(`[SMS] Initiating general bulk SMS for ${users.length} users`);
+  console.log(`[SMS Disabled] Non-OTP SMS disabled. Skipped general bulk SMS for ${users.length} users`);
   let sentCount = 0;
   let errorCount = 0;
   
@@ -130,8 +130,8 @@ const sendBulkSms = async (users, message, templateId, entityId) => {
       
       const url = `https://test1bulksms.mytoday.com/BulkSms/SingleMsgApi?feedid=393258&username=9884196886&password=SuX@2egALigzEKZ&To=${cleanPhone}&Text=${encText}&templateid=${templateId}&entityid=${targetEntityId}&senderid=CONCTN`;
       
-      console.log(`[SMS] Sending Bulk SMS to ${cleanPhone} using template ${templateId}`);
-      await axios.get(url);
+      console.log(`[SMS Disabled] Non-OTP SMS disabled. Skipped Bulk SMS to ${cleanPhone}`);
+      // await axios.get(url);
       sentCount++;
     } catch (err) {
       console.error(`[SMS] Failed to send general bulk SMS to ${user.phoneNumber}:`, err.message);
@@ -139,12 +139,12 @@ const sendBulkSms = async (users, message, templateId, entityId) => {
     }
   }
   
-  console.log(`[SMS] General Bulk SMS completed. Sent: ${sentCount}, Errors: ${errorCount}`);
+  console.log(`[SMS Disabled] General Bulk SMS completed (skipped). Sent: ${sentCount}, Errors: ${errorCount}`);
   return { sent: sentCount, errors: errorCount };
 };
 
 const sendCardOfferBulkSms = async (users, cardName, cardId) => {
-  console.log(`[SMS] Initiating bulk SMS for card "${cardName}" (ID: ${cardId}) to ${users.length} users`);
+  console.log(`[SMS Disabled] Non-OTP SMS disabled. Skipped bulk SMS for card "${cardName}" to ${users.length} users`);
   let sentCount = 0;
   let errorCount = 0;
 
@@ -159,8 +159,8 @@ const sendCardOfferBulkSms = async (users, cardName, cardId) => {
 
       const url = `https://test1bulksms.mytoday.com/BulkSms/SingleMsgApi?feedid=393258&username=9884196886&password=SuX@2egALigzEKZ&To=${cleanPhone}&Text=${encText}&templateid=1207172777334847051&entityid=1201160765852941646&senderid=CONCTN`;
 
-      console.log(`[SMS] Sending Card Offer SMS to ${cleanPhone} for card ${cardName}`);
-      await axios.get(url);
+      console.log(`[SMS Disabled] Non-OTP SMS disabled. Skipped Card Offer SMS to ${cleanPhone}`);
+      // await axios.get(url);
       sentCount++;
     } catch (err) {
       console.error(`[SMS] Failed to send offer SMS to ${user.phoneNumber}:`, err.message);
@@ -168,7 +168,7 @@ const sendCardOfferBulkSms = async (users, cardName, cardId) => {
     }
   }
 
-  console.log(`[SMS] Card Offer Bulk SMS completed. Sent: ${sentCount}, Errors: ${errorCount}`);
+  console.log(`[SMS Disabled] Card Offer Bulk SMS completed (skipped). Sent: ${sentCount}, Errors: ${errorCount}`);
   return { sent: sentCount, errors: errorCount };
 };
 
