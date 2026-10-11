@@ -48,31 +48,33 @@ const getProfile = asyncHandler(async (req, res) => {
     }
   }
   
+  const isHexId = (val) => typeof val === 'string' && /^[0-9a-fA-F]{24}$/.test(val.trim());
+
   // Get industry name if industry is a valid ObjectId
   let industryName = user.userDetailId.industry;
   if (user.userDetailId.industry && mongoose.Types.ObjectId.isValid(user.userDetailId.industry)) {
     const industry = await Industry.findById(user.userDetailId.industry);
-    if (industry) {
-      industryName = industry.name;
-    }
+    industryName = industry ? industry.name : '';
+  } else if (isHexId(industryName)) {
+    industryName = '';
   }
 
   // Get position name if position is a valid ObjectId
   let positionName = user.userDetailId.position;
   if (user.userDetailId.position && mongoose.Types.ObjectId.isValid(user.userDetailId.position)) {
     const positionObj = await Position.findById(user.userDetailId.position);
-    if (positionObj) {
-      positionName = positionObj.name;
-    }
+    positionName = positionObj ? positionObj.name : '';
+  } else if (isHexId(positionName)) {
+    positionName = '';
   }
 
   // Get businessCategory name if businessCategory is a valid ObjectId
   let businessCategoryName = user.userDetailId.businessCategory;
   if (user.userDetailId.businessCategory && mongoose.Types.ObjectId.isValid(user.userDetailId.businessCategory)) {
     const businessCat = await BusinessCategory.findById(user.userDetailId.businessCategory);
-    if (businessCat) {
-      businessCategoryName = businessCat.name;
-    }
+    businessCategoryName = businessCat ? businessCat.name : '';
+  } else if (isHexId(businessCategoryName)) {
+    businessCategoryName = '';
   }
   
   const userDetailObj = user.userDetailId.toObject();
@@ -369,6 +371,28 @@ const getMemberDirectory = asyncHandler(async (req, res) => {
     .limit(limit)
     .lean();
 
+  // Resolve industry, company, position names if they are stored as ObjectIds
+  const industryIds = [];
+  const companyIds = [];
+  const positionIds = [];
+
+  userDetails.forEach(d => {
+    if (d.industry && mongoose.Types.ObjectId.isValid(d.industry)) industryIds.push(d.industry);
+    if (d.company && mongoose.Types.ObjectId.isValid(d.company)) companyIds.push(d.company);
+    if (d.position && mongoose.Types.ObjectId.isValid(d.position)) positionIds.push(d.position);
+  });
+
+  const [industries, companies, positions] = await Promise.all([
+    industryIds.length > 0 ? Industry.find({ _id: { $in: industryIds } }).select('_id name').lean() : [],
+    companyIds.length > 0 ? Company.find({ _id: { $in: companyIds } }).select('_id name').lean() : [],
+    positionIds.length > 0 ? Position.find({ _id: { $in: positionIds } }).select('_id name').lean() : [],
+  ]);
+
+  const industryMap = new Map(industries.map(i => [i._id.toString(), i.name]));
+  const companyMap = new Map(companies.map(c => [c._id.toString(), c.name]));
+  const positionMap = new Map(positions.map(p => [p._id.toString(), p.name]));
+  const isHexId = (val) => typeof val === 'string' && /^[0-9a-fA-F]{24}$/.test(val.trim());
+
   const members = userDetails.map(d => {
     const userId = activeDetailIdMap.get(d._id.toString()) || d._id;
     const isBusiness = d.isBusinessProfile === true;
@@ -376,6 +400,10 @@ const getMemberDirectory = asyncHandler(async (req, res) => {
     const image = isBusiness ? (d.businessLogo || d.profileImage) : d.profileImage;
     const cityName = d.city && typeof d.city === 'object' ? d.city.name : (d.cityName || null);
     const categoryName = d.businessCategory && typeof d.businessCategory === 'object' ? d.businessCategory.name : null;
+
+    const industryName = d.industry ? (industryMap.get(d.industry.toString()) || (isHexId(d.industry) ? '' : d.industry)) : '';
+    const companyName = d.company ? (companyMap.get(d.company.toString()) || (isHexId(d.company) ? '' : d.company)) : '';
+    const positionName = d.position ? (positionMap.get(d.position.toString()) || (isHexId(d.position) ? '' : d.position)) : '';
 
     return {
       _id: userId,
@@ -387,8 +415,9 @@ const getMemberDirectory = asyncHandler(async (req, res) => {
       profileImage: image,
       gender: d.gender,
       dateOfBirth: d.dateOfBirth,
-      position: d.position || '',
-      company: d.company || '',
+      industry: industryName,
+      position: positionName,
+      company: companyName,
       businessTagline: d.businessTagline || '',
       businessDescription: d.businessDescription || '',
       cityName,

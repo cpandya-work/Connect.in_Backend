@@ -5,6 +5,9 @@ const DeletedUser = require('../models/DeletedUser.model');
 const UserLikes = require('../models/UserLikes.model');
 const UserConnections = require('../models/UserConnections.model');
 const UserRequests = require('../models/UserRequests.model');
+const Industry = require('../models/Industry.model');
+const Company = require('../models/Company.model');
+const Position = require('../models/Position.model');
 const { deleteFromCloudinary } = require('../utils/cloudinary');
 
 const getPublicProfile = async (userId, loggedInUserId) => {
@@ -101,16 +104,42 @@ const getPublicProfile = async (userId, loggedInUserId) => {
     };
   }
 
+  const isHexId = (val) => typeof val === 'string' && /^[0-9a-fA-F]{24}$/.test(val.trim());
+
+  let industryName = userDetailObj.industry || '';
+  if (userDetailObj.industry && mongoose.Types.ObjectId.isValid(userDetailObj.industry)) {
+    const indDoc = await Industry.findById(userDetailObj.industry).select('name').lean();
+    industryName = indDoc ? indDoc.name : '';
+  } else if (isHexId(industryName)) {
+    industryName = '';
+  }
+
+  let companyName = userDetailObj.company || '';
+  if (userDetailObj.company && mongoose.Types.ObjectId.isValid(userDetailObj.company)) {
+    const compDoc = await Company.findById(userDetailObj.company).select('name').lean();
+    companyName = compDoc ? compDoc.name : '';
+  } else if (isHexId(companyName)) {
+    companyName = '';
+  }
+
+  let positionName = userDetailObj.position || '';
+  if (userDetailObj.position && mongoose.Types.ObjectId.isValid(userDetailObj.position)) {
+    const posDoc = await Position.findById(userDetailObj.position).select('name').lean();
+    positionName = posDoc ? posDoc.name : '';
+  } else if (isHexId(positionName)) {
+    positionName = '';
+  }
+
   return {
     phoneNumber: user.phoneNumber,
     email: user.userDetailId.email,
     ...userDetailObj,
     isPrivateProfile: !!userDetailObj.isPrivateProfile,
     isPrivate: false,
-    // Explicitly ensure company and industry are included
-    company: userDetailObj.company,
-    industry: userDetailObj.industry,
-    position: userDetailObj.position,
+    // Explicitly ensure company and industry are resolved names
+    company: companyName,
+    industry: industryName,
+    position: positionName,
     // City name for display (if populated)
     city: userDetailObj.cityName || (userDetailObj.city && typeof userDetailObj.city === 'object' ? userDetailObj.city.name : null),
     verified: userDetailObj.isBusinessProfile === true && userDetailObj.businessApprovalStatus === 'approved',
