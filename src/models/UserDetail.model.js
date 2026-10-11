@@ -32,6 +32,10 @@ const userDetailSchema = new mongoose.Schema({
     type: Boolean, 
     default: false 
   },
+  isPrivateProfile: {
+    type: Boolean,
+    default: false
+  },
   isEmailVerified: {
     type: Boolean,
     default: false

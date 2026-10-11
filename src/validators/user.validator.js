@@ -29,6 +29,7 @@ const profileSchema = Joi.object({
   position: Joi.string().allow('').optional(),
   coverImage: Joi.string().allow('', null).optional(),
   fastConnect: Joi.boolean().optional(),
+  isPrivateProfile: Joi.boolean().optional(),
 }).unknown(true);
 
 const updateProfileSchema = Joi.object({
@@ -58,6 +59,7 @@ const updateProfileSchema = Joi.object({
   position: Joi.string().allow('').optional(),
   coverImage: Joi.string().allow('', null).optional(),
   fastConnect: Joi.boolean().optional(),
+  isPrivateProfile: Joi.boolean().optional(),
   
   // Business Profile fields
   isBusinessProfile: Joi.boolean().optional(),

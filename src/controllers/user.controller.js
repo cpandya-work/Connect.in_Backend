@@ -164,6 +164,9 @@ const createProfile = asyncHandler(async (req, res) => {
     }
   }
   console.log("Profile create api")
+  if (req.body.isPrivateProfile !== undefined) {
+    req.body.isPrivateProfile = req.body.isPrivateProfile === 'true' || req.body.isPrivateProfile === true;
+  }
   let detail;
   if (user.userDetailId) {
     // Update existing profile and mark as complete
@@ -258,8 +261,207 @@ const createProfile = asyncHandler(async (req, res) => {
 
 const getUserProfileById = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const profile = await getPublicProfile(id, req.user._id);
+  const loggedInUserId = req.user ? req.user._id : null;
+  const profile = await getPublicProfile(id, loggedInUserId);
   success(res, { profile });
+});
+
+const getMemberDirectory = asyncHandler(async (req, res) => {
+  const letter = (req.query.letter || 'A').toUpperCase();
+  const page = Math.max(1, parseInt(req.query.page) || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 24));
+  const type = req.query.type || 'all'; // 'all', 'individual', 'business'
+  const search = req.query.search ? req.query.search.trim() : '';
+
+  // Get active users who have completed their profiles
+  const activeUsers = await User.find({
+    isActive: { $ne: false },
+    userDetailId: { $ne: null }
+  }).select('_id userDetailId');
+
+  const activeDetailIdMap = new Map();
+  activeUsers.forEach(u => {
+    if (u.userDetailId) {
+      activeDetailIdMap.set(u.userDetailId.toString(), u._id);
+    }
+  });
+
+  const activeDetailIds = Array.from(activeDetailIdMap.keys());
+
+  // Base filter for UserDetail
+  const detailQuery = {
+    _id: { $in: activeDetailIds },
+    isProfileComplete: true,
+    isPrivateProfile: { $ne: true },
+  };
+
+  if (type === 'business') {
+    detailQuery.isBusinessProfile = true;
+  } else if (type === 'individual') {
+    detailQuery.isBusinessProfile = { $ne: true };
+  }
+
+  // Letter filter
+  if (letter && letter !== 'ALL') {
+    if (letter === '#') {
+      const nonAlphaRegex = /^[^a-zA-Z]/;
+      detailQuery.$or = [
+        {
+          isBusinessProfile: true,
+          $or: [
+            { businessName: { $regex: nonAlphaRegex } },
+            { businessName: { $in: [null, ''] }, fullName: { $regex: nonAlphaRegex } }
+          ]
+        },
+        {
+          isBusinessProfile: { $ne: true },
+          fullName: { $regex: nonAlphaRegex }
+        }
+      ];
+    } else {
+      const escapedLetter = letter.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const letterRegex = new RegExp(`^${escapedLetter}`, 'i');
+      detailQuery.$or = [
+        {
+          isBusinessProfile: true,
+          $or: [
+            { businessName: { $regex: letterRegex } },
+            { businessName: { $in: [null, ''] }, fullName: { $regex: letterRegex } }
+          ]
+        },
+        {
+          isBusinessProfile: { $ne: true },
+          fullName: { $regex: letterRegex }
+        }
+      ];
+    }
+  }
+
+  if (search) {
+    const searchRegex = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+    const searchCondition = {
+      $or: [
+        { fullName: { $regex: searchRegex } },
+        { businessName: { $regex: searchRegex } },
+        { position: { $regex: searchRegex } },
+        { company: { $regex: searchRegex } },
+        { skills: { $in: [searchRegex] } },
+      ]
+    };
+    if (detailQuery.$or) {
+      detailQuery.$and = [
+        { $or: detailQuery.$or },
+        searchCondition
+      ];
+      delete detailQuery.$or;
+    } else {
+      detailQuery.$or = searchCondition.$or;
+    }
+  }
+
+  const total = await UserDetail.countDocuments(detailQuery);
+
+  const userDetails = await UserDetail.find(detailQuery)
+    .populate('city', 'name')
+    .populate('businessCategory', 'name')
+    .sort({ isBusinessProfile: -1, businessName: 1, fullName: 1 })
+    .skip((page - 1) * limit)
+    .limit(limit)
+    .lean();
+
+  const members = userDetails.map(d => {
+    const userId = activeDetailIdMap.get(d._id.toString()) || d._id;
+    const isBusiness = d.isBusinessProfile === true;
+    const name = isBusiness ? (d.businessName || d.fullName || 'Business Member') : (d.fullName || 'Member');
+    const image = isBusiness ? (d.businessLogo || d.profileImage) : d.profileImage;
+    const cityName = d.city && typeof d.city === 'object' ? d.city.name : (d.cityName || null);
+    const categoryName = d.businessCategory && typeof d.businessCategory === 'object' ? d.businessCategory.name : null;
+
+    return {
+      _id: userId,
+      userDetailId: d._id,
+      name,
+      fullName: d.fullName,
+      businessName: d.businessName,
+      isBusinessProfile: isBusiness,
+      profileImage: image,
+      gender: d.gender,
+      dateOfBirth: d.dateOfBirth,
+      position: d.position || '',
+      company: d.company || '',
+      businessTagline: d.businessTagline || '',
+      businessDescription: d.businessDescription || '',
+      cityName,
+      categoryName,
+      skills: Array.isArray(d.skills) ? d.skills.slice(0, 5) : [],
+      verified: isBusiness && d.businessApprovalStatus === 'approved',
+      profileUrl: `/profile/${userId}`
+    };
+  });
+
+  // Calculate counts by letter for the A-Z alphabet bar
+  let countsByLetter = {};
+  try {
+    const alphabetCounts = await UserDetail.aggregate([
+      {
+        $match: {
+          _id: { $in: activeDetailIds },
+          isProfileComplete: true,
+          isPrivateProfile: { $ne: true },
+          ...(type === 'business' ? { isBusinessProfile: true } : {}),
+          ...(type === 'individual' ? { isBusinessProfile: { $ne: true } } : {}),
+        }
+      },
+      {
+        $project: {
+          displayName: {
+            $cond: [
+              {
+                $and: [
+                  { $eq: ['$isBusinessProfile', true] },
+                  { $gt: [{ $strLenCP: { $ifNull: ['$businessName', ''] } }, 0] }
+                ]
+              },
+              '$businessName',
+              { $ifNull: ['$fullName', ''] }
+            ]
+          }
+        }
+      },
+      {
+        $project: {
+          firstLetter: {
+            $toUpper: { $substrCP: ['$displayName', 0, 1] }
+          }
+        }
+      },
+      {
+        $group: {
+          _id: '$firstLetter',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    alphabetCounts.forEach(item => {
+      if (item._id) {
+        countsByLetter[item._id] = item.count;
+      }
+    });
+  } catch (aggErr) {
+    console.error('Error calculating alphabet counts:', aggErr);
+  }
+
+  success(res, {
+    members,
+    total,
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit) || 1,
+    letter,
+    type,
+    countsByLetter
+  });
 });
 
 const updateUserProfile = asyncHandler(async (req, res) => {
@@ -631,6 +833,7 @@ module.exports = {
   getProfile,
   createProfile,
   getUserProfileById,
+  getMemberDirectory,
   updateUserProfile,
   logout,
   deleteUserAccount,

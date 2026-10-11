@@ -85,10 +85,28 @@ const getPublicProfile = async (userId, loggedInUserId) => {
   delete userDetailObj.businessDocument;
   delete userDetailObj.businessRejectionReason;
 
+  // If the profile is marked private and the requester is not logged in, restrict all details
+  if (userDetailObj.isPrivateProfile && !loggedInUserId) {
+    return {
+      _id: targetUserId,
+      userId: targetUserId,
+      fullName: userDetailObj.isBusinessProfile ? userDetailObj.businessName : userDetailObj.fullName,
+      businessName: userDetailObj.businessName,
+      profileImage: userDetailObj.profileImage,
+      businessLogo: userDetailObj.businessLogo,
+      gender: userDetailObj.gender,
+      isBusinessProfile: userDetailObj.isBusinessProfile,
+      isPrivate: true,
+      isPrivateProfile: true,
+    };
+  }
+
   return {
     phoneNumber: user.phoneNumber,
     email: user.userDetailId.email,
     ...userDetailObj,
+    isPrivateProfile: !!userDetailObj.isPrivateProfile,
+    isPrivate: false,
     // Explicitly ensure company and industry are included
     company: userDetailObj.company,
     industry: userDetailObj.industry,
@@ -161,6 +179,9 @@ const updateProfile = async (userId, updates, files) => {
   if (updates.sports && typeof updates.sports === 'string') updates.sports = updates.sports.split(',').map(s => s.trim()).filter(Boolean);
   if (updates.fastConnect !== undefined) {
     updates.fastConnect = updates.fastConnect === 'true' || updates.fastConnect === true;
+  }
+  if (updates.isPrivateProfile !== undefined) {
+    updates.isPrivateProfile = updates.isPrivateProfile === 'true' || updates.isPrivateProfile === true;
   }
 
   Object.assign(detail, updates);
