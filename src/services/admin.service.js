@@ -2175,6 +2175,40 @@ const getPositionById = async (positionId) => {
   return position;
 };
 
+/**
+ * Get list of completed profile users based on registration duration
+ * @param {string|number} days - Duration in days ('all', 7, 15, 30, 45)
+ */
+const getCompletedProfileUsers = async (days) => {
+  let query = {};
+
+  if (days !== 'all') {
+    const daysNum = parseInt(days, 10);
+    const date = new Date();
+    date.setDate(date.getDate() - daysNum);
+    query.createdAt = { $gte: date };
+  }
+
+  // Find user details that have completed their profile
+  const completedDetails = await UserDetail.find({
+    isProfileComplete: true
+  }).select('_id fullName email');
+
+  const detailIds = completedDetails.map(d => d._id);
+  query.userDetailId = { $in: detailIds };
+
+  const users = await User.find(query)
+    .populate('userDetailId', 'fullName email')
+    .select('phoneNumber userDetailId')
+    .lean();
+
+  return users.map(user => ({
+    phoneNumber: user.phoneNumber || '',
+    fullName: user.userDetailId?.fullName || 'User',
+    email: user.userDetailId?.email || ''
+  }));
+};
+
 module.exports = {
   getPositionsList,
   createPosition,
@@ -2238,6 +2272,7 @@ module.exports = {
   getEmailUsersByRegistration,
   getUnverifiedEmailUsersCountByRegistration,
   getUnverifiedEmailUsersByRegistration,
+  getCompletedProfileUsers,
   getDashboardStats,
   getStatsTrend,
   getBusinessDocumentInfo,

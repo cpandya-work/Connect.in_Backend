@@ -29,6 +29,10 @@ app.use(express.json());
 app.use(cookieParser());
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
+// Root Sitemap for Google and Search Engines
+const { getSitemapXmlCtrl } = require('./controllers/info.controller');
+app.get('/sitemap.xml', getSitemapXmlCtrl);
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);

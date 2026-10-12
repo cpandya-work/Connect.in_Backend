@@ -62,6 +62,7 @@ const {
   getEmailUsersByRegistration,
   getUnverifiedEmailUsersCountByRegistration,
   getUnverifiedEmailUsersByRegistration,
+  getCompletedProfileUsers,
   getDashboardStats,
   getStatsTrend,
   getBusinessDocumentInfo,
@@ -1238,21 +1239,50 @@ const downloadIncompleteProfilesCSVCtrl = asyncHandler(async (req, res) => {
 
   const csvRows = ['mobile,name'];
   for (const user of users) {
-    const mobile = user.phoneNumber || '';
+    const rawMobile = String(user.phoneNumber || '').trim();
     const name = user.fullName || 'User';
 
-    // Escape double quotes and wrap in double quotes
-    const escapedMobile = `"${mobile.replace(/"/g, '""')}"`;
+    // Format mobile as explicit Excel text formula ="...", or quoted text to preserve exact digits
+    const formattedMobile = rawMobile ? `="""${rawMobile.replace(/"/g, '""')}"""` : '""';
     const escapedName = `"${name.replace(/"/g, '""')}"`;
 
-    csvRows.push(`${escapedMobile},${escapedName}`);
+    csvRows.push(`${formattedMobile},${escapedName}`);
   }
   const csvContent = csvRows.join('\n');
 
   const filename = `incomplete_profiles_${days}_${new Date().toISOString().split('T')[0]}.csv`;
-  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-  res.status(200).send(csvContent);
+  res.status(200).send('\uFEFF' + csvContent);
+});
+
+/**
+ * Download CSV of users with completed profiles (mobile, name, email) based on registration duration
+ * Query: days (7, 15, 30, 45, all)
+ */
+const downloadCompletedProfilesCSVCtrl = asyncHandler(async (req, res) => {
+  const { days = 'all' } = req.query;
+  const users = await getCompletedProfileUsers(days);
+
+  const csvRows = ['mobile,name,email'];
+  for (const user of users) {
+    const rawMobile = String(user.phoneNumber || '').trim();
+    const name = user.fullName || 'User';
+    const email = user.email || '';
+
+    // Format mobile as explicit Excel text formula ="...", or quoted text to preserve exact digits
+    const formattedMobile = rawMobile ? `="""${rawMobile.replace(/"/g, '""')}"""` : '""';
+    const escapedName = `"${name.replace(/"/g, '""')}"`;
+    const escapedEmail = `"${email.replace(/"/g, '""')}"`;
+
+    csvRows.push(`${formattedMobile},${escapedName},${escapedEmail}`);
+  }
+  const csvContent = csvRows.join('\n');
+
+  const filename = `completed_profiles_${days}_${new Date().toISOString().split('T')[0]}.csv`;
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.status(200).send('\uFEFF' + csvContent);
 });
 
 /**
@@ -2529,6 +2559,7 @@ module.exports = {
   broadcastOfferEmailCtrl,
   getIncompleteProfileCountCtrl,
   downloadIncompleteProfilesCSVCtrl,
+  downloadCompletedProfilesCSVCtrl,
   sendIncompleteProfileSmsCtrl,
   getGeneralUserCountCtrl,
   sendGeneralSmsBroadcastCtrl,

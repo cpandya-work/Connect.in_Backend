@@ -8,12 +8,14 @@ const {
   exportInquiriesToCSVCtrl,
   deleteInquiryCtrl,
   deleteAllInquiriesCtrl,
+  getSitemapXmlCtrl,
 } = require('../controllers/info.controller');
 const { optionalAuth } = require('../middlewares/auth.middleware');
 const { isAdmin } = require('../middlewares/admin.middleware');
 
 const router = express.Router();
 
+router.get('/sitemap.xml', getSitemapXmlCtrl);
 router.get('/privacy-policy', getPrivacyPolicyCtrl);
 router.get('/terms-conditions', getTermsAndConditionsCtrl);
 router.get('/contact', getContactInfoCtrl);

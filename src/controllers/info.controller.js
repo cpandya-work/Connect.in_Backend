@@ -1,6 +1,16 @@
 const asyncHandler = require('../utils/asyncHandler');
 const { success } = require('../utils/response');
-const { getPrivacyPolicy, getTermsAndConditions, getContactInfo, submitInquiry, getInquiriesList, exportInquiriesToCSV, deleteInquiry, deleteAllInquiries } = require('../services/info.service');
+const { 
+  getPrivacyPolicy, 
+  getTermsAndConditions, 
+  getContactInfo, 
+  submitInquiry, 
+  getInquiriesList, 
+  exportInquiriesToCSV, 
+  deleteInquiry, 
+  deleteAllInquiries,
+  generateSitemapXml
+} = require('../services/info.service');
 const { inquirySchema } = require('../validators/inquiry.validator');
 
 const getPrivacyPolicyCtrl = asyncHandler(async (req, res) => {
@@ -83,6 +93,11 @@ const deleteAllInquiriesCtrl = asyncHandler(async (req, res) => {
   await deleteAllInquiries();
   success(res, null, 'All inquiries deleted successfully');
 });
+const getSitemapXmlCtrl = asyncHandler(async (req, res) => {
+  const xml = await generateSitemapXml();
+  res.header('Content-Type', 'application/xml');
+  res.send(xml);
+});
 
 module.exports = {
   getPrivacyPolicyCtrl,
@@ -93,4 +108,5 @@ module.exports = {
   exportInquiriesToCSVCtrl,
   deleteInquiryCtrl,
   deleteAllInquiriesCtrl,
+  getSitemapXmlCtrl,
 };

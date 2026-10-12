@@ -145,6 +145,105 @@ const deleteAllInquiries = async () => {
   return result;
 };
 
+const User = require('../models/User.model');
+const UserDetail = require('../models/UserDetail.model');
+
+const generateSitemapXml = async () => {
+  const baseUrl = (process.env.APP_URL || 'https://connect.in').replace(/\/+$/, '');
+  const today = new Date().toISOString().split('T')[0];
+
+  const alphabets = [
+    'ALL',
+    'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
+    'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
+    '#'
+  ];
+
+  let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+  xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
+
+  // Static Public Pages
+  const staticPages = [
+    { path: '/', priority: '1.0', changefreq: 'daily' },
+    { path: '/directory', priority: '0.9', changefreq: 'daily' },
+    { path: '/features', priority: '0.7', changefreq: 'monthly' },
+    { path: '/resources', priority: '0.7', changefreq: 'monthly' },
+    { path: '/download-app', priority: '0.6', changefreq: 'monthly' },
+    { path: '/about-us', priority: '0.6', changefreq: 'monthly' },
+    { path: '/inquiry', priority: '0.6', changefreq: 'monthly' },
+    { path: '/privacy-policy', priority: '0.4', changefreq: 'monthly' },
+    { path: '/terms-of-use', priority: '0.4', changefreq: 'monthly' },
+    { path: '/cookie-policy', priority: '0.4', changefreq: 'monthly' },
+    { path: '/directory?type=individual', priority: '0.8', changefreq: 'daily' },
+    { path: '/directory?type=business', priority: '0.8', changefreq: 'daily' },
+  ];
+
+  for (const page of staticPages) {
+    xml += `  <url>\n`;
+    xml += `    <loc>${baseUrl}${page.path}</loc>\n`;
+    xml += `    <lastmod>${today}</lastmod>\n`;
+    xml += `    <changefreq>${page.changefreq}</changefreq>\n`;
+    xml += `    <priority>${page.priority}</priority>\n`;
+    xml += `  </url>\n`;
+  }
+
+  // Directory alphabet landing pages
+  for (const alpha of alphabets) {
+    const encodedLetter = encodeURIComponent(alpha);
+    xml += `  <url>\n`;
+    xml += `    <loc>${baseUrl}/directory?letter=${encodedLetter}</loc>\n`;
+    xml += `    <lastmod>${today}</lastmod>\n`;
+    xml += `    <changefreq>daily</changefreq>\n`;
+    xml += `    <priority>0.8</priority>\n`;
+    xml += `  </url>\n`;
+  }
+
+  // Fetch all active, completed, public profiles
+  try {
+    const activeUsers = await User.find({
+      isActive: { $ne: false },
+      userDetailId: { $ne: null }
+    }).select('_id userDetailId updatedAt');
+
+    const userMap = new Map();
+    activeUsers.forEach(u => {
+      if (u.userDetailId) {
+        userMap.set(u.userDetailId.toString(), {
+          userId: u._id.toString(),
+          updatedAt: u.updatedAt
+        });
+      }
+    });
+
+    const activeDetailIds = Array.from(userMap.keys());
+    if (activeDetailIds.length > 0) {
+      const publicDetails = await UserDetail.find({
+        _id: { $in: activeDetailIds },
+        isProfileComplete: true,
+        isPrivateProfile: { $ne: true }
+      }).select('_id updatedAt');
+
+      for (const detail of publicDetails) {
+        const userInfo = userMap.get(detail._id.toString());
+        if (userInfo && userInfo.userId) {
+          const lastmod = (detail.updatedAt || userInfo.updatedAt || new Date()).toISOString().split('T')[0];
+          xml += `  <url>\n`;
+          xml += `    <loc>${baseUrl}/profile/${userInfo.userId}</loc>\n`;
+          xml += `    <lastmod>${lastmod}</lastmod>\n`;
+          xml += `    <changefreq>weekly</changefreq>\n`;
+          xml += `    <priority>0.8</priority>\n`;
+          xml += `  </url>\n`;
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Error fetching profiles for sitemap:', err);
+  }
+
+  xml += `</urlset>\n`;
+  return xml;
+};
+
 module.exports = { 
   getPrivacyPolicy, 
   getTermsAndConditions, 
@@ -153,5 +252,6 @@ module.exports = {
   getInquiriesList,
   exportInquiriesToCSV,
   deleteInquiry,
-  deleteAllInquiries
+  deleteAllInquiries,
+  generateSitemapXml
 };
