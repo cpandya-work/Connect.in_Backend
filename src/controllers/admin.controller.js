@@ -1239,14 +1239,13 @@ const downloadIncompleteProfilesCSVCtrl = asyncHandler(async (req, res) => {
 
   const csvRows = ['mobile,name'];
   for (const user of users) {
-    const rawMobile = String(user.phoneNumber || '').trim();
+    const mobile = String(user.phoneNumber || '').trim();
     const name = user.fullName || 'User';
 
-    // Format mobile as explicit Excel text formula ="...", or quoted text to preserve exact digits
-    const formattedMobile = rawMobile ? `="""${rawMobile.replace(/"/g, '""')}"""` : '""';
+    const escapedMobile = `"${mobile.replace(/"/g, '""')}"`;
     const escapedName = `"${name.replace(/"/g, '""')}"`;
 
-    csvRows.push(`${formattedMobile},${escapedName}`);
+    csvRows.push(`${escapedMobile},${escapedName}`);
   }
   const csvContent = csvRows.join('\n');
 
@@ -1266,16 +1265,15 @@ const downloadCompletedProfilesCSVCtrl = asyncHandler(async (req, res) => {
 
   const csvRows = ['mobile,name,email'];
   for (const user of users) {
-    const rawMobile = String(user.phoneNumber || '').trim();
+    const mobile = String(user.phoneNumber || '').trim();
     const name = user.fullName || 'User';
     const email = user.email || '';
 
-    // Format mobile as explicit Excel text formula ="...", or quoted text to preserve exact digits
-    const formattedMobile = rawMobile ? `="""${rawMobile.replace(/"/g, '""')}"""` : '""';
+    const escapedMobile = `"${mobile.replace(/"/g, '""')}"`;
     const escapedName = `"${name.replace(/"/g, '""')}"`;
     const escapedEmail = `"${email.replace(/"/g, '""')}"`;
 
-    csvRows.push(`${formattedMobile},${escapedName},${escapedEmail}`);
+    csvRows.push(`${escapedMobile},${escapedName},${escapedEmail}`);
   }
   const csvContent = csvRows.join('\n');
 
