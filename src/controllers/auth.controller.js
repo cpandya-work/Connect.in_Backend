@@ -1,7 +1,21 @@
 const asyncHandler = require('../utils/asyncHandler');
-const { sendOtp, verifyOtp, loginWithEmail, loginWithGoogle } = require('../services/auth.service');
-const { sendOtpSchema, verifyOtpSchema, loginSchema } = require('../validators/auth.validator');
+const {
+  sendOtp,
+  verifyOtp,
+  loginWithEmail,
+  loginWithGoogle,
+  sendEmailOtp,
+  verifyEmailOtp,
+} = require('../services/auth.service');
+const {
+  sendOtpSchema,
+  verifyOtpSchema,
+  loginSchema,
+  sendEmailOtpSchema,
+  verifyEmailOtpSchema,
+} = require('../validators/auth.validator');
 const { success } = require('../utils/response');
+
 
 const sendOtpCtrl = asyncHandler(async (req, res) => {
   const { error } = sendOtpSchema.validate(req.body);
@@ -141,4 +155,28 @@ const verifyEmailCtrl = asyncHandler(async (req, res) => {
   `);
 });
 
-module.exports = { sendOtpCtrl, verifyOtpCtrl, loginWithEmailCtrl, googleLoginCtrl, verifyEmailCtrl };
+const sendEmailOtpCtrl = asyncHandler(async (req, res) => {
+  const { error } = sendEmailOtpSchema.validate(req.body);
+  if (error) return res.status(400).json({ success: false, message: error.details[0].message });
+
+  const result = await sendEmailOtp(req.body.email, req.user || null);
+  success(res, result, 'Verification code sent to your email');
+});
+
+const verifyEmailOtpCtrl = asyncHandler(async (req, res) => {
+  const { error } = verifyEmailOtpSchema.validate(req.body);
+  if (error) return res.status(400).json({ success: false, message: error.details[0].message });
+
+  const result = await verifyEmailOtp(req.body.email, req.body.otp, req.user || null);
+  success(res, result, 'Email verified successfully');
+});
+
+module.exports = {
+  sendOtpCtrl,
+  verifyOtpCtrl,
+  loginWithEmailCtrl,
+  googleLoginCtrl,
+  verifyEmailCtrl,
+  sendEmailOtpCtrl,
+  verifyEmailOtpCtrl,
+};

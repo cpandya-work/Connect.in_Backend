@@ -120,23 +120,8 @@ const ctaButton = (href, label) => `
 
 // ─── 1. Registration / Welcome ───────────────────────────────────────────────
 
-const sendRegistrationEmail = async (email, fullName, verificationUrl = null) => {
-  const subject = 'Welcome to Connect India! 🎉 Verify Your Email';
-  const verificationBlock = verificationUrl ? `
-    <table width="100%" cellpadding="0" cellspacing="0" style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;margin-bottom:24px;text-align:center;">
-      <tr>
-        <td style="padding:24px;">
-          <h3 style="margin:0 0 8px;color:#1e40af;font-size:18px;font-weight:700;">Please Verify Your Email Address 📧</h3>
-          <p style="margin:0 0 16px;color:#3b82f6;font-size:14px;line-height:1.6;">
-            Click the button below to confirm your email address and activate your account for mailers.
-          </p>
-          <a href="${verificationUrl}" target="_blank" style="display:inline-block;padding:12px 28px;background:#ec7523;color:#ffffff;font-size:14px;font-weight:600;text-decoration:none;border-radius:8px;">
-            Verify Email Address →
-          </a>
-        </td>
-      </tr>
-    </table>
-  ` : '';
+const sendRegistrationEmail = async (email, fullName) => {
+  const subject = 'Welcome to Connect India! 🎉';
 
   const html = baseTemplate(`
     <h2 style="margin:0 0 8px;color:#081332;font-size:22px;font-weight:700;">Welcome, ${fullName}! 👋</h2>
@@ -144,8 +129,6 @@ const sendRegistrationEmail = async (email, fullName, verificationUrl = null) =>
       Your profile is live on <strong>Connect India</strong> — India's network for real professional connections.
       Start exploring profiles, send connection requests, and grow your network today.
     </p>
-
-    ${verificationBlock}
 
     <table width="100%" cellpadding="0" cellspacing="0" style="background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;margin-bottom:24px;">
       <tr>
@@ -166,6 +149,7 @@ const sendRegistrationEmail = async (email, fullName, verificationUrl = null) =>
   `);
   await sendEmail(email, subject, html);
 };
+
 
 // ─── 1b. Verification Email Broadcast ────────────────────────────────────────
 
@@ -653,11 +637,48 @@ const renderOfferOfTheDayEmailHtml = (fullName, offer, customBodyTemplate) => {
   `);
 };
 
+// ─── Email Verification OTP ─────────────────────────────────────────────────
+
+const sendEmailOtpCode = async (email, otp) => {
+  const subject = `${otp} is your verification code for Connect India`;
+  console.log(`[Email OTP] Verification code for ${email}: ${otp}`);
+
+  const html = baseTemplate(`
+    <h2 style="margin:0 0 12px;color:#081332;font-size:22px;font-weight:700;">Verify Your Email Address 🔐</h2>
+    <p style="margin:0 0 20px;color:#495057;font-size:15px;line-height:1.7;">
+      Thank you for registering on <strong>Connect India</strong>. Use the 6-digit numeric verification code below to confirm your email and complete your registration:
+    </p>
+
+    <div style="text-align:center;margin:32px 0 28px;">
+      <div style="display:inline-block;padding:16px 36px;font-size:34px;font-weight:700;letter-spacing:10px;color:#EC7523;background:#FFF4EC;border:2px dashed #EC7523;border-radius:12px;font-family:'Courier New',Courier,monospace;">
+        ${otp}
+      </div>
+    </div>
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8f9fb;border-radius:10px;margin-bottom:24px;">
+      <tr>
+        <td style="padding:14px 18px;text-align:center;">
+          <p style="margin:0;color:#6b7280;font-size:13px;line-height:1.5;">
+            ⏱️ This code is valid for <strong>10 minutes</strong>. Please do not share this code with anyone.
+          </p>
+        </td>
+      </tr>
+    </table>
+
+    <p style="margin:0;color:#9ca3af;font-size:12px;line-height:1.5;">
+      If you did not request this verification code, please ignore this email.
+    </p>
+  `);
+
+  await sendEmail(email, subject, html);
+};
+
 module.exports = {
   sendEmail,
   baseTemplate,
   sendRegistrationEmail,
   sendVerificationEmail,
+  sendEmailOtpCode,
   sendConnectionRequestEmail,
   sendConnectionAcceptedEmail,
   sendIncomingLikeEmail,
@@ -670,4 +691,5 @@ module.exports = {
   renderCityIndustrySnapshotEmailHtml,
   renderOfferOfTheDayEmailHtml,
 };
+
 

@@ -34,4 +34,29 @@ const loginSchema = Joi.object({
   deviceType: Joi.string().valid('android', 'ios', 'web').default('web').optional(),
 });
 
-module.exports = { sendOtpSchema, verifyOtpSchema, loginSchema };
+const sendEmailOtpSchema = Joi.object({
+  email: Joi.string().email().required().messages({
+    'string.email': 'Please enter a valid email address',
+    'any.required': 'Email is required'
+  }),
+});
+
+const verifyEmailOtpSchema = Joi.object({
+  email: Joi.string().email().required().messages({
+    'string.email': 'Please enter a valid email address',
+    'any.required': 'Email is required'
+  }),
+  otp: Joi.string().length(6).pattern(/^\d{6}$/).required().messages({
+    'string.length': 'Verification code must be 6 digits',
+    'string.pattern.base': 'Verification code must contain only numbers',
+    'any.required': 'Verification code is required'
+  }),
+});
+
+module.exports = {
+  sendOtpSchema,
+  verifyOtpSchema,
+  loginSchema,
+  sendEmailOtpSchema,
+  verifyEmailOtpSchema,
+};

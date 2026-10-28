@@ -175,6 +175,7 @@ const createProfile = asyncHandler(async (req, res) => {
     const updateData = isBusiness ? {
       ...req.body,
       isBusinessProfile: true,
+      isEmailVerified: user.userDetailId.isEmailVerified || req.body.isEmailVerified === 'true' || req.body.isEmailVerified === true,
       businessLogo: profileImage || user.userDetailId.businessLogo || user.userDetailId.profileImage,
       businessCoverImage: coverImage || user.userDetailId.businessCoverImage || user.userDetailId.coverImage,
       businessDocument: businessDocument || user.userDetailId.businessDocument,
@@ -186,6 +187,7 @@ const createProfile = asyncHandler(async (req, res) => {
       isProfileComplete: true,
     } : {
       ...req.body,
+      isEmailVerified: user.userDetailId.isEmailVerified || req.body.isEmailVerified === 'true' || req.body.isEmailVerified === true,
       profileImage: profileImage || user.userDetailId.profileImage,
       coverImage: coverImage || user.userDetailId.coverImage,
       habits: Array.isArray(req.body.habits) ? req.body.habits : (req.body.habits?.split(',').map(h => h.trim()).filter(Boolean) || []),
@@ -206,6 +208,7 @@ const createProfile = asyncHandler(async (req, res) => {
     const createData = isBusiness ? {
       ...req.body,
       isBusinessProfile: true,
+      isEmailVerified: req.body.isEmailVerified === 'true' || req.body.isEmailVerified === true,
       businessLogo: profileImage,
       businessCoverImage: coverImage,
       businessDocument,
@@ -213,6 +216,7 @@ const createProfile = asyncHandler(async (req, res) => {
       isProfileComplete: true,
     } : {
       ...req.body,
+      isEmailVerified: req.body.isEmailVerified === 'true' || req.body.isEmailVerified === true,
       profileImage,
       coverImage,
       habits: Array.isArray(req.body.habits) ? req.body.habits : (req.body.habits?.split(',').map(h => h.trim()).filter(Boolean) || []),
@@ -224,6 +228,7 @@ const createProfile = asyncHandler(async (req, res) => {
       isProfileComplete: true,
     };
     detail = await UserDetail.create(createData);
+
     await User.findByIdAndUpdate(user._id, { userDetailId: detail._id });
   }
   
@@ -242,23 +247,16 @@ const createProfile = asyncHandler(async (req, res) => {
     const displayName = isBusiness ? detail.businessName : detail.fullName;
     if (detail.email && displayName) {
       try {
-        let token = detail.emailVerificationToken;
-        if (!token) {
-          const crypto = require('crypto');
-          token = crypto.randomBytes(32).toString('hex');
-          await UserDetail.findByIdAndUpdate(detail._id, { emailVerificationToken: token });
-        }
-        const backendUrl = process.env.BACKEND_URL || 'https://api.connect.in';
-        const verificationUrl = `${backendUrl}/api/auth/verify-email?token=${token}`;
-        await sendRegistrationEmail(detail.email, displayName, verificationUrl);
+        await sendRegistrationEmail(detail.email, displayName);
       } catch (err) {
-        console.error("Error sending registration email with verification:", err);
+        console.error("Error sending registration welcome email:", err);
       }
     }
     if (updatedUser.phoneNumber && displayName) {
       sendRegistrationSms(updatedUser.phoneNumber, displayName);
     }
   });
+
 });
 
 const getUserProfileById = asyncHandler(async (req, res) => {

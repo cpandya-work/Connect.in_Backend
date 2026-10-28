@@ -1,10 +1,13 @@
 const User = require('../models/User.model');
 const UserDetail = require('../models/UserDetail.model');
 const Otp = require('../models/Otp.model');
+const EmailOtp = require('../models/EmailOtp.model');
 const generateOTP = require('../utils/generateOTP');
 const { signToken } = require('../config/jwt');
 const { saveUserToken } = require('./notification.service');
+const { sendEmailOtpCode } = require('./email.service');
 const axios = require('axios');
+
 
 const sendOtp = async (phoneNumber) => {
   const otp = generateOTP();
@@ -16,7 +19,7 @@ const sendOtp = async (phoneNumber) => {
     { upsert: true, new: true }
   );
   
-   await axios.get(`https://bulkpush.mytoday.com/BulkSms/SingleMsgApi?feedid=393258&username=9884196886&password=SuX@2egALigzEKZ&To=${phoneNumber}&Text=Dear%20User%20Your%20OTP%20for%20completing%20the%20registration%20in%20Connect%20is%20${otp}.%20-%20Connect%20India%20Team&templateid=1207172657402140627&entityid=1201160765852941646&senderid=CONCTN`)
+  await axios.get(`https://bulkpush.mytoday.com/BulkSms/SingleMsgApi?feedid=393258&username=9884196886&password=SuX@2egALigzEKZ&To=${phoneNumber}&Text=Dear%20User%20Your%20OTP%20for%20completing%20the%20registration%20in%20Connect%20is%20${otp}.%20-%20Connect%20India%20Team&templateid=1207172657402140627&entityid=1201160765852941646&senderid=CONCTN`)
 
   console.log(`OTP for ${phoneNumber}: ${otp}`); // Replace with SMS
   return { success: true };
@@ -133,4 +136,68 @@ const loginWithGoogle = async (accessToken, fcmToken = null, deviceType = 'web')
   return { token, isNewUser: false, isProfileComplete, user };
 };
 
-module.exports = { sendOtp, verifyOtp, loginWithEmail, loginWithGoogle };
+const sendEmailOtp = async (email, user = null) => {
+  const normalizedEmail = email.toLowerCase().trim();
+
+  // Check if this email is already registered and in use by another user
+  const existingUserDetail = await UserDetail.findOne({ email: normalizedEmail });
+  if (existingUserDetail) {
+    const isCurrentUser = user && user.userDetailId && user.userDetailId.toString() === existingUserDetail._id.toString();
+    if (!isCurrentUser) {
+      throw new Error('This email address is already in use by another account');
+    }
+  }
+
+  // Generate 6-digit random numeric code
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+  await EmailOtp.findOneAndUpdate(
+    { email: normalizedEmail },
+    { code: otp, expiresAt },
+    { upsert: true, new: true }
+  );
+
+  await sendEmailOtpCode(normalizedEmail, otp);
+
+  return { success: true, message: 'Verification code sent to your email' };
+};
+
+const verifyEmailOtp = async (email, otp, user = null) => {
+  const normalizedEmail = email.toLowerCase().trim();
+
+  const otpDoc = await EmailOtp.findOne({ email: normalizedEmail, code: otp.trim() });
+  if (!otpDoc || otpDoc.expiresAt < new Date()) {
+    throw new Error('Invalid or expired verification code. Please try again.');
+  }
+
+  // Delete used OTP
+  await EmailOtp.deleteOne({ _id: otpDoc._id });
+
+  // If user is authenticated, update UserDetail
+  if (user) {
+    if (user.userDetailId) {
+      await UserDetail.findByIdAndUpdate(user.userDetailId, {
+        isEmailVerified: true,
+        email: normalizedEmail,
+      });
+    } else {
+      const userDetail = await UserDetail.create({
+        email: normalizedEmail,
+        isEmailVerified: true,
+      });
+      await User.findByIdAndUpdate(user._id, { userDetailId: userDetail._id });
+    }
+  }
+
+  return { success: true, message: 'Email verified successfully' };
+};
+
+module.exports = {
+  sendOtp,
+  verifyOtp,
+  loginWithEmail,
+  loginWithGoogle,
+  sendEmailOtp,
+  verifyEmailOtp,
+};
