@@ -644,9 +644,28 @@ const saveProfileStep = asyncHandler(async (req, res) => {
       if (req.body.pincode) stepData.pincode = req.body.pincode;
       if (req.body.religion) stepData.religion = req.body.religion;
       if (req.body.status) stepData.status = req.body.status;
+      if (req.body.gender) stepData.gender = req.body.gender;
+      if (req.body.dateOfBirth) {
+        stepData.dateOfBirth = req.body.dateOfBirth instanceof Date 
+          ? req.body.dateOfBirth 
+          : new Date(req.body.dateOfBirth);
+      }
+      if (req.body.birthDate && !stepData.dateOfBirth) {
+        stepData.dateOfBirth = new Date(req.body.birthDate);
+      }
     }
     
-    // Step 2: Personal details
+    // Step 2 (8-step) or Step 3 (9-step): Language
+    if (stepNumber === 2 || stepNumber === 3) {
+      const langs = req.body.preferredLanguage || req.body.language;
+      if (langs) {
+        stepData.preferredLanguage = Array.isArray(langs)
+          ? langs
+          : (typeof langs === 'string' ? langs.split(',').map(l => l.trim()).filter(Boolean) : []);
+      }
+    }
+    
+    // Step 2 legacy support: Personal details if sent
     if (stepNumber === 2) {
       if (req.body.email) stepData.email = req.body.email;
       if (req.body.gender) stepData.gender = req.body.gender;
@@ -657,60 +676,53 @@ const saveProfileStep = asyncHandler(async (req, res) => {
       }
     }
     
-    // Step 3: Language
-    if (stepNumber === 3) {
-      if (req.body.preferredLanguage) {
-        stepData.preferredLanguage = Array.isArray(req.body.preferredLanguage)
-          ? req.body.preferredLanguage
-          : (req.body.preferredLanguage.split(',').map(l => l.trim()).filter(Boolean) || []);
-      }
-    }
-    
-    // Step 4: Habits
-    if (stepNumber === 4) {
+    // Step 3 (8-step) or Step 4 (9-step): Habits
+    if (stepNumber === 3 || stepNumber === 4) {
       if (req.body.habits) {
         stepData.habits = Array.isArray(req.body.habits) 
           ? req.body.habits 
-          : (req.body.habits.split(',').map(h => h.trim()).filter(Boolean) || []);
+          : (typeof req.body.habits === 'string' ? req.body.habits.split(',').map(h => h.trim()).filter(Boolean) : []);
       }
     }
     
-    // Step 5: Interests
-    if (stepNumber === 5) {
-      if (req.body.interests) {
-        stepData.interests = Array.isArray(req.body.interests) 
-          ? req.body.interests 
-          : (req.body.interests.split(',').map(i => i.trim()).filter(Boolean) || []);
+    // Step 4 (8-step) or Step 5 (9-step): Interests
+    if (stepNumber === 4 || stepNumber === 5) {
+      const ints = req.body.interests || req.body.interest;
+      if (ints) {
+        stepData.interests = Array.isArray(ints) 
+          ? ints 
+          : (typeof ints === 'string' ? ints.split(',').map(i => i.trim()).filter(Boolean) : []);
       }
     }
     
-    // Step 6: Skills
-    if (stepNumber === 6) {
-      if (req.body.skills) {
-        stepData.skills = Array.isArray(req.body.skills) 
-          ? req.body.skills 
-          : (req.body.skills.split(',').map(s => s.trim()).filter(Boolean) || []);
+    // Step 5 (8-step) or Step 6 (9-step): Skills
+    if (stepNumber === 5 || stepNumber === 6) {
+      const sks = req.body.skills || req.body.skill;
+      if (sks) {
+        stepData.skills = Array.isArray(sks) 
+          ? sks 
+          : (typeof sks === 'string' ? sks.split(',').map(s => s.trim()).filter(Boolean) : []);
       }
     }
     
-    // Step 7: Sports
-    if (stepNumber === 7) {
+    // Step 6 (8-step) or Step 7 (9-step): Sports
+    if (stepNumber === 6 || stepNumber === 7) {
       if (req.body.sports) {
         stepData.sports = Array.isArray(req.body.sports) 
           ? req.body.sports 
-          : (req.body.sports.split(',').map(s => s.trim()).filter(Boolean) || []);
+          : (typeof req.body.sports === 'string' ? req.body.sports.split(',').map(s => s.trim()).filter(Boolean) : []);
       }
     }
     
-    // Step 8: Industry and Company
-    if (stepNumber === 8) {
+    // Step 7 (8-step) or Step 8 (9-step): Industry and Company
+    if (stepNumber === 7 || stepNumber === 8) {
       if (req.body.industry) stepData.industry = req.body.industry;
       if (req.body.company) stepData.company = req.body.company;
       if (req.body.position !== undefined) stepData.position = req.body.position;
     }
     
-    // Step 9: Profile Image
-    if (stepNumber === 9 && profileImage) {
+    // Step 8 (8-step) or Step 9 (9-step): Profile Image
+    if ((stepNumber === 8 || stepNumber === 9) && profileImage) {
       stepData.profileImage = profileImage;
     }
   }
@@ -719,8 +731,8 @@ const saveProfileStep = asyncHandler(async (req, res) => {
   stepData.lastCompletedStep = stepNumber;
   
   // If final step is completed, mark profile as complete
-  const finalStep = isBusiness ? 3 : 9;
-  if (stepNumber === finalStep) {
+  const isFinalStep = isBusiness ? stepNumber === 3 : stepNumber >= 8;
+  if (isFinalStep) {
     stepData.isProfileComplete = true;
   }
   
@@ -732,7 +744,7 @@ const saveProfileStep = asyncHandler(async (req, res) => {
       lastCompletedStep: stepNumber,
     };
     
-    if (stepNumber === finalStep) {
+    if (isFinalStep) {
       updateObj.isProfileComplete = true;
     }
     
@@ -856,6 +868,74 @@ const getProfileProgress = asyncHandler(async (req, res) => {
   });
 });
 
+const skipToDashboard = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id).populate('userDetailId');
+  if (!user) {
+    return res.status(404).json({
+      success: false,
+      message: 'User not found'
+    });
+  }
+
+  const {
+    fullName,
+    city,
+    pincode,
+    religion,
+    status,
+    maritalStatus,
+    gender,
+    birthDate,
+    dateOfBirth,
+    email,
+    language,
+    preferredLanguage
+  } = req.body;
+
+  const updateData = {
+    isProfileComplete: true
+  };
+
+  if (fullName) updateData.fullName = fullName;
+  if (city && city.trim() !== '' && /^[0-9a-fA-F]{24}$/.test(city)) {
+    updateData.city = city;
+  }
+  if (pincode) updateData.pincode = pincode;
+  if (religion) updateData.religion = religion;
+  if (status || maritalStatus) updateData.status = status || maritalStatus;
+  if (gender) updateData.gender = gender;
+  if (dateOfBirth || birthDate) {
+    updateData.dateOfBirth = new Date(dateOfBirth || birthDate);
+  }
+  if (email) {
+    updateData.email = email;
+    updateData.isEmailVerified = true;
+  }
+  const langs = preferredLanguage || language;
+  if (langs) {
+    updateData.preferredLanguage = Array.isArray(langs)
+      ? langs
+      : (typeof langs === 'string' ? langs.split(',').map(l => l.trim()).filter(Boolean) : []);
+  }
+
+  let detail = user.userDetailId;
+  if (detail) {
+    detail = await UserDetail.findByIdAndUpdate(
+      detail._id,
+      { $set: updateData },
+      { new: true, runValidators: false }
+    );
+  } else {
+    detail = await UserDetail.create(updateData);
+    await User.findByIdAndUpdate(user._id, { userDetailId: detail._id });
+  }
+
+  success(res, {
+    profile: detail,
+    isProfileComplete: true
+  }, 'Profile saved and skipped to dashboard');
+});
+
 module.exports = {
   getProfile,
   createProfile,
@@ -866,4 +946,5 @@ module.exports = {
   deleteUserAccount,
   saveProfileStep,
   getProfileProgress,
+  skipToDashboard,
 };

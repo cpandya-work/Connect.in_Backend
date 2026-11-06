@@ -7,6 +7,7 @@ const {
   verifyEmailCtrl,
   sendEmailOtpCtrl,
   verifyEmailOtpCtrl,
+  googleVerifyEmailCtrl,
 } = require('../controllers/auth.controller');
 const { logout } = require('../controllers/user.controller');
 const { protect, optionalAuth } = require('../middlewares/auth.middleware');
@@ -18,6 +19,7 @@ router.post('/send-otp', sendOtpCtrl);
 router.post('/verify-otp', verifyOtpCtrl);
 router.post('/send-email-otp', optionalAuth, sendEmailOtpCtrl);
 router.post('/verify-email-otp', optionalAuth, verifyEmailOtpCtrl);
+router.post('/google-verify-email', optionalAuth, googleVerifyEmailCtrl);
 router.post('/login-with-email', loginWithEmailCtrl);
 router.post('/google-login', googleLoginCtrl);
 router.post('/logout', protect, logout);

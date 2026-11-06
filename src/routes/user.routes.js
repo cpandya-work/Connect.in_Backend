@@ -8,6 +8,7 @@ const {
   deleteUserAccount,
   saveProfileStep,
   getProfileProgress,
+  skipToDashboard,
 } = require('../controllers/user.controller');
 const { protect, optionalAuth } = require('../middlewares/auth.middleware');
 const upload = require('../middlewares/businessProfileUpload.middleware');
@@ -30,6 +31,7 @@ router.use(protect);
 router.get('/profile', getProfile);
 router.get('/profile/progress', getProfileProgress);
 router.post('/profile/step', upload.fields(PROFILE_UPLOAD_FIELDS), saveProfileStep);
+router.post('/profile/skip-to-dashboard', express.json(), skipToDashboard);
 router.put('/profile', upload.fields(PROFILE_UPLOAD_FIELDS), updateUserProfile);
 router.delete('/account', deleteUserAccount);
 

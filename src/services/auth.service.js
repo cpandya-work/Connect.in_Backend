@@ -55,12 +55,16 @@ const verifyOtp = async (phoneNumber, otp, fcmToken = null, deviceType = 'androi
 
   // Check if profile is actually complete by checking UserDetail.isProfileComplete
   let isProfileComplete = false;
+  let isEmailVerified = false;
+  let email = null;
   if (user.userDetailId) {
     const userDetail = await UserDetail.findById(user.userDetailId);
     isProfileComplete = userDetail ? (userDetail.isProfileComplete === true) : false;
+    isEmailVerified = userDetail ? (userDetail.isEmailVerified === true) : false;
+    email = userDetail ? userDetail.email : null;
   }
 
-  return { token, isNewUser, isProfileComplete, user };
+  return { token, isNewUser, isProfileComplete, isEmailVerified, email, user };
 };
 
 const loginWithEmail = async (email, password, fcmToken = null, deviceType = 'web') => {
@@ -163,7 +167,7 @@ const sendEmailOtp = async (email, user = null) => {
   return { success: true, message: 'Verification code sent to your email' };
 };
 
-const verifyEmailOtp = async (email, otp, user = null) => {
+const verifyEmailOtp = async (email, otp, user = null, phoneNumber = null) => {
   const normalizedEmail = email.toLowerCase().trim();
 
   const otpDoc = await EmailOtp.findOne({ email: normalizedEmail, code: otp.trim() });
@@ -174,10 +178,15 @@ const verifyEmailOtp = async (email, otp, user = null) => {
   // Delete used OTP
   await EmailOtp.deleteOne({ _id: otpDoc._id });
 
-  // If user is authenticated, update UserDetail
-  if (user) {
-    if (user.userDetailId) {
-      await UserDetail.findByIdAndUpdate(user.userDetailId, {
+  let targetUser = user;
+  if (!targetUser && phoneNumber) {
+    targetUser = await User.findOne({ phoneNumber });
+  }
+
+  // If user is resolved, update UserDetail
+  if (targetUser) {
+    if (targetUser.userDetailId) {
+      await UserDetail.findByIdAndUpdate(targetUser.userDetailId, {
         isEmailVerified: true,
         email: normalizedEmail,
       });
@@ -186,11 +195,89 @@ const verifyEmailOtp = async (email, otp, user = null) => {
         email: normalizedEmail,
         isEmailVerified: true,
       });
-      await User.findByIdAndUpdate(user._id, { userDetailId: userDetail._id });
+      await User.findByIdAndUpdate(targetUser._id, { userDetailId: userDetail._id });
     }
   }
 
-  return { success: true, message: 'Email verified successfully' };
+  return { success: true, message: 'Email verified successfully', email: normalizedEmail };
+};
+
+const googleVerifyEmail = async (accessToken, user = null, phoneNumber = null) => {
+  if (!accessToken) {
+    throw new Error('Access token is required');
+  }
+
+  // Step 1: Fetch user info from Google using access token
+  const userInfoResponse = await axios.get('https://www.googleapis.com/oauth2/v2/userinfo', {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  const { email, name } = userInfoResponse.data;
+
+  if (!email) {
+    throw new Error('Email not provided by Google');
+  }
+
+  const normalizedEmail = email.toLowerCase().trim();
+
+  // Step 2: Check if this email is already registered and in use by another user
+  const existingUserDetail = await UserDetail.findOne({ email: normalizedEmail });
+  if (existingUserDetail) {
+    let currentDetailId = null;
+    if (user && user.userDetailId) {
+      currentDetailId = user.userDetailId.toString();
+    } else if (phoneNumber) {
+      const userByPhone = await User.findOne({ phoneNumber });
+      if (userByPhone && userByPhone.userDetailId) {
+        currentDetailId = userByPhone.userDetailId.toString();
+      }
+    }
+
+    if (!currentDetailId || currentDetailId !== existingUserDetail._id.toString()) {
+      throw new Error('This email address is already in use by another account');
+    }
+  }
+
+  // Step 3: Resolve target user
+  let targetUser = user;
+  if (!targetUser && phoneNumber) {
+    targetUser = await User.findOne({ phoneNumber });
+  }
+
+  let fullNameToSet = name ? name.trim() : '';
+
+  // Step 4: Update or create UserDetail with verified email and name
+  if (targetUser) {
+    if (targetUser.userDetailId) {
+      const userDetail = await UserDetail.findById(targetUser.userDetailId);
+      if (userDetail) {
+        userDetail.email = normalizedEmail;
+        userDetail.isEmailVerified = true;
+        if (!userDetail.fullName && fullNameToSet) {
+          userDetail.fullName = fullNameToSet;
+        } else if (userDetail.fullName) {
+          fullNameToSet = userDetail.fullName;
+        }
+        await userDetail.save();
+      }
+    } else {
+      const userDetail = await UserDetail.create({
+        email: normalizedEmail,
+        isEmailVerified: true,
+        fullName: fullNameToSet || undefined,
+      });
+      await User.findByIdAndUpdate(targetUser._id, { userDetailId: userDetail._id });
+    }
+  }
+
+  return {
+    success: true,
+    email: normalizedEmail,
+    name: fullNameToSet,
+    isEmailVerified: true,
+  };
 };
 
 module.exports = {
@@ -200,4 +287,5 @@ module.exports = {
   loginWithGoogle,
   sendEmailOtp,
   verifyEmailOtp,
+  googleVerifyEmail,
 };

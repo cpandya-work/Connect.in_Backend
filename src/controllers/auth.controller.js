@@ -6,6 +6,7 @@ const {
   loginWithGoogle,
   sendEmailOtp,
   verifyEmailOtp,
+  googleVerifyEmail,
 } = require('../services/auth.service');
 const {
   sendOtpSchema,
@@ -13,6 +14,7 @@ const {
   loginSchema,
   sendEmailOtpSchema,
   verifyEmailOtpSchema,
+  googleVerifyEmailSchema,
 } = require('../validators/auth.validator');
 const { success } = require('../utils/response');
 
@@ -167,8 +169,17 @@ const verifyEmailOtpCtrl = asyncHandler(async (req, res) => {
   const { error } = verifyEmailOtpSchema.validate(req.body);
   if (error) return res.status(400).json({ success: false, message: error.details[0].message });
 
-  const result = await verifyEmailOtp(req.body.email, req.body.otp, req.user || null);
+  const result = await verifyEmailOtp(req.body.email, req.body.otp, req.user || null, req.body.phoneNumber || null);
   success(res, result, 'Email verified successfully');
+});
+
+const googleVerifyEmailCtrl = asyncHandler(async (req, res) => {
+  const { error } = googleVerifyEmailSchema.validate(req.body);
+  if (error) return res.status(400).json({ success: false, message: error.details[0].message });
+
+  const { accessToken, phoneNumber } = req.body;
+  const result = await googleVerifyEmail(accessToken, req.user || null, phoneNumber || null);
+  success(res, result, 'Email verified successfully via Google');
 });
 
 module.exports = {
@@ -179,4 +190,5 @@ module.exports = {
   verifyEmailCtrl,
   sendEmailOtpCtrl,
   verifyEmailOtpCtrl,
+  googleVerifyEmailCtrl,
 };

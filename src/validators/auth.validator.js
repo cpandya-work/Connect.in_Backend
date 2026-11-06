@@ -51,6 +51,14 @@ const verifyEmailOtpSchema = Joi.object({
     'string.pattern.base': 'Verification code must contain only numbers',
     'any.required': 'Verification code is required'
   }),
+  phoneNumber: Joi.string().optional().allow('', null),
+});
+
+const googleVerifyEmailSchema = Joi.object({
+  accessToken: Joi.string().required().messages({
+    'any.required': 'Access token is required',
+  }),
+  phoneNumber: Joi.string().optional().allow('', null),
 });
 
 module.exports = {
@@ -59,4 +67,5 @@ module.exports = {
   loginSchema,
   sendEmailOtpSchema,
   verifyEmailOtpSchema,
+  googleVerifyEmailSchema,
 };
