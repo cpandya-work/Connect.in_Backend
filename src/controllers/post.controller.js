@@ -5,7 +5,7 @@ const User = require('../models/User.model');
 const ConnectionGroup = require('../models/ConnectionGroup.model');
 const { sendPostNotification } = require('../services/notification.service');
 const { sendQuestionAnsweredEmail, sendAnswerRepliedEmail } = require('../services/email.service');
-const { generateAiAnswer, recommendPeopleAndBusinesses } = require('../services/ai.service');
+const { generateAiQuestion, generateAiAnswer, recommendPeopleAndBusinesses } = require('../services/ai.service');
 const { success } = require('../utils/response');
 const axios = require('axios');
 
@@ -109,7 +109,10 @@ const createPost = asyncHandler(async (req, res) => {
   const posterImage = poster?.userDetailId?.profileImage || '';
   const authorCity = poster?.userDetailId?.city || null;
 
+  let postType = req.body.postType || 'ask';
+
   let targetSegments = {
+    postType: 'ask',
     connections: connectionGroupId ? false : true,
     city: false,
     industries: [],
@@ -122,7 +125,11 @@ const createPost = asyncHandler(async (req, res) => {
       const parsed = typeof req.body.targetSegments === 'string'
         ? JSON.parse(req.body.targetSegments)
         : req.body.targetSegments;
+      if (parsed.postType) {
+        postType = parsed.postType;
+      }
       targetSegments = {
+        postType,
         getAiResponses: typeof parsed.getAiResponses === 'boolean' ? parsed.getAiResponses : true,
         audienceType: parsed.audienceType || 'help',
         connections: connectionGroupId ? false : (typeof parsed.connections === 'boolean' ? parsed.connections : true),
@@ -150,6 +157,23 @@ const createPost = asyncHandler(async (req, res) => {
   );
   const isApproved = isAskedOnlyToConnections;
 
+  // Automatically populate question with AI for every ask or share submission
+  let aiQuestion = (req.body.question || req.body.title || '').trim();
+  if (content && content.trim()) {
+    try {
+      const generatedQ = await generateAiQuestion(content.trim(), postType, targetSegments);
+      if (generatedQ) {
+        aiQuestion = generatedQ;
+      }
+    } catch (qErr) {
+      console.error('Error generating AI question during post creation:', qErr);
+      if (!aiQuestion) {
+        const firstLine = content.trim().split('\n')[0].trim().slice(0, 100);
+        aiQuestion = firstLine.endsWith('?') ? firstLine : `${firstLine}?`;
+      }
+    }
+  }
+
   // Generate AI Answer and Profile Recommendations
   let aiAnswer = null;
   let aiRecommendations = { people: [], businesses: [] };
@@ -159,9 +183,9 @@ const createPost = asyncHandler(async (req, res) => {
   if (content && content.trim()) {
     try {
       if (shouldGenerateAiAnswer) {
-        aiAnswer = await generateAiAnswer(content.trim(), targetSegments);
+        aiAnswer = await generateAiAnswer(aiQuestion || content.trim(), targetSegments);
       }
-      aiRecommendations = await recommendPeopleAndBusinesses(content.trim(), targetSegments, userId);
+      aiRecommendations = await recommendPeopleAndBusinesses(aiQuestion ? `${aiQuestion} ${content.trim()}` : content.trim(), targetSegments, userId);
     } catch (aiErr) {
       console.error('Error generating AI data during post creation:', aiErr);
     }
@@ -169,6 +193,9 @@ const createPost = asyncHandler(async (req, res) => {
 
   const post = await Post.create({
     userId,
+    postType,
+    question: aiQuestion,
+    title: aiQuestion,
     content: content || '',
     attachments,
     linkPreview,
@@ -242,135 +269,163 @@ function getAgeGroup(dateOfBirth) {
 }
 
 const getPosts = asyncHandler(async (req, res) => {
-  const userId = req.user._id;
+  const userId = req.user ? req.user._id : null;
   const { sortBy, filter, page: queryPage, limit: queryLimit } = req.query;
 
   const page = Math.max(1, parseInt(queryPage, 10) || 1);
   const limit = Math.max(1, parseInt(queryLimit, 10) || 10);
   const skip = (page - 1) * limit;
 
-  // Retrieve current user details for targeting match
-  const user = await User.findById(userId).populate('userDetailId');
-  const userDetail = user?.userDetailId;
-  const userIndustry = userDetail?.industry || '';
-  const userInterests = userDetail?.interests || [];
-  const userCityId = userDetail?.city ? userDetail.city.toString() : null;
-  const userAgeGroup = userDetail?.dateOfBirth ? getAgeGroup(userDetail.dateOfBirth) : null;
+  let queryFilter;
 
-  // Find connections
-  const connections = await UserConnections.find({
-    $or: [
-      { connection1Id: userId },
-      { connection2Id: userId },
-    ],
-  });
-
-  const connectionIds = connections.map(c =>
-    c.connection1Id.toString() === userId.toString() ? c.connection2Id : c.connection1Id
-  );
-
-  // Fetch connection groups where current user is a member
-  const myGroups = await ConnectionGroup.find({ connections: userId }).select('_id');
-  const myGroupIds = myGroups.map(g => g._id);
-
-  const orQueries = [
-    // 1. User sees their own posts
-    { userId: userId },
-
-    // 2. User sees posts shared with a group they are in
-    { connectionGroupId: { $in: myGroupIds } },
-
-    // 3. User sees posts of connections targeted at connections or having no targetSegments
-    {
-      userId: { $in: connectionIds },
-      connectionGroupId: null,
-      $or: [
-        { targetSegments: { $exists: false } },
-        { 'targetSegments.connections': true },
+  if (!userId) {
+    // Unauthenticated public visitors see all public approved questions
+    queryFilter = {
+      $and: [
+        { connectionGroupId: null },
         {
-          'targetSegments.connections': false,
-          'targetSegments.city': false,
-          'targetSegments.industries': { $size: 0 },
-          'targetSegments.interests': { $size: 0 },
-          'targetSegments.ageGroups': { $size: 0 }
+          $or: [
+            { isApproved: true },
+            { isApproved: { $ne: false } }
+          ]
         }
       ]
-    },
-
-    // 4. Public questions on Share/Ask page (not restricted to a connection group)
-    {
-      connectionGroupId: null
-    }
-  ];
-
-  // 4. User sees posts targeted at their industry (even if not connected)
-  if (userIndustry) {
-    orQueries.push({
-      connectionGroupId: null,
-      'targetSegments.industries': userIndustry
-    });
-  }
-
-  // 4b. User sees posts targeted at their interests (even if not connected)
-  if (userInterests && userInterests.length > 0) {
-    orQueries.push({
-      connectionGroupId: null,
-      'targetSegments.interests': { $in: userInterests }
-    });
-  }
-
-  // 5. User sees posts targeted at their city (even if not connected)
-  const userCityIdStr = userCityId || (userDetail?.city?._id ? userDetail.city._id.toString() : (userDetail?.city ? userDetail.city.toString() : null));
-  if (userCityIdStr) {
-    orQueries.push({
-      connectionGroupId: null,
-      'targetSegments.city': true,
-      $or: [
-        { authorCity: userCityIdStr },
-        { authorCity: null },
-        { authorCity: { $exists: false } }
-      ]
-    });
-  } else {
-    // If viewing user city is not explicitly set, include city-targeted questions so they are discoverable
-    orQueries.push({
-      connectionGroupId: null,
-      'targetSegments.city': true
-    });
-  }
-
-  // 6. User sees posts targeted at their age group (even if not connected)
-  if (userAgeGroup) {
-    orQueries.push({
-      connectionGroupId: null,
-      'targetSegments.ageGroups': userAgeGroup
-    });
-  }
-
-  const queryFilter = {
-    $and: [
-      { $or: orQueries },
-      {
+    };
+    if (filter === 'unanswered') {
+      queryFilter.$and.push({
         $or: [
-          { isApproved: true },
-          { isApproved: { $ne: false } }
+          { commentsCount: 0 },
+          { commentsCount: { $exists: false } },
+          { comments: { $size: 0 } }
         ]
-      }
-    ]
-  };
+      });
+    }
+  } else {
+    // Authenticated user personalization logic
+    const user = await User.findById(userId).populate('userDetailId');
+    const userDetail = user?.userDetailId;
+    const userIndustry = userDetail?.industry || '';
+    const userInterests = userDetail?.interests || [];
+    const userCityId = userDetail?.city ? userDetail.city.toString() : null;
+    const userAgeGroup = userDetail?.dateOfBirth ? getAgeGroup(userDetail.dateOfBirth) : null;
 
-  if (filter === 'my') {
-    queryFilter.$and.push({ userId: userId });
-  } else if (filter === 'connections') {
-    queryFilter.$and.push({ userId: { $in: [...connectionIds, userId] } });
-  } else if (filter === 'unanswered') {
-    queryFilter.$and.push({
+    // Find connections
+    const connections = await UserConnections.find({
       $or: [
-        { commentsCount: 0 },
-        { commentsCount: { $exists: false } },
-        { comments: { $size: 0 } }
-      ]
+        { connection1Id: userId },
+        { connection2Id: userId },
+      ],
     });
+
+    const connectionIds = connections.map(c =>
+      c.connection1Id.toString() === userId.toString() ? c.connection2Id : c.connection1Id
+    );
+
+    // Fetch connection groups where current user is a member
+    const myGroups = await ConnectionGroup.find({ connections: userId }).select('_id');
+    const myGroupIds = myGroups.map(g => g._id);
+
+    const orQueries = [
+      // 1. User sees their own posts
+      { userId: userId },
+
+      // 2. User sees posts shared with a group they are in
+      { connectionGroupId: { $in: myGroupIds } },
+
+      // 3. User sees posts of connections targeted at connections or having no targetSegments
+      {
+        userId: { $in: connectionIds },
+        connectionGroupId: null,
+        $or: [
+          { targetSegments: { $exists: false } },
+          { 'targetSegments.connections': true },
+          {
+            'targetSegments.connections': false,
+            'targetSegments.city': false,
+            'targetSegments.industries': { $size: 0 },
+            'targetSegments.interests': { $size: 0 },
+            'targetSegments.ageGroups': { $size: 0 }
+          }
+        ]
+      },
+
+      // 4. Public questions on Share/Ask page (not restricted to a connection group)
+      {
+        connectionGroupId: null
+      }
+    ];
+
+    // 4. User sees posts targeted at their industry (even if not connected)
+    if (userIndustry) {
+      orQueries.push({
+        connectionGroupId: null,
+        'targetSegments.industries': userIndustry
+      });
+    }
+
+    // 4b. User sees posts targeted at their interests (even if not connected)
+    if (userInterests && userInterests.length > 0) {
+      orQueries.push({
+        connectionGroupId: null,
+        'targetSegments.interests': { $in: userInterests }
+      });
+    }
+
+    // 5. User sees posts targeted at their city (even if not connected)
+    const userCityIdStr = userCityId || (userDetail?.city?._id ? userDetail.city._id.toString() : (userDetail?.city ? userDetail.city.toString() : null));
+    if (userCityIdStr) {
+      orQueries.push({
+        connectionGroupId: null,
+        'targetSegments.city': true,
+        $or: [
+          { authorCity: userCityIdStr },
+          { authorCity: null },
+          { authorCity: { $exists: false } }
+        ]
+      });
+    } else {
+      // If viewing user city is not explicitly set, include city-targeted questions so they are discoverable
+      orQueries.push({
+        connectionGroupId: null,
+        'targetSegments.city': true
+      });
+    }
+
+    // 6. User sees posts targeted at their age group (even if not connected)
+    if (userAgeGroup) {
+      orQueries.push({
+        connectionGroupId: null,
+        'targetSegments.ageGroups': userAgeGroup
+      });
+    }
+
+    queryFilter = {
+      $and: [
+        { $or: orQueries },
+        {
+          $or: [
+            { isApproved: true },
+            { isApproved: { $ne: false } }
+          ]
+        }
+      ]
+    };
+
+    if (filter === 'my') {
+      queryFilter.$and.push({ userId: userId });
+    } else if (filter === 'connections') {
+      queryFilter.$and.push({ userId: { $in: [...connectionIds, userId] } });
+    } else if (filter === 'shared') {
+      queryFilter.$and.push({ userId: { $ne: userId } });
+    } else if (filter === 'unanswered') {
+      queryFilter.$and.push({
+        $or: [
+          { commentsCount: 0 },
+          { commentsCount: { $exists: false } },
+          { comments: { $size: 0 } }
+        ]
+      });
+    }
   }
 
   const totalPosts = await Post.countDocuments(queryFilter);
@@ -471,6 +526,65 @@ const getPosts = asyncHandler(async (req, res) => {
     },
     message: 'Posts retrieved successfully'
   });
+});
+
+const getPostById = asyncHandler(async (req, res) => {
+  const { postId } = req.params;
+  const mongoose = require('mongoose');
+
+  if (!postId || !mongoose.Types.ObjectId.isValid(postId)) {
+    return res.status(400).json({ success: false, message: 'Invalid question ID' });
+  }
+
+  const post = await Post.findById(postId)
+    .populate({
+      path: 'userId',
+      populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth isBusinessProfile businessName businessLogo businessApprovalStatus' },
+      select: 'userDetailId'
+    })
+    .populate({
+      path: 'reactions.userId',
+      populate: { path: 'userDetailId', select: 'fullName isBusinessProfile businessName' },
+      select: 'userDetailId'
+    })
+    .populate('connectionGroupId', 'name')
+    .populate({
+      path: 'sharedPostId',
+      populate: {
+        path: 'userId',
+        populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth isBusinessProfile businessName businessLogo businessApprovalStatus' },
+        select: 'userDetailId'
+      }
+    })
+    .populate({
+      path: 'comments.userId',
+      populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth isBusinessProfile businessName businessLogo position company industry' },
+      select: 'userDetailId'
+    })
+    .populate({
+      path: 'comments.replies.userId',
+      populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth isBusinessProfile businessName businessLogo position company industry' },
+      select: 'userDetailId'
+    })
+    .lean();
+
+  if (!post) {
+    return res.status(404).json({ success: false, message: 'Question not found' });
+  }
+
+  // If question is restricted to a private connection group, check membership if user is present
+  if (post.connectionGroupId) {
+    const userId = req.user ? req.user._id : null;
+    if (!userId) {
+      return res.status(403).json({ success: false, message: 'This question is private to a group. Please log in.' });
+    }
+    const isMember = await ConnectionGroup.findOne({ _id: post.connectionGroupId._id, connections: userId });
+    if (!isMember && String(post.userId?._id) !== String(userId)) {
+      return res.status(403).json({ success: false, message: 'You do not have access to this group question' });
+    }
+  }
+
+  return success(res, post, 'Question retrieved successfully');
 });
 
 const reactToPost = asyncHandler(async (req, res) => {
@@ -1156,6 +1270,7 @@ const rateAiAnswer = asyncHandler(async (req, res) => {
 module.exports = {
   createPost,
   getPosts,
+  getPostById,
   reactToPost,
   incrementPostView,
   getLinkPreview,

@@ -6,6 +6,14 @@ const postSchema = new mongoose.Schema({
     ref: 'User',
     required: true,
   },
+  question: {
+    type: String,
+    default: '',
+  },
+  title: {
+    type: String,
+    default: '',
+  },
   content: {
     type: String,
     required: false,
@@ -47,7 +55,13 @@ const postSchema = new mongoose.Schema({
     image: { type: String },
     url: { type: String }
   },
+  postType: {
+    type: String,
+    enum: ['ask', 'share'],
+    default: 'ask'
+  },
   targetSegments: {
+    postType: { type: String, default: 'ask' },
     getAiResponses: { type: Boolean, default: true },
     audienceType: { type: String, default: 'help' },
     connections: { type: Boolean, default: true },

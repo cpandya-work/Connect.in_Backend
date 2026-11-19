@@ -3,6 +3,61 @@ const UserDetail = require('../models/UserDetail.model');
 const User = require('../models/User.model');
 
 /**
+ * Automatically formulate a concise, clear question using AI for every ask or share submission
+ */
+async function generateAiQuestion(content, postType = 'ask', targetSegments = {}) {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!content || !content.trim()) return '';
+
+  if (apiKey && apiKey.startsWith('sk-')) {
+    try {
+      const isAsk = postType === 'ask';
+      const systemInstruction = isAsk
+        ? 'You are an AI assistant for Connect.in, a professional and community network in India. Given what the user wrote in their ask submission, formulate a single concise, clear, and natural question (10 to 18 words) that encapsulates what the user is asking. Always end with a question mark. Do not include quotes, prefixes like "Question:", or any markdown formatting. Return ONLY the question.'
+        : 'You are an AI assistant for Connect.in, a professional and community network in India. The user shared an insight, experience, or update. Formulate a single compelling, natural question (10 to 18 words) that introduces what is being shared so other community members are eager to read it. Always end with a question mark. Do not include quotes, prefixes like "Question:", or any markdown formatting. Return ONLY the question.';
+
+      const response = await axios.post(
+        'https://api.openai.com/v1/chat/completions',
+        {
+          model: 'gpt-4o-mini',
+          messages: [
+            { role: 'system', content: systemInstruction },
+            { role: 'user', content: content.trim() }
+          ],
+          max_tokens: 60,
+          temperature: 0.5
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
+          },
+          timeout: 8000
+        }
+      );
+
+      const q = response.data?.choices?.[0]?.message?.content?.trim();
+      if (q) {
+        let cleanQ = q.replace(/^["'\s]+|["'\s]+$/g, '').replace(/^Question:\s*/i, '');
+        if (!cleanQ.endsWith('?')) cleanQ += '?';
+        return cleanQ;
+      }
+    } catch (err) {
+      console.error('OpenAI Question generation error:', err.message);
+    }
+  }
+
+  // Fallback heuristic if API fails or offline
+  const firstLine = content.trim().split('\n')[0].trim();
+  if (firstLine.includes('?')) {
+    const match = firstLine.match(/[^.!?]*\?/);
+    if (match) return match[0].trim();
+  }
+  const cleanFirst = firstLine.replace(/[.!]+$/, '').slice(0, 100).trim();
+  return cleanFirst.endsWith('?') ? cleanFirst : `${cleanFirst}?`;
+}
+
+/**
  * Generate AI Answer for a question using OpenAI API (with smart fallback)
  */
 async function generateAiAnswer(questionContent, targetSegments = {}) {
@@ -11,15 +66,20 @@ async function generateAiAnswer(questionContent, targetSegments = {}) {
   if (apiKey && apiKey.startsWith('sk-')) {
     try {
       const response = await axios.post(
-        'https://api.openai.com/v1/responses',
+        'https://api.openai.com/v1/chat/completions',
         {
-          model: 'gpt-6-luna',
-          reasoning: {
-            effort: 'none'
-          },
-          instructions: 'You are an expert AI assistant for Connect.in, a professional and community network in India. Provide concise, practical and accurate answers. Format answers with clear numbered key points. Answer the users question directly. Do not invent facts or requirements. When information depends on location, industry or circumstances, clearly mention that.',
-          input: `Question: "${questionContent}"`,
-          max_output_tokens: 800
+          model: 'gpt-4o-mini',
+          messages: [
+            {
+              role: 'system',
+              content: 'You are an expert AI assistant for Connect.in, a professional and community network in India. Provide concise, practical and accurate answers. Format answers with clear numbered key points. Answer the users question directly. Do not invent facts or requirements. When information depends on location, industry or circumstances, clearly mention that.'
+            },
+            {
+              role: 'user',
+              content: `Question: "${questionContent}"`
+            }
+          ],
+          max_tokens: 800
         },
         {
           headers: {
@@ -31,34 +91,10 @@ async function generateAiAnswer(questionContent, targetSegments = {}) {
       );
 
       let text = '';
-      if (response.data) {
-        if (typeof response.data.output_text === 'string' && response.data.output_text.trim()) {
-          text = response.data.output_text.trim();
-        } else if (typeof response.data.output === 'string' && response.data.output.trim()) {
-          text = response.data.output.trim();
-        } else if (Array.isArray(response.data.output)) {
-          const pieces = response.data.output.map(item => {
-            if (typeof item === 'string') return item;
-            if (item && typeof item.text === 'string') return item.text;
-            if (item && typeof item.content === 'string') return item.content;
-            if (item && Array.isArray(item.content)) {
-              return item.content.map(c => (typeof c === 'string' ? c : c?.text || '')).join('');
-            }
-            return '';
-          }).filter(Boolean);
-          text = pieces.join('\n\n').trim();
-        } else if (Array.isArray(response.data.output_text)) {
-          const pieces = response.data.output_text.map(item => {
-            if (typeof item === 'string') return item;
-            if (item && typeof item.text === 'string') return item.text;
-            return '';
-          }).filter(Boolean);
-          text = pieces.join('\n\n').trim();
-        } else if (Array.isArray(response.data.choices) && response.data.choices.length > 0) {
-          const choice = response.data.choices[0];
-          if (typeof choice?.message?.content === 'string') text = choice.message.content.trim();
-          else if (typeof choice?.text === 'string') text = choice.text.trim();
-        }
+      if (response.data && response.data.choices && response.data.choices.length > 0) {
+        const choice = response.data.choices[0];
+        if (typeof choice?.message?.content === 'string') text = choice.message.content.trim();
+        else if (typeof choice?.text === 'string') text = choice.text.trim();
       }
 
       // Ensure text is strictly a string (not an object or array)
@@ -335,6 +371,7 @@ function rankProfilesByAiProfileMatch(loggedInUserDetail, candidateProfiles) {
 }
 
 module.exports = {
+  generateAiQuestion,
   generateAiAnswer,
   recommendPeopleAndBusinesses,
   rankProfilesByAiProfileMatch

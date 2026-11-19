@@ -158,6 +158,15 @@ const getUsersList = async ({ page = 1, limit = 10, search = '', city = '', indu
     }
   });
 
+  // Fetch all industries for matching IDs to names in memory
+  const allIndustries = await Industry.find({}).select('_id name').lean();
+  const industryMap = {};
+  allIndustries.forEach(ind => {
+    if (ind && ind._id) {
+      industryMap[ind._id.toString()] = ind.name;
+    }
+  });
+
   // Format user data
   const formattedUsers = users.map((user) => {
     const userObj = {
@@ -178,6 +187,12 @@ const getUsersList = async ({ page = 1, limit = 10, search = '', city = '', indu
         cityStr = cityMap[cityVal.toString()] || cityVal.toString();
       }
 
+      let industryStr = null;
+      const industryVal = user.userDetailId.industry;
+      if (industryVal) {
+        industryStr = industryMap[industryVal.toString()] || industryVal.toString();
+      }
+
       const isBiz = user.userDetailId.isBusinessProfile === true;
       userObj.userDetails = {
         _id: user.userDetailId._id,
@@ -192,7 +207,7 @@ const getUsersList = async ({ page = 1, limit = 10, search = '', city = '', indu
         habits: user.userDetailId.habits,
         interests: user.userDetailId.interests,
         skills: user.userDetailId.skills,
-        industry: user.userDetailId.industry,
+        industry: industryStr || 'N/A',
         company: user.userDetailId.company,
         profileImage: isBiz ? user.userDetailId.businessLogo : user.userDetailId.profileImage,
         originalPassword: user.userDetailId.originalPassword, // Include original password for admin
@@ -1661,8 +1676,11 @@ const getStatsTrend = async (statId) => {
     return results;
   }
 
-  // Complete-profiles trend is computed as a percentage against that day's new
-  // signups, not just a raw count, so it needs its own per-day query shape.
+  // Complete-profiles trend tracks the registration funnel:
+  // A. OTP Done (new signups)
+  // B. EMAIL Verified
+  // C. BASIC PROFILE (Step 1+)
+  // D. FULL PROFILE (all steps completed with image)
   if (statId === 'complete-profiles') {
     const incompleteDetails = await UserDetail.find({
       $or: [
@@ -1680,28 +1698,52 @@ const getStatsTrend = async (statId) => {
     }).select('_id').lean();
     const verifiedIds = verifiedDetails.map(d => d._id);
 
+    const basicDetails = await UserDetail.find({
+      $or: [
+        { lastCompletedStep: { $gte: 1 } },
+        { isProfileComplete: true },
+        { fullName: { $exists: true, $nin: [null, ''] } },
+        { businessName: { $exists: true, $nin: [null, ''] } }
+      ]
+    }).select('_id').lean();
+    const basicIds = basicDetails.map(d => d._id);
+
     const results = await Promise.all(
       trends.map(async (t) => {
-        const [newSignups, completed, completedVerified] = await Promise.all([
+        const [otpDone, emailVerified, basicProfile, fullProfile] = await Promise.all([
           User.countDocuments({ createdAt: { $gte: t.start, $lte: t.end } }),
           User.countDocuments({
             createdAt: { $gte: t.start, $lte: t.end },
-            userDetailId: { $exists: true, $ne: null, $nin: incompleteIds }
+            userDetailId: { $exists: true, $ne: null, $in: verifiedIds }
           }),
           User.countDocuments({
             createdAt: { $gte: t.start, $lte: t.end },
-            userDetailId: { $exists: true, $ne: null, $nin: incompleteIds, $in: verifiedIds }
+            userDetailId: { $exists: true, $ne: null, $in: basicIds }
+          }),
+          User.countDocuments({
+            createdAt: { $gte: t.start, $lte: t.end },
+            userDetailId: { $exists: true, $ne: null, $nin: incompleteIds }
           })
         ]);
-        const percentage = newSignups > 0 ? parseFloat(((completed / newSignups) * 100).toFixed(1)) : 0;
-        const verifiedEmailPercentage = completed > 0 ? parseFloat(((completedVerified / completed) * 100).toFixed(1)) : 0;
+        const emailVerifiedPercentage = otpDone > 0 ? parseFloat(((emailVerified / otpDone) * 100).toFixed(1)) : 0;
+        const basicProfilePercentage = otpDone > 0 ? parseFloat(((basicProfile / otpDone) * 100).toFixed(1)) : 0;
+        const fullProfilePercentage = otpDone > 0 ? parseFloat(((fullProfile / otpDone) * 100).toFixed(1)) : 0;
+
         return {
           date: t.label,
-          count: completed,
-          newSignups,
-          percentage,
-          completedVerified,
-          verifiedEmailPercentage
+          otpDone,
+          emailVerified,
+          basicProfile,
+          fullProfile,
+          emailVerifiedPercentage,
+          basicProfilePercentage,
+          fullProfilePercentage,
+          // Retaining backwards compatible fields
+          count: fullProfile,
+          newSignups: otpDone,
+          percentage: fullProfilePercentage,
+          completedVerified: emailVerified,
+          verifiedEmailPercentage: emailVerifiedPercentage
         };
       })
     );
