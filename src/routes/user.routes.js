@@ -21,18 +21,17 @@ const PROFILE_UPLOAD_FIELDS = [
   { name: 'businessDocument', maxCount: 1 },
 ];
 
+// Specific protected profile routes must come before /profile/:id
+router.get('/profile/progress', protect, getProfileProgress);
+router.get('/profile', protect, getProfile);
+router.post('/profile/step', protect, upload.fields(PROFILE_UPLOAD_FIELDS), saveProfileStep);
+router.post('/profile/skip-to-dashboard', protect, express.json(), skipToDashboard);
+router.put('/profile', protect, upload.fields(PROFILE_UPLOAD_FIELDS), updateUserProfile);
+router.delete('/account', protect, deleteUserAccount);
+
 // Public routes - accessible without authentication
 router.post('/profile', upload.fields(PROFILE_UPLOAD_FIELDS), createProfile);
 router.get('/directory', getMemberDirectory);
 router.get('/profile/:id', optionalAuth, getUserProfileById);
-
-// Protected routes
-router.use(protect);
-router.get('/profile', getProfile);
-router.get('/profile/progress', getProfileProgress);
-router.post('/profile/step', upload.fields(PROFILE_UPLOAD_FIELDS), saveProfileStep);
-router.post('/profile/skip-to-dashboard', express.json(), skipToDashboard);
-router.put('/profile', upload.fields(PROFILE_UPLOAD_FIELDS), updateUserProfile);
-router.delete('/account', deleteUserAccount);
 
 module.exports = router;

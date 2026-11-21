@@ -3,9 +3,10 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "start": "node src/server.js",
-    "dev": "nodemon src/server.js",
-    "build": "echo 'Build complete - Node.js app ready for production'"
+    "start": "node init && node src/server.js",
+    "dev": "node init && nodemon src/server.js",
+    "build": "node init && echo 'Build complete - Node.js app ready for production'",
+    "fix:shared-posts": "node scripts/fix-shared-posts.js"
   },
   "keywords": [],
   "author": "",

@@ -788,8 +788,21 @@ const getProfileProgress = asyncHandler(async (req, res) => {
     return success(res, { 
       lastCompletedStep: 0, 
       profile: null,
-      isProfileComplete: false 
+      isProfileComplete: false,
+      hasCompletedBasicProfile: false,
     });
+  }
+
+  const hasCompletedBasicProfile = userDetail.isProfileComplete === true ||
+    (userDetail.lastCompletedStep >= 1) ||
+    Boolean(userDetail.fullName && (userDetail.gender || userDetail.city || userDetail.dateOfBirth)) ||
+    Boolean(userDetail.businessName);
+
+  let isProfileComplete = userDetail.isProfileComplete || false;
+  if (hasCompletedBasicProfile && !isProfileComplete) {
+    userDetail.isProfileComplete = true;
+    await userDetail.save();
+    isProfileComplete = true;
   }
   
   // Get city name
@@ -864,7 +877,8 @@ const getProfileProgress = asyncHandler(async (req, res) => {
   success(res, {
     lastCompletedStep: profileData.lastCompletedStep || 0,
     profile: profileData,
-    isProfileComplete: profileData.isProfileComplete || false
+    isProfileComplete: isProfileComplete || false,
+    hasCompletedBasicProfile: hasCompletedBasicProfile || false,
   });
 });
 

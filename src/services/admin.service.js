@@ -1830,6 +1830,22 @@ const getTrafficSourceTrend = async (source) => {
   }).select('_id').lean();
   const incompleteIds = incompleteDetails.map(d => d._id);
 
+  const verifiedDetails = await UserDetail.find({
+    email: { $exists: true, $ne: null, $ne: '' },
+    isEmailVerified: true
+  }).select('_id').lean();
+  const verifiedIds = verifiedDetails.map(d => d._id);
+
+  const basicDetails = await UserDetail.find({
+    $or: [
+      { lastCompletedStep: { $gte: 1 } },
+      { isProfileComplete: true },
+      { fullName: { $exists: true, $nin: [null, ''] } },
+      { businessName: { $exists: true, $nin: [null, ''] } }
+    ]
+  }).select('_id').lean();
+  const basicIds = basicDetails.map(d => d._id);
+
   // Normalize source name to query correctly (handle default 'direct')
   const sourceQuery = (!source || source === 'direct')
     ? { $or: [{ trafficSource: 'direct' }, { trafficSource: { $exists: false } }, { trafficSource: null }, { trafficSource: '' }] }
@@ -1837,9 +1853,19 @@ const getTrafficSourceTrend = async (source) => {
 
   const results = await Promise.all(
     trends.map(async (t) => {
-      const [totalCount, completeCount] = await Promise.all([
+      const [otpDone, emailVerified, basicProfile, fullProfile] = await Promise.all([
         User.countDocuments({
           ...sourceQuery,
+          createdAt: { $gte: t.start, $lte: t.end }
+        }),
+        User.countDocuments({
+          ...sourceQuery,
+          userDetailId: { $exists: true, $ne: null, $in: verifiedIds },
+          createdAt: { $gte: t.start, $lte: t.end }
+        }),
+        User.countDocuments({
+          ...sourceQuery,
+          userDetailId: { $exists: true, $ne: null, $in: basicIds },
           createdAt: { $gte: t.start, $lte: t.end }
         }),
         User.countDocuments({
@@ -1849,10 +1875,23 @@ const getTrafficSourceTrend = async (source) => {
         })
       ]);
 
+      const emailVerifiedPercentage = otpDone > 0 ? parseFloat(((emailVerified / otpDone) * 100).toFixed(1)) : 0;
+      const basicProfilePercentage = otpDone > 0 ? parseFloat(((basicProfile / otpDone) * 100).toFixed(1)) : 0;
+      const fullProfilePercentage = otpDone > 0 ? parseFloat(((fullProfile / otpDone) * 100).toFixed(1)) : 0;
+
       return {
         date: t.label,
-        totalCount,
-        completeCount
+        otpDone,
+        emailVerified,
+        basicProfile,
+        fullProfile,
+        emailVerifiedPercentage,
+        basicProfilePercentage,
+        fullProfilePercentage,
+        // Retain backwards-compatible fields
+        totalCount: otpDone,
+        completeCount: fullProfile,
+        count: fullProfile
       };
     })
   );
@@ -1882,8 +1921,18 @@ const getTrafficSourcesStats = async () => {
   }).select('_id').lean();
   const verifiedIds = verifiedDetails.map(d => d._id);
 
-  const [totalStats, completeStats, verifiedStats] = await Promise.all([
-    // Aggregate total users by traffic source
+  const basicDetails = await UserDetail.find({
+    $or: [
+      { lastCompletedStep: { $gte: 1 } },
+      { isProfileComplete: true },
+      { fullName: { $exists: true, $nin: [null, ''] } },
+      { businessName: { $exists: true, $nin: [null, ''] } }
+    ]
+  }).select('_id').lean();
+  const basicIds = basicDetails.map(d => d._id);
+
+  const [totalStats, completeStats, verifiedStats, basicStats] = await Promise.all([
+    // Aggregate total users by traffic source (OTP Done)
     User.aggregate([
       {
         $group: {
@@ -1899,7 +1948,7 @@ const getTrafficSourcesStats = async () => {
         }
       }
     ]),
-    // Aggregate completed profiles by traffic source
+    // Aggregate completed profiles by traffic source (Full Profile)
     User.aggregate([
       {
         $match: {
@@ -1924,7 +1973,28 @@ const getTrafficSourcesStats = async () => {
     User.aggregate([
       {
         $match: {
-          userDetailId: { $exists: true, $ne: null, $nin: incompleteIds, $in: verifiedIds }
+          userDetailId: { $exists: true, $ne: null, $in: verifiedIds }
+        }
+      },
+      {
+        $group: {
+          _id: { $ifNull: ['$trafficSource', 'direct'] },
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $project: {
+          trafficSource: '$_id',
+          count: 1,
+          _id: 0
+        }
+      }
+    ]),
+    // Aggregate basic profiles by traffic source
+    User.aggregate([
+      {
+        $match: {
+          userDetailId: { $exists: true, $ne: null, $in: basicIds }
         }
       },
       {
@@ -1943,7 +2013,7 @@ const getTrafficSourcesStats = async () => {
     ])
   ]);
 
-  // Create maps of complete and verified source counts
+  // Create maps of source counts
   const completeMap = {};
   completeStats.forEach(item => {
     if (item.trafficSource) {
@@ -1958,17 +2028,38 @@ const getTrafficSourcesStats = async () => {
     }
   });
 
+  const basicMap = {};
+  basicStats.forEach(item => {
+    if (item.trafficSource) {
+      basicMap[item.trafficSource] = item.count;
+    }
+  });
+
   // Combine results
   const combinedStats = totalStats.map(item => {
-    const compCount = completeMap[item.trafficSource] || 0;
-    const verCount = verifiedMap[item.trafficSource] || 0;
-    const verifiedRate = compCount > 0 ? parseFloat(((verCount / compCount) * 100).toFixed(1)) : 0;
+    const otpDone = item.count;
+    const emailVerified = verifiedMap[item.trafficSource] || 0;
+    const basicProfile = basicMap[item.trafficSource] || 0;
+    const fullProfile = completeMap[item.trafficSource] || 0;
+
+    const emailVerifiedRate = otpDone > 0 ? parseFloat(((emailVerified / otpDone) * 100).toFixed(1)) : 0;
+    const basicProfileRate = otpDone > 0 ? parseFloat(((basicProfile / otpDone) * 100).toFixed(1)) : 0;
+    const fullProfileRate = otpDone > 0 ? parseFloat(((fullProfile / otpDone) * 100).toFixed(1)) : 0;
+
     return {
       trafficSource: item.trafficSource,
-      count: item.count,
-      completeCount: compCount,
-      verifiedCount: verCount,
-      verifiedRate
+      count: otpDone,
+      otpDone,
+      emailVerified,
+      basicProfile,
+      fullProfile,
+      emailVerifiedRate,
+      basicProfileRate,
+      fullProfileRate,
+      // Retaining backwards compatible fields
+      completeCount: fullProfile,
+      verifiedCount: emailVerified,
+      verifiedRate: emailVerifiedRate
     };
   });
 
