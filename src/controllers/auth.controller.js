@@ -32,9 +32,23 @@ const verifyOtpCtrl = asyncHandler(async (req, res) => {
   if (error) return res.status(400).json({ success: false, message: error.details[0].message });
 
   const { phoneNumber, otp, fcmToken, deviceType, trafficSource } = req.body;
-  const { token, isNewUser, isProfileComplete } = await verifyOtp(phoneNumber, otp, fcmToken, deviceType, trafficSource);
+  const { 
+    token, 
+    isNewUser, 
+    isProfileComplete, 
+    isEmailVerified, 
+    hasCompletedBasicProfile, 
+    lastCompletedStep 
+  } = await verifyOtp(phoneNumber, otp, fcmToken, deviceType, trafficSource);
 
-  success(res, { token, isNewUser, isProfileComplete }, 'Login successful');
+  success(res, { 
+    token, 
+    isNewUser, 
+    isProfileComplete, 
+    isEmailVerified, 
+    hasCompletedBasicProfile, 
+    lastCompletedStep 
+  }, 'Login successful');
 });
 
 const loginWithEmailCtrl = asyncHandler(async (req, res) => {
@@ -42,9 +56,23 @@ const loginWithEmailCtrl = asyncHandler(async (req, res) => {
   if (error) return res.status(400).json({ success: false, message: error.details[0].message });
 
   const { email, password, fcmToken, deviceType } = req.body;
-  const { token, isNewUser, isProfileComplete } = await loginWithEmail(email, password, fcmToken, deviceType);
+  const { 
+    token, 
+    isNewUser, 
+    isProfileComplete, 
+    isEmailVerified, 
+    hasCompletedBasicProfile, 
+    lastCompletedStep 
+  } = await loginWithEmail(email, password, fcmToken, deviceType);
 
-  success(res, { token, isNewUser, isProfileComplete }, 'Login successful');
+  success(res, { 
+    token, 
+    isNewUser, 
+    isProfileComplete, 
+    isEmailVerified, 
+    hasCompletedBasicProfile, 
+    lastCompletedStep 
+  }, 'Login successful');
 });
 
 const googleLoginCtrl = asyncHandler(async (req, res) => {
@@ -54,9 +82,23 @@ const googleLoginCtrl = asyncHandler(async (req, res) => {
     return res.status(400).json({ success: false, message: 'Access token is required' });
   }
 
-  const { token, isNewUser, isProfileComplete } = await loginWithGoogle(accessToken, fcmToken, deviceType);
+  const { 
+    token, 
+    isNewUser, 
+    isProfileComplete, 
+    isEmailVerified, 
+    hasCompletedBasicProfile, 
+    lastCompletedStep 
+  } = await loginWithGoogle(accessToken, fcmToken, deviceType);
 
-  success(res, { token, isNewUser, isProfileComplete }, 'Login successful');
+  success(res, { 
+    token, 
+    isNewUser, 
+    isProfileComplete, 
+    isEmailVerified, 
+    hasCompletedBasicProfile, 
+    lastCompletedStep 
+  }, 'Login successful');
 });
 
 const UserDetail = require('../models/UserDetail.model');

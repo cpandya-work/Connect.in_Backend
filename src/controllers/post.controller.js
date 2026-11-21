@@ -155,7 +155,8 @@ const createPost = asyncHandler(async (req, res) => {
       (!targetSegments.ageGroups || targetSegments.ageGroups.length === 0)
     )
   );
-  const isApproved = isAskedOnlyToConnections;
+  const isPeopleWhoCanHelp = targetSegments.audienceType === 'help';
+  const isApproved = isAskedOnlyToConnections || isPeopleWhoCanHelp;
 
   // Automatically populate question with AI for every ask or share submission
   let aiQuestion = (req.body.question || req.body.title || '').trim();
@@ -227,11 +228,20 @@ const createPost = asyncHandler(async (req, res) => {
         const posterName = poster?.userDetailId?.isBusinessProfile ? poster.userDetailId.businessName : (poster?.userDetailId?.fullName || 'A user');
         const posterImage = poster?.userDetailId?.isBusinessProfile ? poster.userDetailId.businessLogo : (poster?.userDetailId?.profileImage || '');
 
-        const notifyPromises = allUsers.map(async (user) => {
-          const isConnection = connectionIds.has(user._id.toString());
-          if (isConnection) {
-            sendPostNotification(user._id, posterName, userId, posterImage).catch(console.error);
+        let targetUserIdsToNotify = [];
+        if (isPeopleWhoCanHelp) {
+          // If 'People who can help', notify prospects (up to 500)
+          const prospectIds = (aiRecommendations.people || []).map(p => p.user?.toString ? p.user.toString() : String(p.user));
+          targetUserIdsToNotify = prospectIds.slice(0, 500);
+          if (targetUserIdsToNotify.length === 0) {
+            targetUserIdsToNotify = Array.from(connectionIds);
           }
+        } else {
+          targetUserIdsToNotify = Array.from(connectionIds);
+        }
+
+        const notifyPromises = targetUserIdsToNotify.map(async (targetUserId) => {
+          sendPostNotification(targetUserId, posterName, userId, posterImage).catch(console.error);
         });
 
         await Promise.all(notifyPromises);
@@ -298,6 +308,11 @@ const getPosts = asyncHandler(async (req, res) => {
           { commentsCount: { $exists: false } },
           { comments: { $size: 0 } }
         ]
+      });
+    } else if (filter === 'asked') {
+      queryFilter.$and.push({
+        postType: { $ne: 'share' },
+        'targetSegments.postType': { $ne: 'share' }
       });
     }
   } else {
@@ -405,7 +420,8 @@ const getPosts = asyncHandler(async (req, res) => {
         {
           $or: [
             { isApproved: true },
-            { isApproved: { $ne: false } }
+            { isApproved: { $ne: false } },
+            { userId: userId }
           ]
         }
       ]
@@ -417,6 +433,11 @@ const getPosts = asyncHandler(async (req, res) => {
       queryFilter.$and.push({ userId: { $in: [...connectionIds, userId] } });
     } else if (filter === 'shared') {
       queryFilter.$and.push({ userId: { $ne: userId } });
+    } else if (filter === 'asked') {
+      queryFilter.$and.push({
+        postType: { $ne: 'share' },
+        'targetSegments.postType': { $ne: 'share' }
+      });
     } else if (filter === 'unanswered') {
       queryFilter.$and.push({
         $or: [
@@ -570,6 +591,16 @@ const getPostById = asyncHandler(async (req, res) => {
 
   if (!post) {
     return res.status(404).json({ success: false, message: 'Question not found' });
+  }
+
+  // If question is pending approval, allow only the author or an admin
+  if (post.isApproved === false) {
+    const userId = req.user ? String(req.user._id) : null;
+    const authorId = post.userId?._id ? String(post.userId._id) : String(post.userId);
+    const isAdmin = req.user && req.user.role === 'admin';
+    if (!userId || (userId !== authorId && !isAdmin)) {
+      return res.status(403).json({ success: false, message: 'This question is pending approval and is only visible to the author' });
+    }
   }
 
   // If question is restricted to a private connection group, check membership if user is present
@@ -770,13 +801,49 @@ const resharePost = asyncHandler(async (req, res) => {
   const poster = await User.findById(userId).populate('userDetailId');
   const authorCity = poster?.userDetailId?.city || null;
 
+  // Generate question for the reshared post (or inherit from original post)
+  let aiQuestion = (req.body.question || req.body.title || '').trim();
+  if (!aiQuestion && content && content.trim()) {
+    try {
+      const generatedQ = await generateAiQuestion(content.trim(), 'share', { postType: 'share' });
+      if (generatedQ) {
+        aiQuestion = generatedQ;
+      }
+    } catch (qErr) {
+      console.error('Error generating AI question during reshare:', qErr);
+    }
+  }
+
+  if (!aiQuestion) {
+    aiQuestion = (originalPost.question || originalPost.title || '').trim();
+  }
+
+  if (!aiQuestion && originalPost.content && originalPost.content.trim()) {
+    try {
+      const generatedQ = await generateAiQuestion(originalPost.content.trim(), 'share', { postType: 'share' });
+      if (generatedQ) {
+        aiQuestion = generatedQ;
+      }
+    } catch (qErr) {
+      console.error('Error generating AI question from original post during reshare:', qErr);
+    }
+  }
+
+  if (!aiQuestion) {
+    aiQuestion = 'What are your thoughts on this shared post?';
+  }
+
   // Create the reshared post
   const rootPostId = originalPost.sharedPostId || originalPost._id;
   const reshare = await Post.create({
     userId,
+    postType: 'share',
+    question: aiQuestion,
+    title: aiQuestion,
     content: content || '',
     sharedPostId: rootPostId, // Reference the root post if original is already a reshare
     targetSegments: {
+      postType: 'share',
       connections: true,
       city: false,
       industries: [],
@@ -929,32 +996,38 @@ const getMostSharedReels = asyncHandler(async (req, res) => {
  */
 const updatePost = asyncHandler(async (req, res) => {
   const { postId } = req.params;
-  const { content } = req.body;
+  const { content, question, title } = req.body;
   const userId = req.user._id;
 
   const post = await Post.findById(postId);
   if (!post) {
-    return res.status(404).json({ success: false, message: 'Post not found' });
+    return res.status(404).json({ success: false, message: 'Question not found' });
   }
 
   if (post.userId.toString() !== userId.toString()) {
-    return res.status(403).json({ success: false, message: 'You can only edit your own posts' });
+    return res.status(403).json({ success: false, message: 'You can only edit your own questions' });
   }
 
   if (post.isApproved) {
-    return res.status(400).json({ success: false, message: 'This post has already been approved and can no longer be edited' });
+    return res.status(400).json({ success: false, message: 'This question has already been approved and can no longer be edited' });
   }
 
   const hasNewAttachments = req.files && req.files.length > 0;
   const nextContent = content !== undefined ? content : post.content;
-  const nextAttachmentsCount = hasNewAttachments ? req.files.length : post.attachments.length;
+  const nextQuestion = question !== undefined ? question : (title !== undefined ? title : post.question);
+  const nextAttachmentsCount = hasNewAttachments ? req.files.length : (post.attachments ? post.attachments.length : 0);
 
-  if (!nextContent?.trim() && nextAttachmentsCount === 0) {
-    return res.status(400).json({ success: false, message: 'Content is required' });
+  if (!nextContent?.trim() && !nextQuestion?.trim() && nextAttachmentsCount === 0) {
+    return res.status(400).json({ success: false, message: 'Question text or description is required' });
   }
 
   if (content !== undefined) {
     post.content = content;
+  }
+
+  if (question !== undefined || title !== undefined) {
+    post.question = nextQuestion ? nextQuestion.trim() : '';
+    post.title = nextQuestion ? nextQuestion.trim() : '';
   }
 
   // Replace attachments only if new files were uploaded
@@ -968,14 +1041,28 @@ const updatePost = asyncHandler(async (req, res) => {
     });
   }
 
+  if (post.targetSegments?.getAiResponses !== false) {
+    try {
+      const promptText = post.question || post.content;
+      if (promptText && promptText.trim()) {
+        post.aiAnswer = await generateAiAnswer(promptText.trim(), post.targetSegments);
+      }
+    } catch (aiErr) {
+      console.error('Error updating AI data during question update:', aiErr);
+    }
+  }
+
   await post.save();
 
-  const updatedPost = await Post.findById(postId).populate({
-    path: 'userId',
-    populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth isBusinessProfile businessName businessLogo businessApprovalStatus' },
-  });
+  const updatedPost = await Post.findById(postId)
+    .populate({
+      path: 'userId',
+      populate: { path: 'userDetailId', select: 'fullName profileImage gender dateOfBirth isBusinessProfile businessName businessLogo businessApprovalStatus' },
+      select: 'userDetailId'
+    })
+    .populate('connectionGroupId', 'name');
 
-  success(res, { post: updatedPost }, 'Post updated successfully');
+  success(res, { post: updatedPost }, 'Question updated successfully');
 });
 
 /**

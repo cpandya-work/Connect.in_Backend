@@ -1,6 +1,7 @@
 const axios = require('axios');
 const UserDetail = require('../models/UserDetail.model');
 const User = require('../models/User.model');
+const City = require('../models/City.model');
 
 /**
  * Automatically formulate a concise, clear question using AI for every ask or share submission
@@ -152,22 +153,89 @@ async function generateAiAnswer(questionContent, targetSegments = {}) {
   };
 }
 
+function getAgeGroup(dateOfBirth) {
+  if (!dateOfBirth) return null;
+  const birthDate = new Date(dateOfBirth);
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const m = today.getMonth() - birthDate.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+
+  if (age >= 20 && age <= 25) return '20-25';
+  if (age >= 26 && age <= 35) return '26-35';
+  if (age >= 36 && age <= 50) return '36-50';
+  if (age >= 51 && age <= 65) return '51-65';
+  if (age > 65) return '65+';
+  return null;
+}
+
+const AGE_BRACKETS = ['20-25', '26-35', '36-50', '51-65', '65+'];
+
+function getSimilarAgeGroups(ageGroup) {
+  if (!ageGroup) return AGE_BRACKETS;
+  const idx = AGE_BRACKETS.indexOf(ageGroup);
+  if (idx === -1) return [ageGroup];
+  const similar = [AGE_BRACKETS[idx]];
+  if (idx > 0) similar.push(AGE_BRACKETS[idx - 1]);
+  if (idx < AGE_BRACKETS.length - 1) similar.push(AGE_BRACKETS[idx + 1]);
+  return similar;
+}
+
 /**
  * Recommend People and Businesses who can help answer/fulfill a question
  */
 async function recommendPeopleAndBusinesses(questionContent, targetSegments = {}, currentUserId = null) {
   try {
+    const isPeopleWhoCanHelp = targetSegments.audienceType === 'help';
+    const maxLimit = isPeopleWhoCanHelp ? 500 : 3;
+
+    // Fetch all cities for safe lookup (handles both ObjectId refs and plain string city names)
+    const allCities = await City.find({}).lean();
+    const cityMap = new Map(allCities.map(c => [String(c._id), c.name]));
+    const resolveCityName = (cityField) => {
+      if (!cityField) return '';
+      if (typeof cityField === 'object' && cityField._id) {
+        return (cityField.name || cityMap.get(String(cityField._id)) || '').trim();
+      }
+      const strVal = String(cityField).trim();
+      return (cityMap.get(strVal) || strVal).trim();
+    };
+
+    // Get author details (city and age) for restricting when audience is 'help'
+    let authorCityName = '';
+    let authorCityIdStr = '';
+    let authorAgeGroup = null;
+
+    if (currentUserId) {
+      const authorUser = await User.findById(currentUserId)
+        .populate('userDetailId')
+        .lean();
+      const authorDetail = authorUser?.userDetailId;
+      if (authorDetail) {
+        if (authorDetail.city) {
+          authorCityName = resolveCityName(authorDetail.city).toLowerCase();
+          authorCityIdStr = String(authorDetail.city._id || authorDetail.city);
+        }
+        if (authorDetail.dateOfBirth) {
+          authorAgeGroup = getAgeGroup(authorDetail.dateOfBirth);
+        }
+      }
+    }
+
+    const cityLoc = (targetSegments.cityLocation || authorCityName || '').toLowerCase();
+    const similarAgeGroups = targetSegments.ageGroups && targetSegments.ageGroups.length > 0
+      ? targetSegments.ageGroups
+      : getSimilarAgeGroups(authorAgeGroup);
+
     const qLower = (questionContent || '').toLowerCase();
-    const cityLoc = (targetSegments.cityLocation || '').toLowerCase();
     const targetIndustries = (targetSegments.industries || []).map(i => i.toLowerCase());
     const targetInterests = (targetSegments.interests || []).map(i => i.toLowerCase());
 
-    // Fetch users populated with user detail and city
-    const allUsers = await User.find({ isActive: true })
-      .populate({
-        path: 'userDetailId',
-        populate: { path: 'city', select: 'name' }
-      })
+    // Fetch users populated with user detail safely
+    const allUsers = await User.find({ isDeleted: { $ne: true }, isActive: { $ne: false } })
+      .populate('userDetailId')
       .lean();
 
     const peopleList = [];
@@ -179,7 +247,30 @@ async function recommendPeopleAndBusinesses(questionContent, targetSegments = {}
       // Skip asking user
       if (currentUserId && (String(u._id) === String(currentUserId) || String(detail._id) === String(currentUserId))) continue;
 
-      const cityName = detail.city?.name || '';
+      const cityName = resolveCityName(detail.city).toLowerCase();
+      const cityIdStr = String(detail.city?._id || detail.city || '');
+
+      // When 'People who can help' is selected: Restrict prospects to same city and similar age groups
+      if (isPeopleWhoCanHelp) {
+        // 1. Same City restriction
+        if (authorCityIdStr || authorCityName || cityLoc) {
+          const isSameCity = Boolean(
+            (authorCityIdStr && cityIdStr && authorCityIdStr === cityIdStr) ||
+            (authorCityName && cityName && (authorCityName.includes(cityName) || cityName.includes(authorCityName))) ||
+            (cityLoc && cityName && cityName.includes(cityLoc))
+          );
+          if (!isSameCity) continue;
+        }
+
+        // 2. Similar Age Group restriction (for people profiles)
+        if (!detail.isBusinessProfile) {
+          const candidateAgeGroup = detail.dateOfBirth ? getAgeGroup(detail.dateOfBirth) : null;
+          if (candidateAgeGroup && similarAgeGroups && similarAgeGroups.length > 0) {
+            if (!similarAgeGroups.includes(candidateAgeGroup)) continue;
+          }
+        }
+      }
+
       const industryStr = (detail.industry || detail.businessCategory?.name || '').toLowerCase();
       const positionStr = (detail.position || '').toLowerCase();
       const skillsStr = (detail.skills || []).join(' ').toLowerCase();
@@ -232,37 +323,38 @@ async function recommendPeopleAndBusinesses(questionContent, targetSegments = {}
     peopleList.sort((a, b) => b.score - a.score);
     businessList.sort((a, b) => b.score - a.score);
 
-    // Top People from real database profiles
-    const realPeople = peopleList.slice(0, 3).map(item => {
+    // Matching People (up to 500 when 'People who can help' is selected, else 3)
+    const realPeople = peopleList.slice(0, maxLimit).map(item => {
       const u = item.user;
       const d = item.userDetail;
-      const cityName = d.city?.name || '';
+      const resolvedName = resolveCityName(d.city);
+      const cityName = resolvedName ? (resolvedName.includes('India') ? resolvedName : `${resolvedName}, India`) : '';
       return {
         user: u._id,
         fullName: d.fullName || 'Connect Member',
         position: d.position || d.industry || 'Professional',
-        city: cityName ? (cityName.includes('India') ? cityName : `${cityName}, India`) : '',
+        city: cityName,
         profileImage: d.profileImage || '',
         gender: d.gender || 'Other',
         dateOfBirth: d.dateOfBirth || null
       };
     });
 
-    // Top Businesses from real database profiles
-    const realBusinesses = businessList.slice(0, 3).map(item => {
+    // Matching Businesses (up to 500 when 'People who can help' is selected, else 3)
+    const realBusinesses = businessList.slice(0, maxLimit).map(item => {
       const u = item.user;
       const d = item.userDetail;
-      const cityName = d.city?.name || '';
+      const resolvedName = resolveCityName(d.city);
+      const cityName = resolvedName ? (resolvedName.includes('India') ? resolvedName : `${resolvedName}, India`) : '';
       return {
         user: u._id,
         businessName: d.businessName || 'Connect Business',
         businessCategory: d.businessTagline || d.industry || 'Verified Business Services',
-        city: cityName ? (cityName.includes('India') ? cityName : `${cityName}, India`) : '',
+        city: cityName,
         businessLogo: d.businessLogo || ''
       };
     });
 
-    // Return top 3 matching people and businesses strictly from MongoDB database profiles
     return {
       people: realPeople,
       businesses: realBusinesses

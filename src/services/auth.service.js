@@ -53,18 +53,49 @@ const verifyOtp = async (phoneNumber, otp, fcmToken = null, deviceType = 'androi
 
   const token = signToken({ id: user._id });
 
-  // Check if profile is actually complete by checking UserDetail.isProfileComplete
+  // Check profile completion and basic profile completion
   let isProfileComplete = false;
   let isEmailVerified = false;
+  let hasCompletedBasicProfile = false;
   let email = null;
+  let lastCompletedStep = 0;
+
   if (user.userDetailId) {
     const userDetail = await UserDetail.findById(user.userDetailId);
-    isProfileComplete = userDetail ? (userDetail.isProfileComplete === true) : false;
-    isEmailVerified = userDetail ? (userDetail.isEmailVerified === true) : false;
-    email = userDetail ? userDetail.email : null;
+    if (userDetail) {
+      isEmailVerified = userDetail.isEmailVerified === true;
+      email = userDetail.email || null;
+      lastCompletedStep = userDetail.lastCompletedStep || 0;
+
+      // Has user completed Basic Profile (Step 1)?
+      hasCompletedBasicProfile = userDetail.isProfileComplete === true ||
+        (userDetail.lastCompletedStep >= 1) ||
+        Boolean(userDetail.fullName && (userDetail.gender || userDetail.city || userDetail.dateOfBirth)) ||
+        Boolean(userDetail.businessName);
+
+      // If user has completed Basic Profile, mark and return isProfileComplete = true
+      if (hasCompletedBasicProfile) {
+        isProfileComplete = true;
+        if (!userDetail.isProfileComplete) {
+          userDetail.isProfileComplete = true;
+          await userDetail.save();
+        }
+      } else {
+        isProfileComplete = userDetail.isProfileComplete === true;
+      }
+    }
   }
 
-  return { token, isNewUser, isProfileComplete, isEmailVerified, email, user };
+  return { 
+    token, 
+    isNewUser, 
+    isProfileComplete, 
+    isEmailVerified, 
+    hasCompletedBasicProfile, 
+    lastCompletedStep, 
+    email, 
+    user 
+  };
 };
 
 const loginWithEmail = async (email, password, fcmToken = null, deviceType = 'web') => {
@@ -92,10 +123,30 @@ const loginWithEmail = async (email, password, fcmToken = null, deviceType = 'we
   }
 
   const token = signToken({ id: user._id });
-  // Check if profile is actually complete by checking UserDetail.isProfileComplete
-  const isProfileComplete = userDetail.isProfileComplete === true;
+  const isEmailVerified = userDetail.isEmailVerified === true;
+  const lastCompletedStep = userDetail.lastCompletedStep || 0;
 
-  return { token, isNewUser: false, isProfileComplete, user };
+  const hasCompletedBasicProfile = userDetail.isProfileComplete === true ||
+    (userDetail.lastCompletedStep >= 1) ||
+    Boolean(userDetail.fullName && (userDetail.gender || userDetail.city || userDetail.dateOfBirth)) ||
+    Boolean(userDetail.businessName);
+
+  let isProfileComplete = userDetail.isProfileComplete === true;
+  if (hasCompletedBasicProfile && !isProfileComplete) {
+    userDetail.isProfileComplete = true;
+    await userDetail.save();
+    isProfileComplete = true;
+  }
+
+  return { 
+    token, 
+    isNewUser: false, 
+    isProfileComplete, 
+    isEmailVerified, 
+    hasCompletedBasicProfile, 
+    lastCompletedStep, 
+    user 
+  };
 };
 
 const loginWithGoogle = async (accessToken, fcmToken = null, deviceType = 'web') => {
@@ -134,10 +185,30 @@ const loginWithGoogle = async (accessToken, fcmToken = null, deviceType = 'web')
 
   // Step 4: Generate JWT token
   const token = signToken({ id: user._id });
-  // Check if profile is actually complete by checking UserDetail.isProfileComplete
-  const isProfileComplete = userDetail.isProfileComplete === true;
+  const isEmailVerified = userDetail.isEmailVerified === true;
+  const lastCompletedStep = userDetail.lastCompletedStep || 0;
 
-  return { token, isNewUser: false, isProfileComplete, user };
+  const hasCompletedBasicProfile = userDetail.isProfileComplete === true ||
+    (userDetail.lastCompletedStep >= 1) ||
+    Boolean(userDetail.fullName && (userDetail.gender || userDetail.city || userDetail.dateOfBirth)) ||
+    Boolean(userDetail.businessName);
+
+  let isProfileComplete = userDetail.isProfileComplete === true;
+  if (hasCompletedBasicProfile && !isProfileComplete) {
+    userDetail.isProfileComplete = true;
+    await userDetail.save();
+    isProfileComplete = true;
+  }
+
+  return { 
+    token, 
+    isNewUser: false, 
+    isProfileComplete, 
+    isEmailVerified, 
+    hasCompletedBasicProfile, 
+    lastCompletedStep, 
+    user 
+  };
 };
 
 const sendEmailOtp = async (email, user = null) => {
