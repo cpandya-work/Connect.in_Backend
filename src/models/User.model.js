@@ -22,9 +22,11 @@ const userSchema = new mongoose.Schema({
     }
   },
   lastLocationUpdate: { type: Date, default: Date.now },
+  lastActiveAt: { type: Date, default: Date.now },
 }, { timestamps: true });
 
 // Create geospatial index for location queries
 userSchema.index({ currentLocation: '2dsphere' });
+userSchema.index({ lastActiveAt: -1 });
 
 module.exports = mongoose.model('User', userSchema);

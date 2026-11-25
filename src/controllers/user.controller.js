@@ -23,6 +23,9 @@ const getProfile = asyncHandler(async (req, res) => {
   if (!user.userDetailId) {
     return success(res, { profile: null });
   }
+
+  // Update last active timestamp on Home & Ask/Share profile load
+  User.updateOne({ _id: user._id }, { $set: { lastActiveAt: new Date() } }).exec().catch(() => {});
   
   // Get city name
   let cityName = null;

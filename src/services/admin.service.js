@@ -1247,14 +1247,30 @@ const getCardById = async (cardId) => {
   return card;
 };
 
+/**
+ * Helper to build an active user query filter based on recent login / app activity
+ * If user registered 5 months ago but logged in recently, they are considered active.
+ */
+const buildActiveUserTimeFilter = (days) => {
+  if (days === 'all' || !days) return null;
+  const daysNum = parseInt(days, 10);
+  if (isNaN(daysNum)) return null;
+  const date = new Date();
+  date.setDate(date.getDate() - daysNum);
+  return {
+    $or: [
+      { lastActiveAt: { $gte: date } },
+      { updatedAt: { $gte: date } }
+    ]
+  };
+};
+
 const broadcastOfferEmail = async (title, description, imageUrl = null, offerUrl = null, days = 'all') => {
   let query = {};
 
-  if (days !== 'all') {
-    const daysNum = parseInt(days, 10);
-    const date = new Date();
-    date.setDate(date.getDate() - daysNum);
-    query.createdAt = { $gte: date };
+  const activeFilter = buildActiveUserTimeFilter(days);
+  if (activeFilter) {
+    Object.assign(query, activeFilter);
   }
 
   // Collect all user emails that are verified and not null/empty
@@ -1306,17 +1322,15 @@ const getActiveAuthBanners = async (type) => {
 };
 
 /**
- * Get count of users with incomplete profiles based on registration duration
+ * Get count of users with incomplete profiles based on active duration
  * @param {string|number} days - Duration in days ('all', 7, 15, 30, 45)
  */
 const getIncompleteProfileUsersCount = async (days) => {
   let query = {};
 
-  if (days !== 'all') {
-    const daysNum = parseInt(days, 10);
-    const date = new Date();
-    date.setDate(date.getDate() - daysNum);
-    query.createdAt = { $gte: date };
+  const activeFilter = buildActiveUserTimeFilter(days);
+  if (activeFilter) {
+    Object.assign(query, activeFilter);
   }
 
   // Find user detail IDs that are incomplete (no profile image or incomplete flag)
@@ -1343,11 +1357,9 @@ const getIncompleteProfileUsersCount = async (days) => {
 const getIncompleteProfileUsers = async (days) => {
   let query = {};
 
-  if (days !== 'all') {
-    const daysNum = parseInt(days, 10);
-    const date = new Date();
-    date.setDate(date.getDate() - daysNum);
-    query.createdAt = { $gte: date };
+  const activeFilter = buildActiveUserTimeFilter(days);
+  if (activeFilter) {
+    Object.assign(query, activeFilter);
   }
 
   // Find incomplete user details
@@ -1376,34 +1388,30 @@ const getIncompleteProfileUsers = async (days) => {
 };
 
 /**
- * Get count of all users based on registration duration
+ * Get count of all users based on active duration
  * @param {string|number} days - Duration in days ('all', 7, 15, 30, 45)
  */
 const getUsersCountByRegistration = async (days) => {
   let query = {};
 
-  if (days !== 'all') {
-    const daysNum = parseInt(days, 10);
-    const date = new Date();
-    date.setDate(date.getDate() - daysNum);
-    query.createdAt = { $gte: date };
+  const activeFilter = buildActiveUserTimeFilter(days);
+  if (activeFilter) {
+    Object.assign(query, activeFilter);
   }
 
   return await User.countDocuments(query);
 };
 
 /**
- * Get list of all users filtered by registration duration for SMS broadcast
+ * Get list of all users filtered by active duration for SMS broadcast
  * @param {string|number} days - Duration in days ('all', 7, 15, 30, 45)
  */
 const getUsersByRegistration = async (days) => {
   let query = {};
 
-  if (days !== 'all') {
-    const daysNum = parseInt(days, 10);
-    const date = new Date();
-    date.setDate(date.getDate() - daysNum);
-    query.createdAt = { $gte: date };
+  const activeFilter = buildActiveUserTimeFilter(days);
+  if (activeFilter) {
+    Object.assign(query, activeFilter);
   }
 
   // Get users with their phone numbers and populated details
@@ -1421,17 +1429,15 @@ const getUsersByRegistration = async (days) => {
 
 
 /**
- * Get count of users with email addresses based on registration duration
+ * Get count of users with email addresses based on active duration
  * @param {string|number} days - Duration in days ('all', 7, 15, 30, 45)
  */
 const getEmailUsersCountByRegistration = async (days) => {
   let query = {};
 
-  if (days !== 'all') {
-    const daysNum = parseInt(days, 10);
-    const date = new Date();
-    date.setDate(date.getDate() - daysNum);
-    query.createdAt = { $gte: date };
+  const activeFilter = buildActiveUserTimeFilter(days);
+  if (activeFilter) {
+    Object.assign(query, activeFilter);
   }
 
   // Find user details that have a registered & verified email
@@ -1447,17 +1453,15 @@ const getEmailUsersCountByRegistration = async (days) => {
 };
 
 /**
- * Get list of users with email addresses filtered by registration duration for Email broadcast
+ * Get list of users with email addresses filtered by active duration for Email broadcast
  * @param {string|number} days - Duration in days ('all', 7, 15, 30, 45)
  */
 const getEmailUsersByRegistration = async (days) => {
   let query = {};
 
-  if (days !== 'all') {
-    const daysNum = parseInt(days, 10);
-    const date = new Date();
-    date.setDate(date.getDate() - daysNum);
-    query.createdAt = { $gte: date };
+  const activeFilter = buildActiveUserTimeFilter(days);
+  if (activeFilter) {
+    Object.assign(query, activeFilter);
   }
 
   // Find user details that have a registered & verified email
@@ -1481,17 +1485,15 @@ const getEmailUsersByRegistration = async (days) => {
 };
 
 /**
- * Get count of users with email addresses who are not yet verified filtered by registration duration
+ * Get count of users with email addresses who are not yet verified filtered by active duration
  * @param {string|number} days - Duration in days ('all', 7, 15, 30, 45)
  */
 const getUnverifiedEmailUsersCountByRegistration = async (days) => {
   let query = {};
 
-  if (days !== 'all') {
-    const daysNum = parseInt(days, 10);
-    const date = new Date();
-    date.setDate(date.getDate() - daysNum);
-    query.createdAt = { $gte: date };
+  const activeFilter = buildActiveUserTimeFilter(days);
+  if (activeFilter) {
+    Object.assign(query, activeFilter);
   }
 
   // Find user details that have a registered email but isEmailVerified is false or not true
@@ -1513,11 +1515,9 @@ const getUnverifiedEmailUsersCountByRegistration = async (days) => {
 const getUnverifiedEmailUsersByRegistration = async (days) => {
   let query = {};
 
-  if (days !== 'all') {
-    const daysNum = parseInt(days, 10);
-    const date = new Date();
-    date.setDate(date.getDate() - daysNum);
-    query.createdAt = { $gte: date };
+  const activeFilter = buildActiveUserTimeFilter(days);
+  if (activeFilter) {
+    Object.assign(query, activeFilter);
   }
 
   // Find user details with unverified email addresses
@@ -1731,6 +1731,7 @@ const getStatsTrend = async (statId) => {
 
         return {
           date: t.label,
+          rawDate: t.start.toISOString().split('T')[0],
           otpDone,
           emailVerified,
           basicProfile,
@@ -2309,17 +2310,15 @@ const getPositionById = async (positionId) => {
 };
 
 /**
- * Get list of completed profile users based on registration duration
+ * Get list of completed profile users based on active duration
  * @param {string|number} days - Duration in days ('all', 7, 15, 30, 45)
  */
 const getCompletedProfileUsers = async (days) => {
   let query = {};
 
-  if (days !== 'all') {
-    const daysNum = parseInt(days, 10);
-    const date = new Date();
-    date.setDate(date.getDate() - daysNum);
-    query.createdAt = { $gte: date };
+  const activeFilter = buildActiveUserTimeFilter(days);
+  if (activeFilter) {
+    Object.assign(query, activeFilter);
   }
 
   // Find user details that have completed their profile
@@ -2412,6 +2411,7 @@ module.exports = {
   approveBusiness,
   rejectBusiness,
   unverifyBouncedEmails,
+  getStageIncompleteUserMobiles,
 };
 
 /**
@@ -2524,5 +2524,102 @@ async function unverifyBouncedEmails(emails = []) {
     notFoundCount
   };
 }
+
+/**
+ * Get mobile numbers of users who have not completed a specific registration stage.
+ * Stages:
+ *  - 'email': Users who have NOT completed email sign-in / verification
+ *  - 'basic': Users who have NOT completed basic profile
+ *  - 'full': Users who have NOT completed full profile
+ *
+ * @param {'email'|'basic'|'full'} stage
+ * @param {Object} options { days, date }
+ * @returns {Promise<Array<string>>} Array of unique mobile numbers
+ */
+async function getStageIncompleteUserMobiles(stage, { days = 'all', date = null } = {}) {
+  let query = {
+    phoneNumber: { $exists: true, $ne: null, $nin: ['', null] }
+  };
+
+  // Date filtering
+  if (date) {
+    const startDate = new Date(date);
+    startDate.setHours(0, 0, 0, 0);
+    const endDate = new Date(date);
+    endDate.setHours(23, 59, 59, 999);
+    query.createdAt = { $gte: startDate, $lte: endDate };
+  } else if (days && days !== 'all') {
+    const daysNum = parseInt(days, 10);
+    if (!isNaN(daysNum)) {
+      const dateFilter = new Date();
+      dateFilter.setDate(dateFilter.getDate() - daysNum);
+      query.createdAt = { $gte: dateFilter };
+    }
+  }
+
+  if (stage === 'email') {
+    // Stage 1: Users who have NOT completed email sign-in / verification
+    const verifiedDetails = await UserDetail.find({
+      email: { $exists: true, $ne: null, $ne: '' },
+      isEmailVerified: true
+    }).select('_id').lean();
+    const verifiedIds = verifiedDetails.map(d => d._id);
+
+    query.$or = [
+      { userDetailId: { $exists: false } },
+      { userDetailId: null },
+      { userDetailId: { $nin: verifiedIds } }
+    ];
+  } else if (stage === 'basic') {
+    // Stage 2: Users who have NOT completed basic profile
+    const basicDetails = await UserDetail.find({
+      $or: [
+        { lastCompletedStep: { $gte: 1 } },
+        { isProfileComplete: true },
+        { fullName: { $exists: true, $nin: [null, ''] } },
+        { businessName: { $exists: true, $nin: [null, ''] } }
+      ]
+    }).select('_id').lean();
+    const basicIds = basicDetails.map(d => d._id);
+
+    query.$or = [
+      { userDetailId: { $exists: false } },
+      { userDetailId: null },
+      { userDetailId: { $nin: basicIds } }
+    ];
+  } else if (stage === 'full') {
+    // Stage 3: Users who have NOT completed full profile
+    const incompleteDetails = await UserDetail.find({
+      $or: [
+        { profileImage: { $exists: false } },
+        { profileImage: '' },
+        { profileImage: null },
+        { isProfileComplete: false }
+      ]
+    }).select('_id').lean();
+    const incompleteIds = incompleteDetails.map(d => d._id);
+
+    query.$or = [
+      { userDetailId: { $exists: false } },
+      { userDetailId: null },
+      { userDetailId: { $in: incompleteIds } }
+    ];
+  }
+
+  const users = await User.find(query).select('phoneNumber').lean();
+
+  const seen = new Set();
+  const mobiles = [];
+  for (const u of users) {
+    const phone = String(u.phoneNumber || '').trim();
+    if (phone && !seen.has(phone)) {
+      seen.add(phone);
+      mobiles.push(phone);
+    }
+  }
+
+  return mobiles;
+}
+
 
 
