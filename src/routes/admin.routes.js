@@ -65,6 +65,7 @@ const {
   downloadIncompleteProfilesCSVCtrl,
   downloadCompletedProfilesCSVCtrl,
   downloadStageIncompleteProfilesCSVCtrl,
+  getStageIncompleteCountsCtrl,
   sendIncompleteProfileSmsCtrl,
   getGeneralUserCountCtrl,
   sendGeneralSmsBroadcastCtrl,
@@ -121,6 +122,7 @@ router.use(isAdmin);
 router.get('/dashboard-stats', getDashboardStatsCtrl);
 router.get('/dashboard-stats/trend', getStatsTrendCtrl);
 router.get('/dashboard-stats/incomplete-profiles/csv', downloadStageIncompleteProfilesCSVCtrl);
+router.get('/dashboard-stats/incomplete-profiles/counts', getStageIncompleteCountsCtrl);
 router.get('/traffic-sources', getTrafficSourcesStatsCtrl);
 router.get('/traffic-sources/trend', getTrafficSourceTrendCtrl);
 

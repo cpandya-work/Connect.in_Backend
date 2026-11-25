@@ -2412,6 +2412,7 @@ module.exports = {
   rejectBusiness,
   unverifyBouncedEmails,
   getStageIncompleteUserMobiles,
+  getStageIncompleteCounts,
 };
 
 /**
@@ -2619,6 +2620,96 @@ async function getStageIncompleteUserMobiles(stage, { days = 'all', date = null 
   }
 
   return mobiles;
+}
+
+/**
+ * Get count of unique mobile records for incomplete profile stages.
+ * Exactly matches the count of records that each stage CSV export will contain.
+ * @param {string|number} days - 'all' or number of days (e.g. 7)
+ * @returns {Promise<Object>} { email: number, basic: number, full: number }
+ */
+async function getStageIncompleteCounts(days = 'all') {
+  let query = {
+    phoneNumber: { $exists: true, $ne: null, $nin: ['', null] }
+  };
+
+  if (days && days !== 'all') {
+    const daysNum = parseInt(days, 10);
+    if (!isNaN(daysNum)) {
+      const dateFilter = new Date();
+      dateFilter.setDate(dateFilter.getDate() - daysNum);
+      query.createdAt = { $gte: dateFilter };
+    }
+  }
+
+  const [verifiedDetails, basicDetails, incompleteDetails] = await Promise.all([
+    UserDetail.find({
+      email: { $exists: true, $ne: null, $ne: '' },
+      isEmailVerified: true
+    }).select('_id').lean(),
+    UserDetail.find({
+      $or: [
+        { lastCompletedStep: { $gte: 1 } },
+        { isProfileComplete: true },
+        { fullName: { $exists: true, $nin: [null, ''] } },
+        { businessName: { $exists: true, $nin: [null, ''] } }
+      ]
+    }).select('_id').lean(),
+    UserDetail.find({
+      $or: [
+        { profileImage: { $exists: false } },
+        { profileImage: '' },
+        { profileImage: null },
+        { isProfileComplete: false }
+      ]
+    }).select('_id').lean()
+  ]);
+
+  const verifiedIds = verifiedDetails.map(d => d._id);
+  const basicIds = basicDetails.map(d => d._id);
+  const incompleteIds = incompleteDetails.map(d => d._id);
+
+  const [emailUsers, basicUsers, fullUsers] = await Promise.all([
+    User.find({
+      ...query,
+      $or: [
+        { userDetailId: { $exists: false } },
+        { userDetailId: null },
+        { userDetailId: { $nin: verifiedIds } }
+      ]
+    }).select('phoneNumber').lean(),
+    User.find({
+      ...query,
+      $or: [
+        { userDetailId: { $exists: false } },
+        { userDetailId: null },
+        { userDetailId: { $nin: basicIds } }
+      ]
+    }).select('phoneNumber').lean(),
+    User.find({
+      ...query,
+      $or: [
+        { userDetailId: { $exists: false } },
+        { userDetailId: null },
+        { userDetailId: { $in: incompleteIds } }
+      ]
+    }).select('phoneNumber').lean()
+  ]);
+
+  const countUnique = (users) => {
+    const seen = new Set();
+    for (const u of users) {
+      const phone = String(u.phoneNumber || '').trim();
+      if (phone) seen.add(phone);
+    }
+    return seen.size;
+  };
+
+  return {
+    email: countUnique(emailUsers),
+    basic: countUnique(basicUsers),
+    full: countUnique(fullUsers)
+  };
 }
 
 

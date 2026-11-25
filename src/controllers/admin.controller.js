@@ -70,6 +70,7 @@ const {
   rejectBusiness,
   unverifyBouncedEmails,
   getStageIncompleteUserMobiles,
+  getStageIncompleteCounts,
 } = require('../services/admin.service');
 const { createSkillSchema, updateSkillSchema } = require('../validators/skill.validator');
 const { createPositionSchema, updatePositionSchema } = require('../validators/position.validator');
@@ -1600,7 +1601,24 @@ const getStatsTrendCtrl = asyncHandler(async (req, res) => {
     return res.status(400).json({ success: false, message: 'statId query parameter is required' });
   }
   const trend = await getStatsTrend(statId);
-  success(res, { trend }, 'Stats trend retrieved successfully');
+  let stageCounts = null;
+  if (statId === 'complete-profiles') {
+    const [countsAll, counts7] = await Promise.all([
+      getStageIncompleteCounts('all'),
+      getStageIncompleteCounts('7')
+    ]);
+    stageCounts = {
+      all: countsAll,
+      '7': counts7
+    };
+  }
+  success(res, { trend, stageCounts }, 'Stats trend retrieved successfully');
+});
+
+const getStageIncompleteCountsCtrl = asyncHandler(async (req, res) => {
+  const { days = 'all' } = req.query;
+  const counts = await getStageIncompleteCounts(days);
+  success(res, counts, 'Stage incomplete counts retrieved successfully');
 });
 
 
@@ -2646,4 +2664,5 @@ module.exports = {
   updateBusinessNameCtrl,
   unverifyBouncedEmailsCtrl,
   downloadStageIncompleteProfilesCSVCtrl,
+  getStageIncompleteCountsCtrl,
 };
