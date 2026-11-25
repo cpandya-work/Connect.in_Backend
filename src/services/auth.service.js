@@ -8,6 +8,9 @@ const { saveUserToken } = require('./notification.service');
 const { sendEmailOtpCode } = require('./email.service');
 const axios = require('axios');
 
+// Short-lived in-memory caches to gracefully handle duplicate verification requests within 10s (e.g. mobile autofill/double-tap)
+const recentVerifiedOtps = new Map();
+const recentVerifiedEmailOtps = new Map();
 
 const sendOtp = async (phoneNumber) => {
   const otp = generateOTP();
@@ -19,13 +22,19 @@ const sendOtp = async (phoneNumber) => {
     { upsert: true, new: true }
   );
   
-  await axios.get(`https://bulkpush.mytoday.com/BulkSms/SingleMsgApi?feedid=393258&username=9884196886&password=SuX@2egALigzEKZ&To=${phoneNumber}&Text=Dear%20User%20Your%20OTP%20for%20completing%20the%20registration%20in%20Connect%20is%20${otp}.%20-%20Connect%20India%20Team&templateid=1207172657402140627&entityid=1201160765852941646&senderid=CONCTN`)
+   await axios.get(`https://bulkpush.mytoday.com/BulkSms/SingleMsgApi?feedid=393258&username=9884196886&password=SuX@2egALigzEKZ&To=${phoneNumber}&Text=Dear%20User%20Your%20OTP%20for%20completing%20the%20registration%20in%20Connect%20is%20${otp}.%20-%20Connect%20India%20Team&templateid=1207172657402140627&entityid=1201160765852941646&senderid=CONCTN`)
 
   console.log(`OTP for ${phoneNumber}: ${otp}`); // Replace with SMS
   return { success: true };
 };
 
 const verifyOtp = async (phoneNumber, otp, fcmToken = null, deviceType = 'android', trafficSource = null) => {
+  const cacheKey = `${phoneNumber}:${otp}`;
+  const cached = recentVerifiedOtps.get(cacheKey);
+  if (cached && (Date.now() - cached.timestamp < 10000)) {
+    return cached.result;
+  }
+
   const otpDoc = await Otp.findOne({ phoneNumber, code: otp });
   if (!otpDoc || otpDoc.expiresAt < new Date()) {
     throw new Error('The OTP you entered is invalid. Please try again.');
@@ -86,7 +95,9 @@ const verifyOtp = async (phoneNumber, otp, fcmToken = null, deviceType = 'androi
     }
   }
 
-  return { 
+  await User.updateOne({ _id: user._id }, { $set: { lastActiveAt: new Date() } });
+
+  const result = { 
     token, 
     isNewUser, 
     isProfileComplete, 
@@ -96,6 +107,13 @@ const verifyOtp = async (phoneNumber, otp, fcmToken = null, deviceType = 'androi
     email, 
     user 
   };
+
+  recentVerifiedOtps.set(cacheKey, { result, timestamp: Date.now() });
+  for (const [k, v] of recentVerifiedOtps.entries()) {
+    if (Date.now() - v.timestamp > 30000) recentVerifiedOtps.delete(k);
+  }
+
+  return result;
 };
 
 const loginWithEmail = async (email, password, fcmToken = null, deviceType = 'web') => {
@@ -137,6 +155,8 @@ const loginWithEmail = async (email, password, fcmToken = null, deviceType = 'we
     await userDetail.save();
     isProfileComplete = true;
   }
+
+  await User.updateOne({ _id: user._id }, { $set: { lastActiveAt: new Date() } });
 
   return { 
     token, 
@@ -200,6 +220,8 @@ const loginWithGoogle = async (accessToken, fcmToken = null, deviceType = 'web')
     isProfileComplete = true;
   }
 
+  await User.updateOne({ _id: user._id }, { $set: { lastActiveAt: new Date() } });
+
   return { 
     token, 
     isNewUser: false, 
@@ -240,6 +262,11 @@ const sendEmailOtp = async (email, user = null) => {
 
 const verifyEmailOtp = async (email, otp, user = null, phoneNumber = null) => {
   const normalizedEmail = email.toLowerCase().trim();
+  const cacheKey = `${normalizedEmail}:${otp.trim()}`;
+  const cached = recentVerifiedEmailOtps.get(cacheKey);
+  if (cached && (Date.now() - cached.timestamp < 10000)) {
+    return cached.result;
+  }
 
   const otpDoc = await EmailOtp.findOne({ email: normalizedEmail, code: otp.trim() });
   if (!otpDoc || otpDoc.expiresAt < new Date()) {
@@ -270,7 +297,15 @@ const verifyEmailOtp = async (email, otp, user = null, phoneNumber = null) => {
     }
   }
 
-  return { success: true, message: 'Email verified successfully', email: normalizedEmail };
+  await User.updateOne({ _id: user._id }, { $set: { lastActiveAt: new Date() } });
+
+  const result = { success: true, message: 'Email verified successfully', email: normalizedEmail };
+  recentVerifiedEmailOtps.set(cacheKey, { result, timestamp: Date.now() });
+  for (const [k, v] of recentVerifiedEmailOtps.entries()) {
+    if (Date.now() - v.timestamp > 30000) recentVerifiedEmailOtps.delete(k);
+  }
+
+  return result;
 };
 
 const googleVerifyEmail = async (accessToken, user = null, phoneNumber = null) => {

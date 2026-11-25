@@ -69,6 +69,7 @@ const {
   approveBusiness,
   rejectBusiness,
   unverifyBouncedEmails,
+  getStageIncompleteUserMobiles,
 } = require('../services/admin.service');
 const { createSkillSchema, updateSkillSchema } = require('../validators/skill.validator');
 const { createPositionSchema, updatePositionSchema } = require('../validators/position.validator');
@@ -1278,6 +1279,48 @@ const downloadCompletedProfilesCSVCtrl = asyncHandler(async (req, res) => {
   const csvContent = csvRows.join('\n');
 
   const filename = `completed_profiles_${days}_${new Date().toISOString().split('T')[0]}.csv`;
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.status(200).send('\uFEFF' + csvContent);
+});
+
+/**
+ * Download CSV containing ONLY mobile numbers of users who have not completed a specific registration stage.
+ * Stages:
+ *  - 'email': Users who have NOT completed email sign-in / verification
+ *  - 'basic': Users who have NOT completed basic profile
+ *  - 'full': Users who have NOT completed full profile
+ *
+ * Query params:
+ *  - stage: 'email' | 'basic' | 'full' (required)
+ *  - days: 'all' | '7' | '15' | '30' | '45' (optional)
+ *  - date: YYYY-MM-DD (optional)
+ *  - passcode: Security passcode ('8282')
+ */
+const downloadStageIncompleteProfilesCSVCtrl = asyncHandler(async (req, res) => {
+  const { stage, days = 'all', date, passcode } = req.query;
+
+  // Verify security passcode (8282)
+  const incomingPasscode = passcode || req.headers['x-passcode'];
+  if (String(incomingPasscode || '').trim() !== '8282') {
+    return res.status(403).json({ success: false, message: 'Invalid security passcode! Please enter the correct passcode.' });
+  }
+
+  if (!stage || !['email', 'basic', 'full'].includes(stage)) {
+    return res.status(400).json({ success: false, message: "Valid stage is required ('email', 'basic', or 'full')" });
+  }
+
+  const mobiles = await getStageIncompleteUserMobiles(stage, { days, date });
+
+  const csvRows = ['mobile'];
+  for (const phone of mobiles) {
+    csvRows.push(`"${phone.replace(/"/g, '""')}"`);
+  }
+  const csvContent = csvRows.join('\n');
+
+  const labelSuffix = date ? date : (days === 'all' ? 'all_time' : `${days}_days`);
+  const filename = `incomplete_${stage}_stage_mobiles_${labelSuffix}.csv`;
+
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
   res.status(200).send('\uFEFF' + csvContent);
@@ -2602,4 +2645,5 @@ module.exports = {
   rejectBusinessCtrl,
   updateBusinessNameCtrl,
   unverifyBouncedEmailsCtrl,
+  downloadStageIncompleteProfilesCSVCtrl,
 };

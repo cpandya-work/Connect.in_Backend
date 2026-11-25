@@ -19,6 +19,11 @@ const protect = async (req, res, next) => {
       return res.status(401).json({ success: false, message: 'Your account has been disabled. Please contact admin.' });
     }
     req.user = user;
+    const lastActive = user.lastActiveAt ? new Date(user.lastActiveAt).getTime() : 0;
+    if (Date.now() - lastActive > 5 * 60 * 1000) {
+      User.updateOne({ _id: user._id }, { $set: { lastActiveAt: new Date() } }).exec().catch(() => {});
+      user.lastActiveAt = new Date();
+    }
     next();
   } catch (err) {
     res.status(401).json({ success: false, message: 'Invalid token' });
@@ -40,6 +45,11 @@ const optionalAuth = async (req, res, next) => {
     const user = await User.findById(decoded.id);
     if (user && user.isActive !== false) {
       req.user = user;
+      const lastActive = user.lastActiveAt ? new Date(user.lastActiveAt).getTime() : 0;
+      if (Date.now() - lastActive > 5 * 60 * 1000) {
+        User.updateOne({ _id: user._id }, { $set: { lastActiveAt: new Date() } }).exec().catch(() => {});
+        user.lastActiveAt = new Date();
+      }
     }
     next();
   } catch (err) {
