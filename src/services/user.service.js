@@ -212,6 +212,22 @@ const updateProfile = async (userId, updates, files) => {
   if (updates.isPrivateProfile !== undefined) {
     updates.isPrivateProfile = updates.isPrivateProfile === 'true' || updates.isPrivateProfile === true;
   }
+  if (updates.emailPreferences) {
+    if (typeof updates.emailPreferences === 'string') {
+      try {
+        updates.emailPreferences = JSON.parse(updates.emailPreferences);
+      } catch (e) {
+        // ignore error if not JSON
+      }
+    }
+    if (typeof updates.emailPreferences === 'object') {
+      detail.emailPreferences = {
+        ...(detail.emailPreferences?.toObject ? detail.emailPreferences.toObject() : detail.emailPreferences || {}),
+        ...updates.emailPreferences
+      };
+      delete updates.emailPreferences;
+    }
+  }
 
   Object.assign(detail, updates);
   await detail.save();

@@ -30,6 +30,11 @@ const profileSchema = Joi.object({
   coverImage: Joi.string().allow('', null).optional(),
   fastConnect: Joi.boolean().optional(),
   isPrivateProfile: Joi.boolean().optional(),
+  emailPreferences: Joi.object({
+    askShareNotifications: Joi.boolean().optional(),
+    recommendedOffers: Joi.boolean().optional(),
+    peopleNearYou: Joi.boolean().optional()
+  }).optional(),
 }).unknown(true);
 
 const updateProfileSchema = Joi.object({
@@ -60,6 +65,11 @@ const updateProfileSchema = Joi.object({
   coverImage: Joi.string().allow('', null).optional(),
   fastConnect: Joi.boolean().optional(),
   isPrivateProfile: Joi.boolean().optional(),
+  emailPreferences: Joi.object({
+    askShareNotifications: Joi.boolean().optional(),
+    recommendedOffers: Joi.boolean().optional(),
+    peopleNearYou: Joi.boolean().optional()
+  }).optional(),
   
   // Business Profile fields
   isBusinessProfile: Joi.boolean().optional(),

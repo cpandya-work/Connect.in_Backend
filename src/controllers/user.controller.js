@@ -81,6 +81,13 @@ const getProfile = asyncHandler(async (req, res) => {
   }
   
   const userDetailObj = user.userDetailId.toObject();
+
+  // Ensure default email preferences
+  const emailPreferences = {
+    askShareNotifications: userDetailObj.emailPreferences?.askShareNotifications ?? true,
+    recommendedOffers: userDetailObj.emailPreferences?.recommendedOffers ?? true,
+    peopleNearYou: userDetailObj.emailPreferences?.peopleNearYou ?? true,
+  };
   
   // Replace IDs with names
   const profile = {
@@ -91,6 +98,7 @@ const getProfile = asyncHandler(async (req, res) => {
     originalid: user._id,
     role: user.role || 'user', // Include user role
     ...userDetailObj,
+    emailPreferences,
     city: cityName, // Replace city ID with city name
     company: companyName, // Replace company ID with company name
     industry: industryName, // Replace industry ID with company name
@@ -953,12 +961,48 @@ const skipToDashboard = asyncHandler(async (req, res) => {
   }, 'Profile saved and skipped to dashboard');
 });
 
+// Update Email Preferences
+const updateEmailPreferences = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id).populate('userDetailId');
+  if (!user || !user.userDetailId) {
+    return res.status(404).json({ success: false, message: 'Profile not found' });
+  }
+
+  const { askShareNotifications, recommendedOffers, peopleNearYou } = req.body;
+  const detail = user.userDetailId;
+
+  if (!detail.emailPreferences) {
+    detail.emailPreferences = {
+      askShareNotifications: true,
+      recommendedOffers: true,
+      peopleNearYou: true
+    };
+  }
+
+  if (askShareNotifications !== undefined) {
+    detail.emailPreferences.askShareNotifications = Boolean(askShareNotifications);
+  }
+  if (recommendedOffers !== undefined) {
+    detail.emailPreferences.recommendedOffers = Boolean(recommendedOffers);
+  }
+  if (peopleNearYou !== undefined) {
+    detail.emailPreferences.peopleNearYou = Boolean(peopleNearYou);
+  }
+
+  await detail.save();
+
+  success(res, {
+    emailPreferences: detail.emailPreferences
+  }, 'Email preferences updated successfully');
+});
+
 module.exports = {
   getProfile,
   createProfile,
   getUserProfileById,
   getMemberDirectory,
   updateUserProfile,
+  updateEmailPreferences,
   logout,
   deleteUserAccount,
   saveProfileStep,

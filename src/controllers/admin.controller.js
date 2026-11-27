@@ -93,6 +93,7 @@ const { sendBulkHtmlEmail } = require('../services/email.service');
 const Setting = require('../models/Setting.model');
 const CardClick = require('../models/CardClick.model');
 const Card = require('../models/Card.model');
+const UserDetail = require('../models/UserDetail.model');
 const mongoose = require('mongoose');
 
 const getPopupSettingCtrl = asyncHandler(async (req, res) => {
@@ -1311,16 +1312,20 @@ const downloadStageIncompleteProfilesCSVCtrl = asyncHandler(async (req, res) => 
     return res.status(400).json({ success: false, message: "Valid stage is required ('email', 'basic', or 'full')" });
   }
 
-  const mobiles = await getStageIncompleteUserMobiles(stage, { days, date });
+  const records = await getStageIncompleteUserMobiles(stage, { days, date });
 
-  const csvRows = ['mobile'];
-  for (const phone of mobiles) {
-    csvRows.push(`"${phone.replace(/"/g, '""')}"`);
+  const csvRows = ['mobile,name'];
+  for (const item of records) {
+    const mobile = typeof item === 'object' ? item.mobile : item;
+    const name = (typeof item === 'object' ? item.name : '') || '';
+    const escapedMobile = `"${String(mobile).replace(/"/g, '""')}"`;
+    const escapedName = `"${String(name).replace(/"/g, '""')}"`;
+    csvRows.push(`${escapedMobile},${escapedName}`);
   }
   const csvContent = csvRows.join('\n');
 
   const labelSuffix = date ? date : (days === 'all' ? 'all_time' : `${days}_days`);
-  const filename = `incomplete_${stage}_stage_mobiles_${labelSuffix}.csv`;
+  const filename = `incomplete_${stage}_stage_${labelSuffix}.csv`;
 
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
@@ -2233,6 +2238,33 @@ const sendTestScheduledMailerCtrl = asyncHandler(async (req, res) => {
   }
 
   const { type, email } = req.body;
+
+  // Check if this recipient email belongs to a registered user and verify their email preference
+  const normalizedEmail = email.trim().toLowerCase();
+  const recipientUserDetail = await UserDetail.findOne({
+    email: { $regex: new RegExp(`^${normalizedEmail}$`, 'i') }
+  }).lean();
+
+  if (recipientUserDetail && recipientUserDetail.emailPreferences) {
+    if (type === 'CITY_INDUSTRY_SNAPSHOT' && recipientUserDetail.emailPreferences.peopleNearYou === false) {
+      return res.status(400).json({
+        success: false,
+        message: `Email blocked: User "${email}" has turned OFF "People Near You Notifications" in their Email Preferences.`
+      });
+    }
+    if (type === 'OFFER_OF_THE_DAY' && recipientUserDetail.emailPreferences.recommendedOffers === false) {
+      return res.status(400).json({
+        success: false,
+        message: `Email blocked: User "${email}" has turned OFF "Recommended Offers Notifications" in their Email Preferences.`
+      });
+    }
+    if (type === 'ASK_SHARE' && recipientUserDetail.emailPreferences.askShareNotifications === false) {
+      return res.status(400).json({
+        success: false,
+        message: `Email blocked: User "${email}" has turned OFF "Ask-Share Notifications" in their Email Preferences.`
+      });
+    }
+  }
 
   if (!process.env.SMTP_HOST) {
     return res.status(400).json({

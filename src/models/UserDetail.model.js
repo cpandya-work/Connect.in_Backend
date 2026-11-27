@@ -52,6 +52,20 @@ const userDetailSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  emailPreferences: {
+    askShareNotifications: {
+      type: Boolean,
+      default: true
+    },
+    recommendedOffers: {
+      type: Boolean,
+      default: true
+    },
+    peopleNearYou: {
+      type: Boolean,
+      default: true
+    }
+  },
   lastOfferShownAt: {
     type: Date,
     default: null

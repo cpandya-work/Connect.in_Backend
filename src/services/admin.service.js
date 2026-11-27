@@ -2607,19 +2607,24 @@ async function getStageIncompleteUserMobiles(stage, { days = 'all', date = null 
     ];
   }
 
-  const users = await User.find(query).select('phoneNumber').lean();
+  const users = await User.find(query)
+    .select('phoneNumber userDetailId')
+    .populate('userDetailId', 'fullName businessName')
+    .lean();
 
   const seen = new Set();
-  const mobiles = [];
+  const records = [];
   for (const u of users) {
     const phone = String(u.phoneNumber || '').trim();
     if (phone && !seen.has(phone)) {
       seen.add(phone);
-      mobiles.push(phone);
+      const detail = u.userDetailId;
+      const name = detail ? (detail.fullName || detail.businessName || '') : '';
+      records.push({ mobile: phone, name });
     }
   }
 
-  return mobiles;
+  return records;
 }
 
 /**
